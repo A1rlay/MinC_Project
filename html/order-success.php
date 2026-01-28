@@ -44,7 +44,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Order Confirmation - MinC Auto Parts</title>
+    <title>Order Confirmation - MinC Computer Parts</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://kit.fontawesome.com/ca30ddfff9.js" crossorigin="anonymous"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -64,16 +64,8 @@ try {
     </style>
 </head>
 <body class="bg-gray-50">
-    <!-- Navigation -->
-    <nav class="bg-white shadow-md">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-20">
-                <div class="flex-shrink-0">
-                    <a href="../index.php" class="text-3xl font-bold text-gray-900">MinC</a>
-                </div>
-            </div>
-        </div>
-    </nav>
+    <!-- Navigation Component -->
+    <?php include 'components/navbar.php'; ?>
 
     <!-- Success Content -->
     <div class="max-w-4xl mx-auto px-4 py-12">
@@ -187,5 +179,8 @@ try {
             </button>
         </div>
     </div>
+
+    <!-- Footer Component -->
+    <?php include 'components/footer.php'; ?>
 </body>
 </html>

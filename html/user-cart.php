@@ -1,10 +1,13 @@
+<?php
+session_start();
+?>
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shopping Cart - MinC Auto Parts</title>
+    <title>Shopping Cart - MinC Computer Parts</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -77,53 +80,8 @@
         </div>
     </div>
 
-    <!-- Navigation -->
-    <nav class="bg-white shadow-md fixed w-full top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-20">
-                <div class="flex-shrink-0">
-                    <a href="../index.php" class="text-3xl font-bold text-gray-900">MinC</a>
-                </div>
-
-                <div class="hidden md:flex items-center space-x-8">
-                    <a href="../index.php#about-us" class="text-gray-700 font-medium hover:text-[#08415c] transition">About Us</a>
-                    <a href="product.php" class="text-gray-700 font-medium hover:text-[#08415c] transition">Products</a>
-                    <a href="../index.php#categories" class="text-gray-700 font-medium hover:text-[#08415c] transition">Categories</a>
-                    <a href="../index.php#contact-us" class="text-gray-700 font-medium hover:text-[#08415c] transition">Contact</a>
-                </div>
-
-                <div class="hidden md:flex items-center space-x-6">
-                    <a href="user-cart.php" class="relative text-[#08415c]">
-                        <i class="fas fa-shopping-cart text-2xl"></i>
-                        <span class="absolute -top-2 -right-2 bg-[#08415c] text-white text-xs rounded-full h-5 w-5 flex items-center justify-center cart-count">0</span>
-                    </a>
-
-                    <div id="userSection">
-                        <button onclick="openLoginModal()" class="btn-primary-custom text-white px-6 py-2 rounded-lg font-medium">
-                            Login
-                        </button>
-                    </div>
-                </div>
-
-                <button class="md:hidden text-gray-700" onclick="toggleMobileMenu()">
-                    <i class="fas fa-bars text-2xl"></i>
-                </button>
-            </div>
-        </div>
-
-        <!-- Mobile Menu -->
-        <div id="mobileMenu" class="hidden md:hidden bg-white border-t">
-            <div class="px-4 py-4 space-y-3">
-                <a href="../index.php#about-us" class="block text-gray-700 font-medium py-2">About Us</a>
-                <a href="product.php" class="block text-gray-700 font-medium py-2">Products</a>
-                <a href="../index.php#categories" class="block text-gray-700 font-medium py-2">Categories</a>
-                <a href="../index.php#contact-us" class="block text-gray-700 font-medium py-2">Contact</a>
-                <button onclick="openLoginModal()" class="w-full btn-primary-custom text-white px-6 py-2 rounded-lg font-medium">
-                    Login
-                </button>
-            </div>
-        </div>
-    </nav>
+    <!-- Navigation Component -->
+    <?php include 'components/navbar.php'; ?>
 
     <!-- Page Header -->
     <section class="hero-gradient mt-20 py-12 px-4">
@@ -202,54 +160,8 @@
     </div>
 </div>
 
-<!-- Footer -->
-<footer class="bg-[#08415c] text-white py-16 mt-20">
-    <div class="max-w-7xl mx-auto px-4">
-        <div class="grid md:grid-cols-4 gap-12">
-            <div>
-                <h3 class="text-2xl font-bold mb-6">MinC</h3>
-                <p class="text-blue-200">Your trusted partner for quality auto parts and accessories.</p>
-            </div>
-
-            <div>
-                <h4 class="text-lg font-bold mb-4">Contact Us</h4>
-                <ul class="space-y-3 text-blue-200">
-                    <li><i class="fas fa-map-marker-alt mr-2"></i> Angeles City, Pampanga</li>
-                    <li><i class="fas fa-phone mr-2"></i> 0921-949-8978</li>
-                    <li><i class="fas fa-envelope mr-2"></i> MinC@gmail.com</li>
-                </ul>
-            </div>
-
-            <div>
-                <h4 class="text-lg font-bold mb-4">Quick Links</h4>
-                <ul class="space-y-3 text-blue-200">
-                    <li><a href="../index.php#about-us" class="hover:text-white transition">About Us</a></li>
-                    <li><a href="../index.php#categories" class="hover:text-white transition">Categories</a></li>
-                    <li><a href="#" class="hover:text-white transition">Blog</a></li>
-                </ul>
-            </div>
-
-            <div>
-                <h4 class="text-lg font-bold mb-4">Follow Us</h4>
-                <div class="flex space-x-4">
-                    <a href="#" class="bg-[#0a5273] w-10 h-10 rounded-full flex items-center justify-center hover:bg-white hover:text-[#08415c] transition">
-                        <i class="fab fa-facebook-f"></i>
-                    </a>
-                    <a href="#" class="bg-[#0a5273] w-10 h-10 rounded-full flex items-center justify-center hover:bg-white hover:text-[#08415c] transition">
-                        <i class="fab fa-twitter"></i>
-                    </a>
-                    <a href="#" class="bg-[#0a5273] w-10 h-10 rounded-full flex items-center justify-center hover:bg-white hover:text-[#08415c] transition">
-                        <i class="fab fa-instagram"></i>
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <div class="border-t border-blue-900 mt-12 pt-8 text-center text-blue-200">
-            <p>&copy; 2025 MinC. All rights reserved.</p>
-        </div>
-    </div>
-</footer>
+<!-- Footer Component -->
+<?php include 'components/footer.php'; ?>
 
 <!-- Login Modal -->
 <div id="loginModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">

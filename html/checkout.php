@@ -51,7 +51,7 @@ if ($user_id) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Checkout - MinC Auto Parts</title>
+    <title>Checkout - MinC Computer Parts</title>
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -182,19 +182,8 @@ if ($user_id) {
         </div>
     </div>
 
-    <!-- Navigation -->
-    <nav class="bg-white shadow-md">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-20">
-                <div class="flex-shrink-0">
-                    <a href="../index.php" class="text-3xl font-bold text-gray-900">MinC</a>
-                </div>
-                <div class="text-gray-600">
-                    <i class="fas fa-lock mr-2"></i>Secure Checkout
-                </div>
-            </div>
-        </div>
-    </nav>
+    <!-- Navigation Component -->
+    <?php include 'components/navbar.php'; ?>
 
     <!-- Checkout Content -->
     <div class="max-w-7xl mx-auto px-4 py-8">

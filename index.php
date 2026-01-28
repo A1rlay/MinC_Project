@@ -49,109 +49,20 @@
             border-color: #08415c;
         }
         
-        .nav-link-custom {
-            position: relative;
-            transition: color 0.3s ease;
-        }
-        
-        .nav-link-custom:hover {
-            color: #08415c;
-        }
-        
-        .nav-link-custom::after {
-            content: '';
-            position: absolute;
-            bottom: -4px;
-            left: 0;
-            width: 0;
-            height: 2px;
-            background: #08415c;
-            transition: width 0.3s ease;
-        }
-        
-        .nav-link-custom:hover::after {
-            width: 100%;
-        }
-        
         .category-badge {
             background: linear-gradient(135deg, #08415c 0%, #0a5273 100%);
-        }
-        
-        .btn-primary-custom {
-            background: linear-gradient(135deg, #08415c 0%, #0a5273 100%);
-            transition: all 0.3s ease;
-        }
-        
-        .btn-primary-custom:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(8, 65, 92, 0.4);
         }
         
         .feature-icon {
             background: linear-gradient(135deg, #08415c 0%, #0a5273 100%);
         }
         
-        .category-navbar {
-            background: linear-gradient(135deg, #08415c 0%, #0a5273 100%);
-        }
     </style>
 </head>
 <body class="bg-gray-50">
     
-    <!-- Navigation -->
-    <nav class="bg-white shadow-md fixed w-full top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-20">
-                <!-- Logo -->
-                <div class="flex-shrink-0">
-                    <a href="#" class="text-3xl font-bold text-gray-900">MinC</a>
-                </div>
-                
-<!-- Desktop Menu -->
-<div class="hidden md:flex items-center space-x-8">
-    <a href="#about-us" class="nav-link-custom text-gray-700 font-medium">About Us</a>
-    <a href="html/product.php" class="nav-link-custom text-gray-700 font-medium">Products</a>
-    <a href="#categories" class="nav-link-custom text-gray-700 font-medium">Categories</a>
-    <a href="#contact-us" class="nav-link-custom text-gray-700 font-medium">Contact</a>
-</div>
-                
-                <!-- Right Menu -->
-                <div class="hidden md:flex items-center space-x-6">
-                    <!-- Cart -->
-<!-- Cart -->
-<a href="html/user-cart.php" class="relative text-gray-700 hover:text-[#08415c] transition">
-    <i class="fas fa-shopping-cart text-2xl"></i>
-    <span class="absolute -top-2 -right-2 bg-[#08415c] text-white text-xs rounded-full h-5 w-5 flex items-center justify-center cart-count">0</span>
-</a>
-                    
-                    <!-- Login/User Info -->
-                    <div id="userSection">
-                        <button onclick="openLoginModal()" class="btn-primary-custom text-white px-6 py-2 rounded-lg font-medium">
-                            Login
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Mobile Menu Button -->
-                <button class="md:hidden text-gray-700" onclick="toggleMobileMenu()">
-                    <i class="fas fa-bars text-2xl"></i>
-                </button>
-            </div>
-        </div>
-        
-<!-- Mobile Menu -->
-<div id="mobileMenu" class="hidden md:hidden bg-white border-t">
-    <div class="px-4 py-4 space-y-3">
-        <a href="#about-us" class="block text-gray-700 font-medium py-2">About Us</a>
-        <a href="html/product.php" class="block text-gray-700 font-medium py-2">Products</a>
-        <a href="#categories" class="block text-gray-700 font-medium py-2">Categories</a>
-        <a href="#contact-us" class="block text-gray-700 font-medium py-2">Contact</a>
-        <button onclick="openLoginModal()" class="w-full btn-primary-custom text-white px-6 py-2 rounded-lg font-medium">
-            Login
-        </button>
-    </div>
-</div>
-    </nav>
+    <!-- Navigation Component -->
+    <?php include 'html/components/navbar.php'; ?>
     
     <!-- Hero Section -->
     <section class="hero-gradient mt-20 py-20 px-4">
@@ -175,7 +86,7 @@
                 </div>
                 
                 <div class="hidden md:block relative z-10">
-                    <img src="assets/images/website-images/slider-1.webp" alt="Auto Parts" class="w-full rounded-2xl shadow-2xl transform hover:scale-105 transition duration-300">
+                    <img src="Assets/images/website-images/slider-1.webp" alt="Auto Parts" class="w-full rounded-2xl shadow-2xl transform hover:scale-105 transition duration-300" onerror="this.src='https://via.placeholder.com/600x400?text=Auto+Parts'">
                 </div>
             </div>
         </div>
@@ -227,7 +138,7 @@
                 </div>
                 
                 <div class="hidden md:block">
-                    <img src="assets/images/website-images/about.png" alt="About MinC" class="w-full rounded-2xl shadow-xl transform hover:scale-105 transition duration-300">
+                    <img src="Assets/images/website-images/about.png" alt="About MinC" class="w-full rounded-2xl shadow-xl transform hover:scale-105 transition duration-300" onerror="this.src='https://via.placeholder.com/600x400?text=About+MinC'">
                 </div>
             </div>
         </div>
@@ -300,65 +211,6 @@
             </div>
         </div>
     </footer>
-    
-    <!-- Login Modal -->
-    <div id="loginModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 relative">
-            <button onclick="closeLoginModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
-                <i class="fas fa-times text-2xl"></i>
-            </button>
-            
-            <div id="loginForm">
-                <h2 class="text-3xl font-bold mb-6 text-[#08415c]">Welcome Back</h2>
-                <form id="loginFormElement" onsubmit="handleLogin(event)">
-                    <div class="mb-4">
-                        <label class="block text-gray-700 font-medium mb-2">Email</label>
-                        <input type="email" id="loginEmail" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
-                    </div>
-                    <div class="mb-6">
-                        <label class="block text-gray-700 font-medium mb-2">Password</label>
-                        <input type="password" id="loginPassword" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
-                    </div>
-                    <button type="submit" class="w-full btn-primary-custom text-white py-3 rounded-lg font-semibold">
-                        Login
-                    </button>
-                </form>
-                <p class="text-center mt-6 text-gray-600">
-                    Don't have an account? 
-                    <button onclick="showRegister()" class="text-[#08415c] font-semibold hover:text-[#0a5273]">Register</button>
-                </p>
-            </div>
-            
-<div id="registerForm" class="hidden">
-                <h2 class="text-3xl font-bold mb-6 text-[#08415c]">Create Account</h2>
-                <form id="registerFormElement" onsubmit="handleRegister(event)">
-                    <div class="mb-4">
-                        <label class="block text-gray-700 font-medium mb-2">First Name</label>
-                        <input type="text" id="registerFname" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
-                    </div>
-                    <div class="mb-4">
-                        <label class="block text-gray-700 font-medium mb-2">Last Name</label>
-                        <input type="text" id="registerLname" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
-                    </div>
-                    <div class="mb-4">
-                        <label class="block text-gray-700 font-medium mb-2">Email</label>
-                        <input type="email" id="registerEmail" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
-                    </div>
-                    <div class="mb-6">
-                        <label class="block text-gray-700 font-medium mb-2">Password</label>
-                        <input type="password" id="registerPassword" required minlength="6" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
-                    </div>
-                    <button type="submit" class="w-full btn-primary-custom text-white py-3 rounded-lg font-semibold">
-                        Register
-                    </button>
-                </form>
-                <p class="text-center mt-6 text-gray-600">
-                    Already have an account? 
-                    <button onclick="showLogin()" class="text-[#08415c] font-semibold hover:text-[#0a5273]">Login</button>
-                </p>
-            </div>
-        </div>
-    </div>
     
     <script>
         // Check session on page load
@@ -472,19 +324,6 @@ document.addEventListener('click', function(event) {
     }
 });
         
-        function toggleMobileMenu() {
-            const menu = document.getElementById('mobileMenu');
-            menu.classList.toggle('hidden');
-        }
-        
-        function openLoginModal() {
-            document.getElementById('loginModal').classList.remove('hidden');
-        }
-        
-        function closeLoginModal() {
-            document.getElementById('loginModal').classList.add('hidden');
-        }
-        
         function showRegister() {
             document.getElementById('loginForm').classList.add('hidden');
             document.getElementById('registerForm').classList.remove('hidden');
@@ -539,7 +378,6 @@ document.addEventListener('click', function(event) {
                             window.location.href = data.redirect;
                         } else {
                             // Consumer stays on landing page
-                            closeLoginModal();
                             checkSession(); // Update UI
                             window.location.reload();
                         }
