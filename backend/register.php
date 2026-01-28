@@ -104,11 +104,30 @@ try {
     // Hash password
     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
     
+    // Check if email verification system is set up (email_verification_tokens table exists)
+    $checkTableStmt = $pdo->query("SHOW TABLES LIKE 'email_verification_tokens'");
+    $emailVerificationEnabled = $checkTableStmt->rowCount() > 0;
+    
+    if ($emailVerificationEnabled) {
+        // Load email service and token generator
+        require_once __DIR__ . '/../library/EmailService.php';
+        require_once __DIR__ . '/../library/TokenGenerator.php';
+    }
+    
     // Insert new user as Consumer (user_level_id = 4)
-    $stmt = $pdo->prepare("
-        INSERT INTO users (fname, lname, email, password, user_level_id, user_status, created_at) 
-        VALUES (:fname, :lname, :email, :password, 4, 'active', NOW())
-    ");
+    if ($emailVerificationEnabled) {
+        // Email verification is enabled - user is unverified
+        $stmt = $pdo->prepare("
+            INSERT INTO users (fname, lname, email, password, user_level_id, user_status, is_email_verified, created_at) 
+            VALUES (:fname, :lname, :email, :password, 4, 'active', 0, NOW())
+        ");
+    } else {
+        // Fallback: Email verification not set up - user is verified immediately
+        $stmt = $pdo->prepare("
+            INSERT INTO users (fname, lname, email, password, user_level_id, user_status, created_at) 
+            VALUES (:fname, :lname, :email, :password, 4, 'active', NOW())
+        ");
+    }
     
     $stmt->execute([
         ':fname' => $fname,
@@ -118,6 +137,49 @@ try {
     ]);
     
     $newUserId = $pdo->lastInsertId();
+    $emailSent = false;
+    
+    // If email verification is enabled, generate and send verification token
+    if ($emailVerificationEnabled) {
+        try {
+            // Generate verification token
+            $token = TokenGenerator::generateToken(32);
+            $tokenHash = TokenGenerator::hashToken($token);
+            $expiresAt = date('Y-m-d H:i:s', time() + (24 * 60 * 60)); // 24 hours
+            
+            // Store verification token in database
+            $tokenStmt = $pdo->prepare("
+                INSERT INTO email_verification_tokens (user_id, token, token_hash, email, expires_at) 
+                VALUES (:user_id, :token, :token_hash, :email, :expires_at)
+            ");
+            
+            $tokenStmt->execute([
+                ':user_id' => $newUserId,
+                ':token' => $token,
+                ':token_hash' => $tokenHash,
+                ':email' => $email,
+                ':expires_at' => $expiresAt
+            ]);
+            
+            // Build verification link
+            $baseUrl = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'];
+            $verificationLink = $baseUrl . '/backend/verify_email.php?token=' . urlencode($token);
+            
+            // Send verification email
+            $emailService = new EmailService();
+            $emailSent = $emailService->sendVerificationEmail(
+                $email,
+                $fname . ' ' . $lname,
+                $verificationLink,
+                $token
+            );
+        } catch (Exception $e) {
+            // Log email/token error but don't fail registration
+            error_log("Email verification token/send error: " . $e->getMessage());
+            $emailSent = false;
+        }
+    }
+    
     
     // Log registration in audit trail
     logAuditTrail(
@@ -133,16 +195,32 @@ try {
             'lname' => $lname,
             'email' => $email,
             'user_level_id' => 4,
-            'user_status' => 'active'
+            'user_status' => 'active',
+            'is_email_verified' => $emailVerificationEnabled ? 0 : 1,
+            'email_verification_enabled' => $emailVerificationEnabled,
+            'email_sent' => $emailSent
         ],
-        'Customer self-registration'
+        'Customer self-registration' . ($emailVerificationEnabled ? ' with email verification' : '')
     );
     
     // Return success response
+    if ($emailVerificationEnabled) {
+        $message = $emailSent 
+            ? 'Registration successful! Please check your email to verify your account.'
+            : 'Registration successful! A verification email will be sent shortly.';
+        $emailVerified = false;
+    } else {
+        $message = 'Registration successful! You can now login.';
+        $emailVerified = true;
+    }
+    
     echo json_encode([
         'success' => true,
-        'message' => 'Registration successful! Please login.',
-        'user_id' => $newUserId
+        'message' => $message,
+        'user_id' => $newUserId,
+        'email_verified' => $emailVerified,
+        'email_verification_enabled' => $emailVerificationEnabled,
+        'email_sent' => $emailSent
     ]);
     
 } catch (PDOException $e) {
