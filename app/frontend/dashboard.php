@@ -106,13 +106,113 @@ $monthly_sales_json = json_encode($monthly_sales);
 $top_categories_json = json_encode($top_categories);
 $status_distribution_json = json_encode($status_distribution);
 
-// Custom styles (retained + auto-parts themed)
+// Custom styles (retained + auto-parts themed - matching home page)
 $additional_styles = '
 <style>
-    .stat-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.15); }
-    .quick-action-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.2); }
-    .order-item:hover { background: rgba(249,250,251,0.9); transform: translateX(5px); }
-    .chart-container { height: 300px; width: 100%; }
+    :root {
+        --primary-color: #08415c;
+        --primary-dark: #0a5273;
+        --primary-light: #1a6d9e;
+    }
+    
+    body {
+        font-family: "Inter", sans-serif;
+    }
+    
+    .stat-card {
+        background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%);
+        border: 1px solid rgba(8, 65, 92, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .stat-card:hover { 
+        transform: translateY(-5px); 
+        box-shadow: 0 20px 40px rgba(8, 65, 92, 0.15);
+        border-color: rgba(8, 65, 92, 0.2);
+    }
+    
+    .stat-card .icon-box {
+        background: linear-gradient(135deg, #08415c 0%, #0a5273 100%);
+    }
+    
+    .quick-action-btn {
+        background: linear-gradient(135deg, rgba(248,250,252,0.95) 0%, rgba(255,255,255,0.95) 100%);
+        border: 2px solid rgba(8, 65, 92, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .quick-action-btn:hover { 
+        transform: translateY(-3px); 
+        box-shadow: 0 12px 30px rgba(8, 65, 92, 0.15);
+        border-color: rgba(8, 65, 92, 0.3);
+    }
+    
+    .quick-action-btn .icon-circle {
+        background: linear-gradient(135deg, #08415c 0%, #0a5273 100%);
+    }
+    
+    .order-item {
+        border: 1px solid rgba(8, 65, 92, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .order-item:hover { 
+        background: rgba(248,250,252,0.9);
+        transform: translateX(5px);
+        border-color: rgba(8, 65, 92, 0.2);
+    }
+    
+    .chart-container { 
+        height: 300px; 
+        width: 100%; 
+    }
+    
+    .chart-card {
+        background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%);
+        border: 1px solid rgba(8, 65, 92, 0.1);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    }
+    
+    .professional-card {
+        background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%);
+        border: 1px solid rgba(8, 65, 92, 0.1);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    }
+    
+    .section-title {
+        color: var(--primary-color);
+        font-weight: 600;
+    }
+    
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .animate-slideInUp {
+        animation: slideInUp 0.6s ease-out forwards;
+    }
+
+    @keyframes float {
+        0%, 100% {
+            transform: translateY(0px);
+        }
+        50% {
+            transform: translateY(-10px);
+        }
+    }
+
+    .animate-float {
+        animation: float 3s ease-in-out infinite;
+    }
 </style>';
 
 // Start output buffering for content
@@ -120,16 +220,16 @@ ob_start();
 ?>
 
 <!-- Welcome Section -->
-<div class="professional-card rounded-xl p-6 mb-6 animate-fadeIn">
+<div class="professional-card rounded-xl p-6 mb-6 animate-slideInUp">
     <div class="flex items-center justify-between">
         <div>
-            <h2 class="text-2xl font-bold text-gray-800 mb-2">
+            <h2 class="text-2xl font-bold text-[#08415c] mb-2">
                 Welcome back, <?= htmlspecialchars(explode(' ', $user_data['name'])[0]) ?>! 
             </h2>
-            <p class="text-gray-600">Here's your AutoSupply Pro store performance today.</p>
+            <p class="text-gray-600">Here's your MinC Auto Supply store performance today.</p>
         </div>
         <div class="hidden md:block">
-            <div class="w-16 h-16 bg-gradient-to-br from-red-500 to-orange-600 rounded-xl flex items-center justify-center animate-float">
+            <div class="w-16 h-16 rounded-xl flex items-center justify-center animate-float" style="background: linear-gradient(135deg, #08415c 0%, #0a5273 100%);">
                 <i class="fas fa-car text-white text-3xl"></i>
             </div>
         </div>
@@ -142,10 +242,10 @@ ob_start();
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-sm font-medium text-gray-600 mb-1">Today's Sales</p>
-                <p class="text-3xl font-bold text-gray-900">₱<?= number_format($today_sales, 2) ?></p>
-                <p class="text-xs text-green-600 mt-2"><?= $today_orders ?> orders today</p>
+                <p class="text-3xl font-bold text-[#08415c]">₱<?= number_format($today_sales, 2) ?></p>
+                <p class="text-xs text-[#0a5273] mt-2"><?= $today_orders ?> orders today</p>
             </div>
-            <div class="p-4 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl">
+            <div class="p-4 icon-box rounded-xl">
                 <i class="fas fa-peso-sign text-white text-2xl"></i>
             </div>
         </div>
@@ -155,10 +255,10 @@ ob_start();
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-sm font-medium text-gray-600 mb-1">Pending Orders</p>
-                <p class="text-3xl font-bold text-gray-900"><?= $pending_orders ?></p>
-                <p class="text-xs text-amber-600 mt-2">Requires attention</p>
+                <p class="text-3xl font-bold text-[#08415c]"><?= $pending_orders ?></p>
+                <p class="text-xs text-[#0a5273] mt-2">Requires attention</p>
             </div>
-            <div class="p-4 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl">
+            <div class="p-4 icon-box rounded-xl">
                 <i class="fas fa-clock text-white text-2xl"></i>
             </div>
         </div>
@@ -168,10 +268,10 @@ ob_start();
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-sm font-medium text-gray-600 mb-1">Low Stock Items</p>
-                <p class="text-3xl font-bold text-gray-900"><?= $low_stock ?></p>
-                <p class="text-xs text-red-600 mt-2">Restock needed</p>
+                <p class="text-3xl font-bold text-[#08415c]"><?= $low_stock ?></p>
+                <p class="text-xs text-[#0a5273] mt-2">Restock needed</p>
             </div>
-            <div class="p-4 bg-gradient-to-br from-red-500 to-rose-600 rounded-xl">
+            <div class="p-4 icon-box rounded-xl">
                 <i class="fas fa-exclamation-triangle text-white text-2xl"></i>
             </div>
         </div>
@@ -181,10 +281,10 @@ ob_start();
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-sm font-medium text-gray-600 mb-1">Total Revenue</p>
-                <p class="text-3xl font-bold text-gray-900">₱<?= number_format($total_revenue, 2) ?></p>
-                <p class="text-xs text-blue-600 mt-2">All time</p>
+                <p class="text-3xl font-bold text-[#08415c]">₱<?= number_format($total_revenue, 2) ?></p>
+                <p class="text-xs text-[#0a5273] mt-2">All time</p>
             </div>
-            <div class="p-4 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl">
+            <div class="p-4 icon-box rounded-xl">
                 <i class="fas fa-chart-line text-white text-2xl"></i>
             </div>
         </div>
@@ -194,14 +294,14 @@ ob_start();
 <!-- Charts Section -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
     <div class="chart-card p-6">
-        <h3 class="text-lg font-semibold text-gray-800 mb-4">Sales Trend (Last 6 Months)</h3>
+        <h3 class="text-lg font-semibold text-[#08415c] mb-4 section-title">Sales Trend (Last 6 Months)</h3>
         <div class="chart-container">
             <canvas id="salesTrendChart"></canvas>
         </div>
     </div>
 
     <div class="chart-card p-6">
-        <h3 class="text-lg font-semibold text-gray-800 mb-4">Order Status Distribution</h3>
+        <h3 class="text-lg font-semibold text-[#08415c] mb-4 section-title">Order Status Distribution</h3>
         <div class="chart-container">
             <canvas id="statusChart"></canvas>
         </div>
@@ -211,47 +311,57 @@ ob_start();
 <!-- Quick Actions & Recent Orders -->
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
     <div class="lg:col-span-2 professional-card rounded-xl p-6">
-        <h3 class="text-lg font-semibold text-gray-800 mb-6">Quick Actions</h3>
+        <h3 class="text-lg font-semibold text-[#08415c] mb-6 section-title">Quick Actions</h3>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <button onclick="location.href='products.php'" class="quick-action-btn flex flex-col items-center p-6 rounded-xl bg-gradient-to-br from-blue-50 to-cyan-100 border border-blue-200">
-                <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl flex items-center justify-center mb-3">
+            <button onclick="location.href='products.php'" class="quick-action-btn flex flex-col items-center p-6 rounded-xl border">
+                <div class="w-12 h-12 icon-circle rounded-xl flex items-center justify-center mb-3">
                     <i class="fas fa-box text-white text-xl"></i>
                 </div>
-                <span class="text-sm font-medium">Manage Products</span>
+                <span class="text-sm font-medium text-[#08415c]">Products</span>
             </button>
-            <button onclick="location.href='orders.php'" class="quick-action-btn flex flex-col items-center p-6 rounded-xl bg-gradient-to-br from-green-50 to-emerald-100 border border-green-200">
-                <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center mb-3">
+            <button onclick="location.href='orders.php'" class="quick-action-btn flex flex-col items-center p-6 rounded-xl border">
+                <div class="w-12 h-12 icon-circle rounded-xl flex items-center justify-center mb-3">
                     <i class="fas fa-shopping-cart text-white text-xl"></i>
                 </div>
-                <span class="text-sm font-medium">View Orders</span>
+                <span class="text-sm font-medium text-[#08415c]">Orders</span>
             </button>
-            <button onclick="location.href='categories.php'" class="quick-action-btn flex flex-col items-center p-6 rounded-xl bg-gradient-to-br from-purple-50 to-indigo-100 border border-purple-200">
-                <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center mb-3">
+            <button onclick="location.href='categories.php'" class="quick-action-btn flex flex-col items-center p-6 rounded-xl border">
+                <div class="w-12 h-12 icon-circle rounded-xl flex items-center justify-center mb-3">
                     <i class="fas fa-tags text-white text-xl"></i>
                 </div>
-                <span class="text-sm font-medium">Categories</span>
+                <span class="text-sm font-medium text-[#08415c]">Categories</span>
             </button>
-            <button onclick="location.href='customers.php'" class="quick-action-btn flex flex-col items-center p-6 rounded-xl bg-gradient-to-br from-orange-50 to-amber-100 border border-orange-200">
-                <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center mb-3">
+            <button onclick="location.href='customers.php'" class="quick-action-btn flex flex-col items-center p-6 rounded-xl border">
+                <div class="w-12 h-12 icon-circle rounded-xl flex items-center justify-center mb-3">
                     <i class="fas fa-users text-white text-xl"></i>
                 </div>
-                <span class="text-sm font-medium">Customers</span>
+                <span class="text-sm font-medium text-[#08415c]">Customers</span>
             </button>
+        </div>
+        <div class="mt-4 pt-4 border-t border-gray-200">
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="location.href='generate_report.php'" class="flex items-center justify-center p-3 bg-gradient-to-r from-[#08415c] to-[#0a5273] text-white rounded-lg font-medium hover:shadow-lg transition">
+                    <i class="fas fa-file-alt mr-2"></i>View Reports
+                </button>
+                <button onclick="location.href='products.php'" class="flex items-center justify-center p-3 border-2 border-[#08415c] text-[#08415c] rounded-lg font-medium hover:bg-[#08415c] hover:text-white transition">
+                    <i class="fas fa-warehouse mr-2"></i>Inventory
+                </button>
+            </div>
         </div>
     </div>
 
     <div class="professional-card rounded-xl p-6">
-        <h3 class="text-lg font-semibold text-gray-800 mb-6">Recent Orders</h3>
+        <h3 class="text-lg font-semibold text-[#08415c] mb-6 section-title">Recent Orders</h3>
         <div class="space-y-3 max-h-96 overflow-y-auto">
             <?php if ($recent_orders): ?>
                 <?php foreach ($recent_orders as $order): ?>
-                    <div class="order-item flex justify-between items-center p-4 rounded-lg border border-gray-100 hover:bg-gray-50 transition">
+                    <div class="order-item flex justify-between items-center p-4 rounded-lg border">
                         <div>
-                            <p class="font-medium text-gray-800">#<?= $order['order_number'] ?></p>
+                            <p class="font-medium text-[#08415c]">#<?= $order['order_number'] ?></p>
                             <p class="text-sm text-gray-600"><?= htmlspecialchars($order['customer_name']) ?></p>
                         </div>
                         <div class="text-right">
-                            <p class="font-semibold">₱<?= number_format($order['total_amount'], 2) ?></p>
+                            <p class="font-semibold text-[#08415c]">₱<?= number_format($order['total_amount'], 2) ?></p>
                             <span class="text-xs px-2 py-1 rounded-full 
                                 <?= $order['status'] == 'completed' ? 'bg-green-100 text-green-800' : 
                                    ($order['status'] == 'pending' ? 'bg-amber-100 text-amber-800' : 
@@ -266,7 +376,7 @@ ob_start();
             <?php endif; ?>
         </div>
         <div class="mt-4 pt-4 border-t border-gray-200">
-            <a href="orders.php" class="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center justify-center">
+            <a href="orders.php" class="text-sm text-[#08415c] hover:text-[#0a5273] font-medium flex items-center justify-center">
                 View all orders <i class="fas fa-arrow-right ml-2"></i>
             </a>
         </div>
@@ -289,11 +399,13 @@ document.addEventListener('DOMContentLoaded', function() {
             datasets: [{
                 label: 'Revenue',
                 data: salesData.map(d => d.revenue),
-                borderColor: '#10B981',
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                borderColor: '#08415c',
+                backgroundColor: 'rgba(8, 65, 92, 0.1)',
                 tension: 0.4,
                 fill: true,
-                pointRadius: 6
+                pointRadius: 6,
+                pointBackgroundColor: '#08415c',
+                pointBorderColor: '#0a5273'
             }]
         },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }

@@ -81,7 +81,7 @@ function validateSession($redirect = true, $admin_only = false) {
  */
 
 /**
- * Check if user is IT Personnel (user_level_id = 1)
+ * Check if user is IT Staff (user_level_id = 1)
  */
 function isITStaff() {
     return isset($_SESSION['user_level_id']) && $_SESSION['user_level_id'] == 1;

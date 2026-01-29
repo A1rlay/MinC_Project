@@ -304,7 +304,7 @@ session_start();
     function displayProductDetail(product) {
         const imagePath = product.product_image 
             ? `../Assets/images/products/${product.product_image}` 
-            : '../Assets/images/website-images/placeholder.jpg';
+            : '../Assets/images/website-images/placeholder.svg';
 
         const stockBadge = product.stock_quantity > 0 
             ? `<span class="text-green-600 font-semibold"><i class="fas fa-check-circle mr-1"></i>In Stock (${product.stock_quantity} available)</span>`
@@ -317,7 +317,7 @@ session_start();
                 <img src="${imagePath}" 
                      alt="${escapeHtml(product.product_name)}" 
                      class="w-full main-image rounded-lg"
-                     onerror="this.src='../Assets/images/website-images/placeholder.jpg'">>
+                     onerror="this.src='../Assets/images/website-images/placeholder.svg'">
             </div>
 
             <!-- Product Info -->
@@ -420,7 +420,7 @@ session_start();
         products.forEach(product => {
             const imagePath = product.product_image 
                 ? `../Assets/images/products/${product.product_image}` 
-                : '../Assets/images/website-images/placeholder.jpg';
+                : '../Assets/images/website-images/placeholder.svg';
 
             const card = document.createElement('div');
             card.className = 'bg-white rounded-xl shadow-lg overflow-hidden product-card cursor-pointer';
@@ -430,7 +430,7 @@ session_start();
                     <img src="${imagePath}" 
                          alt="${escapeHtml(product.product_name)}" 
                          class="w-full h-full object-cover"
-                         onerror="this.src='../Assets/images/website-images/placeholder.jpg'">>
+                         onerror="this.src='../Assets/images/website-images/placeholder.svg'">
                 </div>
                 <div class="p-4">
                     <h4 class="text-lg font-bold text-[#08415c] mb-2 line-clamp-2">${escapeHtml(product.product_name)}</h4>

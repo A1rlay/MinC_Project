@@ -53,7 +53,7 @@ async function getProducts() {
                     return `
                         <div class="col-md-4">
                             <div class="product-top">
-                               <a href="product_detail.php?p_id=${product.p_id}"><img src=${product.url1}></a>
+                               <a href="product_detail.php?p_id=${product.p_id}"><img src="${product.url1}" onerror="this.src='../Assets/images/website-images/placeholder.svg'"></a>
                                <div class="overlay">
                                    <a href="product_detail.php?p_id=${product.p_id}" class="btn btn-secondary" title="Quick View"><i class="far fa-eye"></i></a>
                                 </div>    

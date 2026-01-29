@@ -23,6 +23,7 @@ $html_path = $is_in_html ? '' : 'html/';
                 <a href="<?php echo $html_path; ?>product.php" class="nav-link-custom text-gray-700 font-medium">Products</a>
                 <a href="<?php echo $base_path; ?>index.php#categories" class="nav-link-custom text-gray-700 font-medium">Categories</a>
                 <a href="<?php echo $base_path; ?>index.php#contact-us" class="nav-link-custom text-gray-700 font-medium">Contact</a>
+                <a id="dashboardLink" href="<?php echo $base_path; ?>app/frontend/dashboard.php" class="nav-link-custom text-gray-700 font-medium flex items-center hidden"><i class="fas fa-chart-line mr-2"></i>Dashboard</a>
                 <a id="profileLink" href="<?php echo $html_path; ?>profile.php" class="nav-link-custom text-gray-700 font-medium flex items-center hidden"><i class="fas fa-user-circle mr-2"></i>Profile</a>
                 <a id="orderLink" href="<?php echo $html_path; ?>user-cart.php" class="nav-link-custom text-gray-700 font-medium flex items-center hidden"><i class="fas fa-shopping-cart mr-2"></i>Order</a>
                 <button id="loginBtn" class="btn-primary-custom text-white px-4 py-2 rounded-lg font-medium ml-4" onclick="openLoginModal()">Login</button>
@@ -43,6 +44,7 @@ $html_path = $is_in_html ? '' : 'html/';
             <a href="<?php echo $html_path; ?>product.php" class="block text-gray-700 font-medium py-2">Products</a>
             <a href="<?php echo $base_path; ?>index.php#categories" class="block text-gray-700 font-medium py-2">Categories</a>
             <a href="<?php echo $base_path; ?>index.php#contact-us" class="block text-gray-700 font-medium py-2">Contact</a>
+            <a id="dashboardLinkMobile" href="<?php echo $base_path; ?>app/frontend/dashboard.php" class="block text-gray-700 font-medium py-2 flex items-center hidden"><i class="fas fa-chart-line mr-2"></i>Dashboard</a>
             <a id="profileLinkMobile" href="<?php echo $html_path; ?>profile.php" class="block text-gray-700 font-medium py-2 flex items-center hidden"><i class="fas fa-user-circle mr-2"></i>Profile</a>
             <a id="orderLinkMobile" href="<?php echo $html_path; ?>user-cart.php" class="block text-gray-700 font-medium py-2 flex items-center hidden"><i class="fas fa-shopping-cart mr-2"></i>Order</a>
             <button id="loginBtnMobile" class="w-full btn-primary-custom text-white px-4 py-2 rounded-lg font-medium mt-4" onclick="openLoginModal()">Login</button>
@@ -155,12 +157,16 @@ $html_path = $is_in_html ? '' : 'html/';
         fetch(BASE_PATH + 'backend/auth.php?api=status')
             .then(response => response.json())
             .then(data => {
-                updateNavbarUI(data.logged_in);
+                if (data.logged_in) {
+                    updateNavbarUI(true, data.user.user_level_id);
+                } else {
+                    updateNavbarUI(false);
+                }
             })
             .catch(error => console.error('Session check error:', error));
     }
 
-    function updateNavbarUI(isLoggedIn) {
+    function updateNavbarUI(isLoggedIn, userLevelId = null) {
         const loginBtn = document.getElementById('loginBtn');
         const loginBtnMobile = document.getElementById('loginBtnMobile');
         const logoutBtn = document.getElementById('logoutBtn');
@@ -169,6 +175,8 @@ $html_path = $is_in_html ? '' : 'html/';
         const profileLinkMobile = document.getElementById('profileLinkMobile');
         const orderLink = document.getElementById('orderLink');
         const orderLinkMobile = document.getElementById('orderLinkMobile');
+        const dashboardLink = document.getElementById('dashboardLink');
+        const dashboardLinkMobile = document.getElementById('dashboardLinkMobile');
 
         if (isLoggedIn) {
             // Show authenticated elements
@@ -180,6 +188,15 @@ $html_path = $is_in_html ? '' : 'html/';
             if (profileLinkMobile) profileLinkMobile.classList.remove('hidden');
             if (orderLink) orderLink.classList.remove('hidden');
             if (orderLinkMobile) orderLinkMobile.classList.remove('hidden');
+            
+            // Show dashboard only for IT Personnel (1) and Owner (2)
+            if (userLevelId && userLevelId <= 2) {
+                if (dashboardLink) dashboardLink.classList.remove('hidden');
+                if (dashboardLinkMobile) dashboardLinkMobile.classList.remove('hidden');
+            } else {
+                if (dashboardLink) dashboardLink.classList.add('hidden');
+                if (dashboardLinkMobile) dashboardLinkMobile.classList.add('hidden');
+            }
         } else {
             // Show unauthenticated elements
             if (loginBtn) loginBtn.classList.remove('hidden');
@@ -190,6 +207,8 @@ $html_path = $is_in_html ? '' : 'html/';
             if (profileLinkMobile) profileLinkMobile.classList.add('hidden');
             if (orderLink) orderLink.classList.add('hidden');
             if (orderLinkMobile) orderLinkMobile.classList.add('hidden');
+            if (dashboardLink) dashboardLink.classList.add('hidden');
+            if (dashboardLinkMobile) dashboardLinkMobile.classList.add('hidden');
         }
     }
 
@@ -252,12 +271,19 @@ $html_path = $is_in_html ? '' : 'html/';
             
             if (data.success) {
                 closeLoginModal();
-                updateNavbarUI(true);
-                // Reload cart and other data
-                if (typeof initializeCart === 'function') {
-                    initializeCart();
+                
+                // Check if user is admin (user_level_id 1, 2, or 3)
+                if (data.user.user_level_id <= 3) {
+                    // Redirect to admin dashboard
+                    window.location.href = BASE_PATH + 'app/frontend/dashboard.php';
+                } else {
+                    // Regular customer - update UI and stay on page
+                    updateNavbarUI(true, data.user.user_level_id);
+                    if (typeof initializeCart === 'function') {
+                        initializeCart();
+                    }
+                    alert('Login successful!');
                 }
-                alert('Login successful!');
             } else {
                 alert('Login failed: ' + data.message);
             }

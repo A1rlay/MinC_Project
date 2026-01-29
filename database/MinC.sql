@@ -444,6 +444,31 @@ ALTER TABLE `product_lines`
 
 ALTER TABLE `users`
   ADD CONSTRAINT `users_user_level_id_foreign` FOREIGN KEY (`user_level_id`) REFERENCES `user_levels` (`user_level_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- Chat Messages Table
+CREATE TABLE `chat_messages` (
+  `message_id` bigint(20) UNSIGNED NOT NULL,
+  `sender_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `sender_name` varchar(255) NOT NULL,
+  `sender_email` varchar(255) DEFAULT NULL,
+  `sender_type` enum('customer','admin') NOT NULL DEFAULT 'customer',
+  `message_content` longtext NOT NULL,
+  `is_read` tinyint(1) DEFAULT 0,
+  `read_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `session_id` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE `chat_messages`
+  ADD PRIMARY KEY (`message_id`),
+  ADD KEY `sender_id` (`sender_id`),
+  ADD KEY `sender_type` (`sender_type`),
+  ADD KEY `created_at` (`created_at`),
+  ADD KEY `is_read` (`is_read`);
+
+ALTER TABLE `chat_messages`
+  MODIFY `message_id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

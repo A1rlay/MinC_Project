@@ -634,5 +634,8 @@ document.addEventListener('DOMContentLoaded', function() {
     loadCategories();
 });
     </script>
+    
+    <!-- Chat Bubble Component -->
+    <?php include 'html/components/chat_bubble.php'; ?>
 </body>
 </html>

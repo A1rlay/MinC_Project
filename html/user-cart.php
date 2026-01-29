@@ -297,8 +297,8 @@ session_start();
 
         container.innerHTML = cartItems.map(item => {
             const imagePath = item.product_image 
-                ? `../assets/images/products/${item.product_image}` 
-                : '../assets/images/website-images/placeholder.jpg';
+                ? `../Assets/images/products/${item.product_image}` 
+                : '../Assets/images/website-images/placeholder.svg';
 
             const isOutOfStock = item.stock_status === 'out_of_stock';
             const isLowStock = item.stock_status === 'low_stock';
@@ -311,7 +311,7 @@ session_start();
                             <img src="${imagePath}" 
                                  alt="${escapeHtml(item.product_name)}" 
                                  class="w-24 h-24 object-cover rounded-lg"
-                                 onerror="this.src='../assets/images/website-images/placeholder.jpg'">
+                                 onerror="this.src='../Assets/images/website-images/placeholder.svg'">
                         </div>
 
                         <!-- Product Details -->

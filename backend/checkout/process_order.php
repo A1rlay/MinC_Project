@@ -20,12 +20,18 @@ if (!$data) {
 }
 
 // Validate required fields
-$required = ['customer', 'shipping', 'payment_method'];
+$required = ['customer', 'payment_method', 'delivery_method'];
 foreach ($required as $field) {
     if (!isset($data[$field])) {
         echo json_encode(['success' => false, 'message' => "Missing required field: $field"]);
         exit;
     }
+}
+
+$delivery_method = $data['delivery_method'];
+if (!in_array($delivery_method, ['shipping', 'pickup'], true)) {
+    echo json_encode(['success' => false, 'message' => 'Invalid delivery method']);
+    exit;
 }
 
 // Validate customer data
@@ -38,14 +44,28 @@ foreach ($requiredCustomer as $field) {
     }
 }
 
-// Validate shipping data
-$shipping = $data['shipping'];
-$requiredShipping = ['address', 'city', 'province'];
-foreach ($requiredShipping as $field) {
-    if (empty($shipping[$field])) {
-        echo json_encode(['success' => false, 'message' => "Missing shipping information: $field"]);
+// Validate shipping data (required only for shipping)
+if ($delivery_method === 'shipping') {
+    if (!isset($data['shipping'])) {
+        echo json_encode(['success' => false, 'message' => 'Missing required field: shipping']);
         exit;
     }
+
+    $shipping = $data['shipping'];
+    $requiredShipping = ['address', 'city', 'province'];
+    foreach ($requiredShipping as $field) {
+        if (empty($shipping[$field])) {
+            echo json_encode(['success' => false, 'message' => "Missing shipping information: $field"]);
+            exit;
+        }
+    }
+} else {
+    $shipping = [
+        'address' => 'Pickup at Store',
+        'city' => 'Pickup',
+        'province' => 'Pickup',
+        'postal_code' => null
+    ];
 }
 
 // Validate payment method
@@ -108,7 +128,9 @@ try {
     
     $FREE_SHIPPING_THRESHOLD = 5000;
     $SHIPPING_FEE = 150;
-    $shipping_fee = $subtotal >= $FREE_SHIPPING_THRESHOLD ? 0 : $SHIPPING_FEE;
+    $shipping_fee = $delivery_method === 'shipping'
+        ? ($subtotal >= $FREE_SHIPPING_THRESHOLD ? 0 : $SHIPPING_FEE)
+        : 0;
     $total_amount = $subtotal + $shipping_fee;
     
     // Create or get customer
@@ -125,50 +147,88 @@ try {
         $customer_id = $existing_customer['customer_id'];
         
         // Update customer information
-        $stmt = $pdo->prepare("
-            UPDATE customers SET
-                first_name = ?,
-                last_name = ?,
-                phone = ?,
-                address = ?,
-                city = ?,
-                province = ?,
-                postal_code = ?,
-                updated_at = NOW()
-            WHERE customer_id = ?
-        ");
-        $stmt->execute([
-            $customer['first_name'],
-            $customer['last_name'],
-            $customer['phone'],
-            $shipping['address'],
-            $shipping['city'],
-            $shipping['province'],
-            $shipping['postal_code'] ?? null,
-            $customer_id
-        ]);
+        if ($delivery_method === 'shipping') {
+            $stmt = $pdo->prepare("
+                UPDATE customers SET
+                    first_name = ?,
+                    last_name = ?,
+                    phone = ?,
+                    address = ?,
+                    city = ?,
+                    province = ?,
+                    postal_code = ?,
+                    updated_at = NOW()
+                WHERE customer_id = ?
+            ");
+            $stmt->execute([
+                $customer['first_name'],
+                $customer['last_name'],
+                $customer['phone'],
+                $shipping['address'],
+                $shipping['city'],
+                $shipping['province'],
+                $shipping['postal_code'] ?? null,
+                $customer_id
+            ]);
+        } else {
+            $stmt = $pdo->prepare("
+                UPDATE customers SET
+                    first_name = ?,
+                    last_name = ?,
+                    phone = ?,
+                    updated_at = NOW()
+                WHERE customer_id = ?
+            ");
+            $stmt->execute([
+                $customer['first_name'],
+                $customer['last_name'],
+                $customer['phone'],
+                $customer_id
+            ]);
+        }
     } else {
         // Create new customer
         $customer_type = $user_id ? 'registered' : 'guest';
-        
-        $stmt = $pdo->prepare("
-            INSERT INTO customers (
-                user_id, first_name, last_name, email, phone,
-                address, city, province, postal_code, customer_type
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ");
-        $stmt->execute([
-            $user_id,
-            $customer['first_name'],
-            $customer['last_name'],
-            $customer['email'],
-            $customer['phone'],
-            $shipping['address'],
-            $shipping['city'],
-            $shipping['province'],
-            $shipping['postal_code'] ?? null,
-            $customer_type
-        ]);
+
+        if ($delivery_method === 'shipping') {
+            $stmt = $pdo->prepare("
+                INSERT INTO customers (
+                    user_id, first_name, last_name, email, phone,
+                    address, city, province, postal_code, customer_type
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ");
+            $stmt->execute([
+                $user_id,
+                $customer['first_name'],
+                $customer['last_name'],
+                $customer['email'],
+                $customer['phone'],
+                $shipping['address'],
+                $shipping['city'],
+                $shipping['province'],
+                $shipping['postal_code'] ?? null,
+                $customer_type
+            ]);
+        } else {
+            $stmt = $pdo->prepare("
+                INSERT INTO customers (
+                    user_id, first_name, last_name, email, phone,
+                    address, city, province, postal_code, customer_type
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ");
+            $stmt->execute([
+                $user_id,
+                $customer['first_name'],
+                $customer['last_name'],
+                $customer['email'],
+                $customer['phone'],
+                null,
+                null,
+                null,
+                null,
+                $customer_type
+            ]);
+        }
         
         $customer_id = $pdo->lastInsertId();
     }
@@ -185,6 +245,17 @@ try {
             notes
         ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 'pending', ?, ?, ?, ?, ?)
     ");
+    $notes = $data['notes'] ?? null;
+    if ($delivery_method === 'pickup') {
+        $pickup_date = $data['pickup_date'] ?? null;
+        $pickup_time = $data['pickup_time'] ?? null;
+        if ($pickup_date || $pickup_time) {
+            $pickup_parts = array_filter([$pickup_date, $pickup_time]);
+            $pickup_text = 'Pickup: ' . implode(' ', $pickup_parts);
+            $notes = $notes ? ($notes . ' | ' . $pickup_text) : $pickup_text;
+        }
+    }
+
     $stmt->execute([
         $customer_id,
         $customer['phone'],
@@ -197,7 +268,7 @@ try {
         $shipping['city'],
         $shipping['province'],
         $shipping['postal_code'] ?? null,
-        $data['notes'] ?? null
+        $notes
     ]);
     
     $order_id = $pdo->lastInsertId();

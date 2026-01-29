@@ -65,11 +65,11 @@ async function getProductDetails() {
                     </ol>
                     <div class="carousel-inner">
                         <div class="carousel-item active">
-                            <img src=${product.url1} class="d-block w-100" alt="...">
+                            <img src="${product.url1}" class="d-block w-100" alt="..." onerror="this.src='../Assets/images/website-images/placeholder.svg'">
                         </div>
                         <div class="carousel-item">
-                            <img src=${product.url2} class="d-block w-100"
-                                alt="...">
+                            <img src="${product.url2}" class="d-block w-100"
+                                alt="..." onerror="this.src='../Assets/images/website-images/placeholder.svg'">
                         </div>
                     </div>
                     <a class="carousel-control-prev" href="#carouselExampleIndicators" role="button" data-slide="prev">

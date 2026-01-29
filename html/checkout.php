@@ -94,6 +94,8 @@ if ($user_id) {
             display: flex;
             justify-content: space-between;
             margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
 
         .step {
@@ -101,6 +103,22 @@ if ($user_id) {
             text-align: center;
             padding: 1rem;
             position: relative;
+            min-width: 100px;
+        }
+
+        @media (max-width: 768px) {
+            .step {
+                flex: 0 1 calc(33.333% - 0.5rem);
+                padding: 0.5rem;
+            }
+            .step .text-sm {
+                font-size: 0.75rem;
+            }
+            .step-number {
+                width: 32px;
+                height: 32px;
+                font-size: 0.875rem;
+            }
         }
 
         .step::before {
@@ -265,11 +283,27 @@ if ($user_id) {
 
                     <!-- Step 2: Shipping Information -->
                     <div id="step2" class="form-section">
-                        <h2 class="text-2xl font-bold text-[#08415c] mb-6">Shipping Address</h2>
+                        <h2 class="text-2xl font-bold text-[#08415c] mb-6">Delivery Method</h2>
 
-                        <div class="mb-4">
+                        <div class="mb-6 space-y-3">
+                            <label class="block p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-[#08415c] transition" onclick="toggleDeliveryMethod('shipping')">
+                                <input type="radio" name="deliveryMethod" value="shipping" checked class="mr-3" onchange="toggleDeliveryFields()">
+                                <span class="font-semibold"><i class="fas fa-truck text-blue-600 mr-2"></i>Delivery (Shipping)</span>
+                                <p class="text-sm text-gray-600 ml-8 mt-1">Get your order delivered to your address</p>
+                            </label>
+
+                            <label class="block p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-[#08415c] transition" onclick="toggleDeliveryMethod('pickup')">
+                                <input type="radio" name="deliveryMethod" value="pickup" class="mr-3" onchange="toggleDeliveryFields()">
+                                <span class="font-semibold"><i class="fas fa-store text-green-600 mr-2"></i>Pickup</span>
+                                <p class="text-sm text-gray-600 ml-8 mt-1">Pick up your order at our store (No shipping fee)</p>
+                            </label>
+                        </div>
+
+                        <div id="shippingFields" class="block">
+                            <h3 class="text-xl font-semibold text-gray-800 mb-4 mt-6">Shipping Address</h3>
+                            <div class="mb-4">
                             <label class="block text-gray-700 font-medium mb-2">Complete Address *</label>
-                            <textarea id="address" required rows="3"
+                            <textarea id="address" rows="3"
                                       placeholder="House/Unit No., Street Name, Barangay"
                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]"></textarea>
                         </div>
@@ -277,22 +311,16 @@ if ($user_id) {
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-gray-700 font-medium mb-2">City/Municipality *</label>
-                                <input type="text" id="city" required 
+                                <input type="text" id="city" 
                                        placeholder="e.g., Angeles City"
                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
                             </div>
                             <div>
                                 <label class="block text-gray-700 font-medium mb-2">Province *</label>
-                                <select id="province" required 
+                                <select id="province" 
                                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
                                     <option value="">Select Province</option>
                                     <option value="Pampanga">Pampanga</option>
-                                    <option value="Tarlac">Tarlac</option>
-                                    <option value="Bulacan">Bulacan</option>
-                                    <option value="Nueva Ecija">Nueva Ecija</option>
-                                    <option value="Bataan">Bataan</option>
-                                    <option value="Zambales">Zambales</option>
-                                    <option value="Metro Manila">Metro Manila</option>
                                 </select>
                             </div>
                         </div>
@@ -304,11 +332,42 @@ if ($user_id) {
                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
                         </div>
 
-                        <div class="mt-6">
-                            <label class="block text-gray-700 font-medium mb-2">Delivery Notes (Optional)</label>
-                            <textarea id="notes" rows="2"
-                                      placeholder="Special instructions for delivery..."
-                                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]"></textarea>
+                            <div class="mt-6">
+                                <label class="block text-gray-700 font-medium mb-2">Delivery Notes (Optional)</label>
+                                <textarea id="notes" rows="2"
+                                          placeholder="Special instructions for delivery..."
+                                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]"></textarea>
+                            </div>
+                        </div>
+
+                        <div id="pickupFields" class="hidden">
+                            <h3 class="text-xl font-semibold text-gray-800 mb-4 mt-6">Pickup Information</h3>
+                            <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                <p class="text-gray-700 font-medium mb-2">
+                                    <i class="fas fa-map-marker-alt text-blue-600 mr-2"></i>MinC Auto Supply Store
+                                </p>
+                                <p class="text-sm text-gray-600">Address: 1144 Jake Gonzales Blvd, Angeles, 2009 Pampanga</p>
+                                <p class="text-sm text-gray-600">Phone: (+63) 908-819-3464</p>
+                                <p class="text-sm text-gray-600 mt-2">Business Hours: Mon-Sat 8:30 AM - 6:30 PM</p>
+                            </div>
+                            <div class="mt-4">
+                                <label class="block text-gray-700 font-medium mb-2">Preferred Pickup Date *</label>
+                                <input type="date" id="pickupDate" 
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                                <p class="text-sm text-gray-500 mt-1">Select a date within the next 7 days</p>
+                            </div>
+                            <div class="mt-4">
+                                <label class="block text-gray-700 font-medium mb-2">Preferred Pickup Time *</label>
+                                <select id="pickupTime" 
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                                    <option value="">Select pickup time</option>
+                                    <option value="09:00-11:00">9:00 AM - 11:00 AM</option>
+                                    <option value="11:00-01:00">11:00 AM - 1:00 PM</option>
+                                    <option value="01:00-03:00">1:00 PM - 3:00 PM</option>
+                                    <option value="03:00-05:00">3:00 PM - 5:00 PM</option>
+                                    <option value="05:00-06:00">5:00 PM - 6:00 PM</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div class="mt-6 flex justify-between">
@@ -492,10 +551,10 @@ if ($user_id) {
             
             container.innerHTML = cartItems.map(item => `
                 <div class="flex gap-3">
-                    <img src="../assets/images/products/${item.product_image || 'placeholder.jpg'}" 
+                    <img src="../Assets/images/products/${item.product_image || 'placeholder.svg'}" 
                          alt="${escapeHtml(item.product_name)}" 
                          class="w-16 h-16 object-cover rounded"
-                         onerror="this.src='../assets/images/website-images/placeholder.jpg'">
+                         onerror="this.src='../Assets/images/website-images/placeholder.svg'">
                     <div class="flex-1">
                         <p class="text-sm font-semibold text-gray-800">${escapeHtml(item.product_name)}</p>
                         <p class="text-xs text-gray-500">Qty: ${item.quantity}</p>
@@ -509,7 +568,15 @@ if ($user_id) {
 
         // Update summary
         function updateSummary() {
-            const shippingFee = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE;
+            let shippingFee = 0;
+            const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked').value;
+            
+            if (deliveryMethod === 'shipping') {
+                shippingFee = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE;
+            } else {
+                shippingFee = 0; // No shipping fee for pickup
+            }
+            
             const total = subtotal + shippingFee;
 
             document.getElementById('summarySubtotal').textContent = formatPeso(subtotal);
@@ -562,18 +629,35 @@ if ($user_id) {
             }
 
             if (step === 3) {
-                const address = document.getElementById('address').value.trim();
-                const city = document.getElementById('city').value.trim();
-                const province = document.getElementById('province').value;
+                const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked').value;
+                
+                if (deliveryMethod === 'shipping') {
+                    const address = document.getElementById('address').value.trim();
+                    const city = document.getElementById('city').value.trim();
+                    const province = document.getElementById('province').value;
 
-                if (!address || !city || !province) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Missing Information',
-                        text: 'Please fill in all required shipping fields',
-                        confirmButtonColor: '#08415c'
-                    });
-                    return;
+                    if (!address || !city || !province) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Missing Information',
+                            text: 'Please fill in all required shipping fields',
+                            confirmButtonColor: '#08415c'
+                        });
+                        return;
+                    }
+                } else if (deliveryMethod === 'pickup') {
+                    const pickupDate = document.getElementById('pickupDate').value;
+                    const pickupTime = document.getElementById('pickupTime').value;
+
+                    if (!pickupDate || !pickupTime) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Missing Information',
+                            text: 'Please select a pickup date and time',
+                            confirmButtonColor: '#08415c'
+                        });
+                        return;
+                    }
                 }
             }
 
@@ -605,6 +689,34 @@ if ($user_id) {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
+        // Toggle delivery method display
+        function toggleDeliveryMethod(method) {
+            const shippingFields = document.getElementById('shippingFields');
+            const pickupFields = document.getElementById('pickupFields');
+
+            if (method === 'pickup') {
+                shippingFields.classList.add('hidden');
+                pickupFields.classList.remove('hidden');
+                // Clear shipping validation
+                document.getElementById('address').value = '';
+                document.getElementById('city').value = '';
+                document.getElementById('province').value = '';
+            } else {
+                shippingFields.classList.remove('hidden');
+                pickupFields.classList.add('hidden');
+                // Clear pickup validation
+                document.getElementById('pickupDate').value = '';
+                document.getElementById('pickupTime').value = '';
+            }
+        }
+
+        // Toggle delivery fields based on radio selection
+        function toggleDeliveryFields() {
+            const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked').value;
+            toggleDeliveryMethod(deliveryMethod);
+            updateSummary();
+        }
+
         // Handle checkout form submission
         document.getElementById('checkoutForm').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -613,93 +725,118 @@ if ($user_id) {
             const lastName = document.getElementById('lastName').value.trim();
             const email = document.getElementById('email').value.trim();
             const phone = document.getElementById('phone').value.trim();
-            const address = document.getElementById('address').value.trim();
-            const city = document.getElementById('city').value.trim();
-            const province = document.getElementById('province').value;
-            const postalCode = document.getElementById('postalCode').value.trim();
-            const notes = document.getElementById('notes').value.trim();
+            const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked').value;
             const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+
+            let orderDetails = `
+                <div class="text-left">
+                    <p class="mb-2"><strong>Name:</strong> ${firstName} ${lastName}</p>
+                    <p class="mb-2"><strong>Email:</strong> ${email}</p>
+                    <p class="mb-2"><strong>Phone:</strong> ${phone}</p>
+                    <p class="mb-2"><strong>Delivery:</strong> ${deliveryMethod === 'pickup' ? 'Pickup at Store' : 'Shipping'}</p>
+            `;
+
+            let orderData = {
+                customer: {
+                    first_name: firstName,
+                    last_name: lastName,
+                    email: email,
+                    phone: phone
+                },
+                delivery_method: deliveryMethod,
+                payment_method: paymentMethod
+            };
+
+            if (deliveryMethod === 'shipping') {
+                const address = document.getElementById('address').value.trim();
+                const city = document.getElementById('city').value.trim();
+                const province = document.getElementById('province').value;
+                const postalCode = document.getElementById('postalCode').value.trim();
+                const notes = document.getElementById('notes').value.trim();
+
+                orderDetails += `<p class="mb-2"><strong>Address:</strong> ${address}, ${city}, ${province}</p>`;
+                if (notes) orderDetails += `<p class="mb-2"><strong>Notes:</strong> ${notes}</p>`;
+
+                orderData.shipping = {
+                    address: address,
+                    city: city,
+                    province: province,
+                    postal_code: postalCode
+                };
+                orderData.notes = notes;
+            } else {
+                const pickupDate = document.getElementById('pickupDate').value;
+                const pickupTime = document.getElementById('pickupTime').value;
+
+                orderDetails += `<p class="mb-2"><strong>Pickup Date:</strong> ${pickupDate}</p>`;
+                orderDetails += `<p class="mb-2"><strong>Pickup Time:</strong> ${pickupTime}</p>`;
+
+                orderData.pickup_date = pickupDate;
+                orderData.pickup_time = pickupTime;
+            }
+
+            orderDetails += `
+                    <p class="mb-2"><strong>Payment:</strong> ${paymentMethod.toUpperCase()}</p>
+                    <p class="mt-4 text-lg"><strong>Total: ₱${document.getElementById('summaryTotal').textContent}</strong></p>
+                </div>
+            `;
 
             // Confirm order
             const result = await Swal.fire({
                 title: 'Confirm Order',
-                html: `
-                    <div class="text-left">
-                        <p class="mb-2"><strong>Name:</strong> ${firstName} ${lastName}</p>
-                        <p class="mb-2"><strong>Email:</strong> ${email}</p>
-                        <p class="mb-2"><strong>Phone:</strong> ${phone}</p>
-                        <p class="mb-2"><strong>Address:</strong> ${address}, ${city}, ${province}</p>
-                        <p class="mb-2"><strong>Payment:</strong> ${paymentMethod.toUpperCase()}</p>
-                        <p class="mt-4 text-lg"><strong>Total: ₱${document.getElementById('summaryTotal').textContent}</strong></p>
-</div>
-`,
-icon: 'question',
-showCancelButton: true,
-confirmButtonColor: '#08415c',
-cancelButtonColor: '#d33',
-confirmButtonText: 'Yes, place order',
-cancelButtonText: 'Cancel'
-});
-if (!result.isConfirmed) return;
-
-        // Show loader
-        document.getElementById('loader').classList.add('active');
-        document.getElementById('placeOrderBtn').disabled = true;
-
-        try {
-            const response = await fetch('../backend/checkout/process_order.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    customer: {
-                        first_name: firstName,
-                        last_name: lastName,
-                        email: email,
-                        phone: phone
-                    },
-                    shipping: {
-                        address: address,
-                        city: city,
-                        province: province,
-                        postal_code: postalCode
-                    },
-                    payment_method: paymentMethod,
-                    notes: notes
-                })
+                html: orderDetails,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#08415c',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, place order',
+                cancelButtonText: 'Cancel'
             });
+            if (!result.isConfirmed) return;
 
-            const data = await response.json();
+            // Show loader
+            document.getElementById('loader').classList.add('active');
+            document.getElementById('placeOrderBtn').disabled = true;
 
-            if (data.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Order Placed Successfully!',
-                    html: `
-                        <p class="mb-4">Your order number is: <strong>${data.order_number}</strong></p>
-                        <p>A confirmation email has been sent to ${email}</p>
-                    `,
-                    confirmButtonColor: '#08415c',
-                    allowOutsideClick: false
-                }).then(() => {
-                    window.location.href = `order-success.php?order=${data.order_number}`;
+            try {
+                const response = await fetch('../backend/checkout/process_order.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(orderData)
                 });
-            } else {
-                throw new Error(data.message || 'Failed to place order');
+
+                const data = await response.json();
+
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Order Placed Successfully!',
+                        html: `
+                            <p class="mb-4">Your order number is: <strong>${data.order_number}</strong></p>
+                            <p>A confirmation email has been sent to ${email}</p>
+                        `,
+                        confirmButtonColor: '#08415c',
+                        allowOutsideClick: false
+                    }).then(() => {
+                        window.location.href = `order-success.php?order=${data.order_number}`;
+                    });
+                } else {
+                    throw new Error(data.message || 'Failed to place order');
+                }
+            } catch (error) {
+                console.error('Checkout error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Order Failed',
+                    text: error.message || 'An error occurred while placing your order. Please try again.',
+                    confirmButtonColor: '#08415c'
+                });
+            } finally {
+                document.getElementById('loader').classList.remove('active');
+                document.getElementById('placeOrderBtn').disabled = false;
             }
-        } catch (error) {
-            console.error('Checkout error:', error);
-            Swal.fire({
-                icon: 'error',
-                title: 'Order Failed',
-                text: error.message || 'An error occurred while placing your order. Please try again.',
-                confirmButtonColor: '#08415c'
-            });
-        } finally {
-            document.getElementById('loader').classList.remove('active');
-            document.getElementById('placeOrderBtn').disabled = false;
-        }
     });
 
     // Login modal functions

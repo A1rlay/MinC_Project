@@ -188,9 +188,14 @@ logAuditTrail(
 );
 
 // Determine redirect based on user level
+// Use relative path based on the base URL
+$baseUrl = dirname($_SERVER['PHP_SELF']);
+// Go up two directories from /backend/login.php
+$baseUrl = str_replace('/backend', '', $baseUrl);
+
 $redirectUrl = $isAdmin 
-    ? '/MinC_Project/app/frontend/dashboard.php' 
-    : '/MinC_Project/index.php';
+    ? $baseUrl . '/app/frontend/dashboard.php' 
+    : $baseUrl . '/index.php';
 
 // Return success response
 echo json_encode([

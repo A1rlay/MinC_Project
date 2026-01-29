@@ -527,7 +527,7 @@ function initializeCart() {
                 filteredProducts.forEach(product => {
                     const imagePath = product.product_image 
                         ? `../Assets/images/products/${product.product_image}` 
-                        : '../Assets/images/website-images/placeholder.jpg';
+                        : '../Assets/images/website-images/placeholder.svg';
 
                     const card = document.createElement('div');
                     card.className = 'bg-white rounded-xl shadow-lg overflow-hidden product-card cursor-pointer';
@@ -537,7 +537,7 @@ function initializeCart() {
                                 <img src="${imagePath}" 
                                      alt="${escapeHtml(product.product_name)}" 
                                      class="w-full h-full object-cover hover:scale-110 transition duration-300"
-                                     onerror="this.src='../Assets/images/website-images/placeholder.jpg'">>
+                                     onerror="this.src='../Assets/images/website-images/placeholder.svg'">
                                 <div class="absolute top-3 right-3 category-badge px-3 py-1 rounded-full text-white text-sm font-semibold">
                                     ${escapeHtml(product.product_line_name)}
                                 </div>

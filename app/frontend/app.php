@@ -17,6 +17,11 @@ if (!isset($pdo)) {
     include_once '../../database/connect_database.php';
 }
 
+// Include auth functions
+if (!function_exists('isITStaff')) {
+    require_once '../../backend/auth.php';
+}
+
 // Get current user data from database
 $user = [
     'full_name' => 'Guest User',
@@ -138,11 +143,11 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
  <style>
-    /* MinC Brand Colors - Dark Blue Theme */
-    .minc-dark-blue { background-color: #1e3a8a; }
-    .minc-blue { background-color: #3b82f6; }
-    .minc-light-blue { background-color: #60a5fa; }
-    .minc-accent { background-color: #2563eb; }
+    /* MinC Brand Colors - Teal Theme */
+    .minc-dark-blue { background-color: #08415c; }
+    .minc-blue { background-color: #0a5273; }
+    .minc-light-blue { background-color: #1a6d9e; }
+    .minc-accent { background-color: #08415c; }
     
     /* Professional card design */
     .professional-card {
@@ -153,12 +158,12 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     }
     
-    /* Glassmorphism sidebar - Dark Blue */
+    /* Glassmorphism sidebar - Teal */
     .glassmorphism {
         background: linear-gradient(135deg, 
-            rgba(30, 58, 138, 0.95) 0%, 
-            rgba(37, 99, 235, 0.95) 50%, 
-            rgba(30, 58, 138, 0.95) 100%
+            rgba(8, 65, 92, 0.95) 0%, 
+            rgba(10, 82, 115, 0.95) 50%, 
+            rgba(8, 65, 92, 0.95) 100%
         );
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
@@ -166,7 +171,7 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
         box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
     }
     
-    /* Water background animation - Blue tones */
+    /* Water background animation - Teal tones */
     .water-bg {
         position: absolute;
         top: 0;
@@ -174,11 +179,11 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
         right: 0;
         bottom: 0;
         background: linear-gradient(135deg, 
-            rgba(59, 130, 246, 0.1) 0%,
-            rgba(37, 99, 235, 0.1) 25%,
-            rgba(30, 64, 175, 0.1) 50%,
-            rgba(96, 165, 250, 0.1) 75%,
-            rgba(59, 130, 246, 0.1) 100%
+            rgba(8, 65, 92, 0.1) 0%,
+            rgba(10, 82, 115, 0.1) 25%,
+            rgba(26, 109, 158, 0.1) 50%,
+            rgba(8, 65, 92, 0.1) 75%,
+            rgba(8, 65, 92, 0.1) 100%
         );
         background-size: 400% 400%;
         animation: waterFlow 15s ease-in-out infinite;
@@ -197,16 +202,16 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
         min-height: 100vh;
     }
     
-    /* Blue accent elements */
+    /* Teal accent elements */
     .blue-accent {
-        background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+        background: linear-gradient(135deg, #08415c 0%, #0a5273 100%);
     }
     
     .blue-hover:hover {
-        background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+        background: linear-gradient(135deg, #08415c 0%, #0a5273 100%);
         color: white;
         transform: translateY(-2px);
-        box-shadow: 0 10px 25px rgba(59, 130, 246, 0.25);
+        box-shadow: 0 10px 25px rgba(8, 65, 92, 0.25);
     }
     
     @keyframes float {
@@ -329,9 +334,9 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
         width: 6px;
     }
     
-    /* Updated Topbar Styles - Dark Blue */
+    /* Updated Topbar Styles - Teal */
     .minc-topbar {
-        background-color: #1e3a8a;
+        background-color: #08415c;
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
     }
@@ -344,18 +349,18 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
         box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
     }
     
-    /* Professional button styles - Blue theme */
+    /* Professional button styles - Teal theme */
     .btn-primary {
-        background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+        background: linear-gradient(135deg, #08415c 0%, #0a5273 100%);
         color: white;
         border: none;
         transition: all 0.3s ease;
     }
     
     .btn-primary:hover {
-        background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+        background: linear-gradient(135deg, #062d42 0%, #08415c 100%);
         transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+        box-shadow: 0 8px 25px rgba(8, 65, 92, 0.3);
     }
     
     /* Status indicators */
@@ -408,14 +413,14 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
         color: rgb(153 27 27);
     }
     
-    /* Nav link hover effects - Blue theme */
+    /* Nav link hover effects - Teal theme */
     .nav-link:hover .nav-icon {
         transform: scale(1.1);
     }
     
     .nav-link.active-link .nav-icon {
-        background: rgba(96, 165, 250, 0.2) !important;
-        color: #60a5fa !important;
+        background: rgba(8, 65, 92, 0.2) !important;
+        color: #08415c !important;
     }
     
     /* Additional custom styles */
@@ -447,6 +452,11 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
                 <button id="mobile-toggle" class="lg:hidden w-10 h-10 flex items-center justify-center rounded-lg bg-white/10 text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30 transition-all duration-200 mr-3">
                     <i class="fas fa-bars menu-icon"></i>
                 </button>
+                
+                <!-- Home Button -->
+                <a href="../../index.php" class="mr-4 w-10 h-10 flex items-center justify-center rounded-lg bg-white/10 text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30 transition-all duration-200" title="Back to Home">
+                    <i class="fas fa-home"></i>
+                </a>
                 
                 <!-- Icon and Title -->
                 <div class="flex items-center">
@@ -540,13 +550,13 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
     <?php endif; ?>
 </div>
                                 <!-- Menu Items -->
-                                <a href="#" class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-200">
+                                <a href="../../html/profile.php" class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-200">
                                     <i class="fas fa-user mr-3 w-4"></i>My Profile
                                 </a>
-                                <a href="#" class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-200">
+                                <a href="../../html/profile.php#settings" class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-200">
                                     <i class="fas fa-cog mr-3 w-4"></i>Account Settings
                                 </a>
-                                <a href="#" class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-200">
+                                <a href="javascript:void(0)" onclick="showHelpSupport()" class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-200 cursor-pointer">
                                     <i class="fas fa-question-circle mr-3 w-4"></i>Help & Support
                                 </a>
                                 
@@ -633,19 +643,36 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
             }
             
             // Desktop sidebar toggle
-// Desktop sidebar toggle
+// Desktop sidebar toggle - IMPROVED STABLE VERSION
 if (toggleBtn) {
-    toggleBtn.addEventListener('click', function() {
-        sidebar.classList.toggle('sidebar-collapsed');
+    toggleBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
         
-        if (sidebar.classList.contains('sidebar-collapsed')) {
-            content.style.marginLeft = '64px';
-            content.style.width = 'calc(100% - 64px)';
-        } else {
+        const isCollapsed = sidebar.classList.contains('sidebar-collapsed');
+        
+        if (isCollapsed) {
+            // Expand sidebar
+            sidebar.classList.remove('sidebar-collapsed');
             content.style.marginLeft = '250px';
             content.style.width = 'calc(100% - 250px)';
+            localStorage.setItem('sidebarState', 'expanded');
+        } else {
+            // Collapse sidebar
+            sidebar.classList.add('sidebar-collapsed');
+            content.style.marginLeft = '64px';
+            content.style.width = 'calc(100% - 64px)';
+            localStorage.setItem('sidebarState', 'collapsed');
         }
     });
+    
+    // Restore sidebar state from localStorage
+    const savedState = localStorage.getItem('sidebarState');
+    if (savedState === 'collapsed') {
+        sidebar.classList.add('sidebar-collapsed');
+        content.style.marginLeft = '64px';
+        content.style.width = 'calc(100% - 64px)';
+    }
 }
             
             // Mobile sidebar toggle
@@ -701,8 +728,14 @@ window.addEventListener('resize', function() {
             
 // Initialize margin and width on page load
 if (window.innerWidth >= 1024) {
-    content.style.marginLeft = '250px';
-    content.style.width = 'calc(100% - 250px)';
+    const savedState = localStorage.getItem('sidebarState');
+    if (savedState === 'collapsed') {
+        content.style.marginLeft = '64px';
+        content.style.width = 'calc(100% - 64px)';
+    } else {
+        content.style.marginLeft = '250px';
+        content.style.width = 'calc(100% - 250px)';
+    }
 } else {
     content.style.marginLeft = '0';
     content.style.width = '100%';
@@ -722,6 +755,17 @@ if (window.innerWidth >= 1024) {
                 });
             }
         });
+        
+        // Help & Support Modal
+        function showHelpSupport() {
+            const message = `Help & Support\n\n` +
+                `For technical support, please contact:\n` +
+                `Email: support@minc.com\n` +
+                `Phone: 1-800-MINC-HELP\n` +
+                `Chat: Available 24/7 on the help page\n\n` +
+                `Common issues and FAQs are available in the Help section of the website.`;
+            alert(message);
+        }
 
         // Real-time notification count update
 function updateNotificationCount() {
