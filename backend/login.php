@@ -13,6 +13,11 @@ require_once __DIR__ . '/../database/connect_database.php';
 // Set response header to JSON
 header('Content-Type: application/json');
 
+function normalizeName($value) {
+    $value = preg_replace('/\s+/', ' ', trim((string)$value));
+    return ucwords(strtolower($value), " -'");
+}
+
 // Function to log audit trail
 function logAuditTrail($pdo, $userId, $username, $action, $entityType, $entityId, $oldValue = null, $newValue = null, $changeReason = null) {
     try {
@@ -130,6 +135,24 @@ try {
             'message' => 'Invalid email or password'
         ]);
         exit;
+    }
+
+    // Normalize names for consistent display and session data
+    $normalizedFname = normalizeName($user['fname'] ?? '');
+    $normalizedLname = normalizeName($user['lname'] ?? '');
+    if ($normalizedFname !== ($user['fname'] ?? '') || $normalizedLname !== ($user['lname'] ?? '')) {
+        try {
+            $updateNameStmt = $pdo->prepare("UPDATE users SET fname = :fname, lname = :lname WHERE user_id = :user_id");
+            $updateNameStmt->execute([
+                ':fname' => $normalizedFname,
+                ':lname' => $normalizedLname,
+                ':user_id' => $user['user_id']
+            ]);
+        } catch (Exception $nameUpdateError) {
+            error_log('Name normalization update failed in login.php: ' . $nameUpdateError->getMessage());
+        }
+        $user['fname'] = $normalizedFname;
+        $user['lname'] = $normalizedLname;
     }
     
 // MODIFIED: Determine if user is admin or customer

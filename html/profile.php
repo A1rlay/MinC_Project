@@ -416,6 +416,13 @@ if (!isset($_SESSION['user_id'])) {
                 return;
             }
 
+            const cleanedContact = contact_num.replace(/[\s\-\(\)]/g, '');
+            const validContact = cleanedContact === '' || /^(09\d{9}|(\+?63)\d{10})$/.test(cleanedContact);
+            if (!validContact) {
+                showAlert('Contact number must be 09XXXXXXXXX or +63XXXXXXXXXX', 'error');
+                return;
+            }
+
             document.getElementById('loading').classList.remove('hidden');
 
             fetch('/pages/MinC_Project/backend/update_profile.php', {

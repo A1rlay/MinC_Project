@@ -13,6 +13,11 @@ require_once __DIR__ . '/../database/connect_database.php';
 // Set response header to JSON
 header('Content-Type: application/json');
 
+function normalizeName($value) {
+    $value = preg_replace('/\s+/', ' ', trim((string)$value));
+    return ucwords(strtolower($value), " -'");
+}
+
 // Function to log audit trail
 function logAuditTrail($pdo, $userId, $username, $action, $entityType, $entityId, $oldValue = null, $newValue = null, $changeReason = null) {
     try {
@@ -86,6 +91,9 @@ if ($fname === '' || $lname === '') {
     ]);
     exit;
 }
+
+$fname = normalizeName($fname);
+$lname = normalizeName($lname);
 
 if ($address === '') {
     echo json_encode([

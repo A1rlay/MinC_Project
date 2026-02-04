@@ -22,6 +22,11 @@ if (!function_exists('isITStaff')) {
     require_once '../../backend/auth.php';
 }
 
+$normalizeName = function ($value) {
+    $value = preg_replace('/\s+/', ' ', trim((string)$value));
+    return ucwords(strtolower($value), " -'");
+};
+
 // Get current user data from database
 $user = [
     'full_name' => 'Guest User',
@@ -61,10 +66,13 @@ if (isset($_SESSION['user_id'])) {
         $user_data = $stmt->fetch(PDO::FETCH_ASSOC);
         
 if ($user_data) {
+    $normalizedFname = $normalizeName($user_data['fname'] ?? '');
+    $normalizedLname = $normalizeName($user_data['lname'] ?? '');
+    $normalizedFullName = trim($normalizedFname . ' ' . $normalizedLname);
     $user = [
-        'full_name' => trim($user_data['full_name']),
-        'first_name' => $user_data['fname'],
-        'last_name' => $user_data['lname'],
+        'full_name' => $normalizedFullName,
+        'first_name' => $normalizedFname,
+        'last_name' => $normalizedLname,
         'user_type' => $user_data['user_type'],
         'is_logged_in' => true,
         'user_id' => $user_data['user_id'],
@@ -77,6 +85,7 @@ if ($user_data) {
     // Also update session with latest data
     $_SESSION['full_name'] = $user['full_name'];
     $_SESSION['fname'] = $user['first_name'];
+    $_SESSION['lname'] = $user['last_name'];
     $_SESSION['user_type_name'] = $user['user_type'];
     $_SESSION['user_level_id'] = $user['user_level_id'];
 }

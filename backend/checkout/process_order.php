@@ -19,6 +19,29 @@ if (!$data) {
     exit;
 }
 
+function normalizeName($value) {
+    $value = preg_replace('/\s+/', ' ', trim((string)$value));
+    return ucwords(strtolower($value), " -'");
+}
+
+function normalizePhilippineMobile($value) {
+    $value = trim((string)$value);
+    if ($value === '') {
+        return null;
+    }
+    $compact = preg_replace('/[\s\-\(\)]/', '', $value);
+    if (strpos($compact, '+') === 0) {
+        $compact = substr($compact, 1);
+    }
+    if (preg_match('/^09\d{9}$/', $compact)) {
+        return $compact;
+    }
+    if (preg_match('/^63\d{10}$/', $compact)) {
+        return '0' . substr($compact, 2);
+    }
+    return null;
+}
+
 // Validate required fields
 $required = ['customer', 'payment_method', 'delivery_method'];
 foreach ($required as $field) {
@@ -47,6 +70,15 @@ foreach ($requiredCustomer as $field) {
         exit;
     }
 }
+
+$customer['first_name'] = normalizeName($customer['first_name']);
+$customer['last_name'] = normalizeName($customer['last_name']);
+$normalizedPhone = normalizePhilippineMobile($customer['phone']);
+if ($normalizedPhone === null) {
+    echo json_encode(['success' => false, 'message' => 'Invalid phone number format. Use 09XXXXXXXXX or +63XXXXXXXXXX']);
+    exit;
+}
+$customer['phone'] = $normalizedPhone;
 
 // Validate shipping data (required only for shipping)
 if ($delivery_method === 'shipping') {

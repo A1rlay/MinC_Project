@@ -18,6 +18,11 @@ if (session_status() == PHP_SESSION_NONE) {
 // Configuration
 $timeout_duration = 7200; // 2 hours in seconds
 
+function normalizeName($value) {
+    $value = preg_replace('/\s+/', ' ', trim((string)$value));
+    return ucwords(strtolower($value), " -'");
+}
+
 /**
  * Validate session and handle authentication
  * @param bool $redirect Whether to redirect on failure (false for API calls)
@@ -226,11 +231,13 @@ if (isset($_GET['api']) && $_GET['api'] === 'status') {
         }
         
         // Session is valid - return user info
+        $displayFname = normalizeName($user['fname'] ?? '');
+        $displayLname = normalizeName($user['lname'] ?? '');
         echo json_encode([
             'logged_in' => true,
             'user' => [
                 'user_id' => $user['user_id'],
-                'name' => trim($user['fname'] . ' ' . $user['lname']),
+                'name' => trim($displayFname . ' ' . $displayLname),
                 'email' => $user['email'],
                 'user_level_id' => $user['user_level_id'],
                 'user_type_name' => $user['user_type_name'],

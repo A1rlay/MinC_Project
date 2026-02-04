@@ -656,13 +656,14 @@ if ($user_id) {
                     return;
                 }
 
-                // Validate phone (Philippine format)
-                const phoneRegex = /^(09|\+639)\d{9}$/;
-                if (!phoneRegex.test(phone.replace(/\s/g, ''))) {
+                // Validate phone (Philippine format): 09XXXXXXXXX, 63XXXXXXXXXX, +63XXXXXXXXXX
+                const cleanedPhone = phone.replace(/[\s\-\(\)]/g, '');
+                const phoneRegex = /^(09\d{9}|(\+?63)\d{10})$/;
+                if (!phoneRegex.test(cleanedPhone)) {
                     Swal.fire({
                         icon: 'error',
                         title: 'Invalid Phone Number',
-                        text: 'Please enter a valid Philippine mobile number',
+                        text: 'Please enter a valid mobile number (09XXXXXXXXX or +63XXXXXXXXXX)',
                         confirmButtonColor: '#08415c'
                     });
                     return;

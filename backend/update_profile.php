@@ -67,6 +67,23 @@ try {
         $value = preg_replace('/\s+/', ' ', trim((string)$value));
         return ucwords(strtolower($value), " -'");
     };
+    $normalizePhilippineMobile = function ($value) {
+        $value = trim((string)$value);
+        if ($value === '') {
+            return '';
+        }
+        $compact = preg_replace('/[\s\-\(\)]/', '', $value);
+        if (strpos($compact, '+') === 0) {
+            $compact = substr($compact, 1);
+        }
+        if (preg_match('/^09\d{9}$/', $compact)) {
+            return $compact;
+        }
+        if (preg_match('/^63\d{10}$/', $compact)) {
+            return '0' . substr($compact, 2);
+        }
+        return null;
+    };
 
     if ($fname !== null) {
         $fname = $normalizeName($fname);
@@ -83,8 +100,22 @@ try {
         exit;
     }
 
-    // Validate contact number format if provided
-    if ($contact_num && !preg_match('/^[\d\s\-\+\(\)]+$/', $contact_num)) {
+    // Validate contact number format if provided (accepts 09xxxxxxxxx and +63/63 formats)
+    if ($contact_num !== null && $contact_num !== '') {
+        $normalizedContact = $normalizePhilippineMobile($contact_num);
+        if ($normalizedContact === null) {
+            echo json_encode([
+                'success' => false, 
+                'message' => 'Invalid contact number format. Use 09XXXXXXXXX or +63XXXXXXXXXX'
+            ]);
+            exit;
+        }
+        $contact_num = $normalizedContact;
+    } elseif ($contact_num === '') {
+        $contact_num = null;
+    }
+
+    if ($contact_num && !preg_match('/^09\d{9}$/', $contact_num)) {
         echo json_encode([
             'success' => false, 
             'message' => 'Invalid contact number format'
