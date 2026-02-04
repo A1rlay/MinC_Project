@@ -42,6 +42,10 @@ function logAuditTrail($pdo, $userId, $username, $action, $entityType, $entityId
 }
 
 try {
+    $isAjaxRequest =
+        (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') ||
+        (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false);
+
     // Log logout if user is logged in
     if (isset($_SESSION['user_id']) && isset($_SESSION['username'])) {
         logAuditTrail(
@@ -70,7 +74,16 @@ try {
     // Start new session for the message
     session_start();
     $_SESSION['success_message'] = $logout_message;
-    
+
+    if ($isAjaxRequest) {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => true,
+            'message' => 'Logged out successfully'
+        ]);
+        exit();
+    }
+
     // Redirect to login page
     header('Location: ../index.php');
     exit();
@@ -84,7 +97,16 @@ try {
     
     session_start();
     $_SESSION['error_message'] = 'An error occurred during logout, but you have been logged out.';
-    
+
+    if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => 'Logout encountered an issue.'
+        ]);
+        exit();
+    }
+
     header('Location: ../index.php');
     exit();
 }

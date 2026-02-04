@@ -357,7 +357,13 @@ $html_path = $is_in_html ? '' : 'html/';
 
     function handleLogout() {
         if (confirm('Are you sure you want to logout?')) {
-            fetch(BASE_PATH + 'backend/logout.php', { cache: 'no-store' })
+            fetch(BASE_PATH + 'backend/logout.php', {
+                cache: 'no-store',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success || data.message === 'Logged out successfully') {

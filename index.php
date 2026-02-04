@@ -479,10 +479,16 @@ document.addEventListener('click', function(event) {
             }).then(async (result) => {
                 if (result.isConfirmed) {
                     try {
-                        const response = await fetch('backend/logout.php');
+                        const response = await fetch('backend/logout.php', {
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept': 'application/json'
+                            },
+                            cache: 'no-store'
+                        });
                         const data = await response.json();
                         
-                        if (data.success) {
+                        if (data.success || data.message === 'Logged out successfully') {
                             Swal.fire({
                                 icon: 'success',
                                 title: 'Logged Out',
