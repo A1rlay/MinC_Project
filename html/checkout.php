@@ -206,7 +206,7 @@ if ($user_id) {
     <!-- Checkout Content -->
     <div class="max-w-7xl mx-auto px-4 py-8">
         <!-- Progress Steps -->
-        <div class="step-indicator mb-8">
+        <div class="step-indicator mt-16 mb-8">
             <div class="step active" id="step1-indicator">
                 <div class="step-number">1</div>
                 <div class="text-sm font-medium">Contact Info</div>
