@@ -466,16 +466,6 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
                     <i class="fas fa-home"></i>
                 </a>
                 
-                <!-- Icon and Title -->
-                <div class="flex items-center">
-                    <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mr-3">
-                        <i class="fas fa-car text-white text-xl"></i>
-                    </div>
-                    <div>
-                        <h1 class="text-xl font-bold">MinC Auto Supply</h1>
-                        <p class="text-sm opacity-80"><?php echo htmlspecialchars($page_title); ?></p>
-                    </div>
-                </div>
             </div>
                     
                     <!-- Right Side -->
