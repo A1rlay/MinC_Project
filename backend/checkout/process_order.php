@@ -109,6 +109,15 @@ if ($delivery_method === 'shipping') {
     $shipping['city'] = trim((string)$shipping['city']);
     $shipping['province'] = trim((string)$shipping['province']);
     $shipping['barangay'] = trim((string)$shipping['barangay']);
+    $shipping['postal_code'] = trim((string)($shipping['postal_code'] ?? ''));
+
+    if ($shipping['postal_code'] !== '' && !preg_match('/^\d{1,4}$/', $shipping['postal_code'])) {
+        echo json_encode(['success' => false, 'message' => 'Invalid postal code. Must be up to 4 digits and non-negative.']);
+        exit;
+    }
+    if ($shipping['postal_code'] === '') {
+        $shipping['postal_code'] = null;
+    }
 
     if (
         $shipping['province'] !== 'Pampanga' ||

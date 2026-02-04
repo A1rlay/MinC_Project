@@ -374,7 +374,11 @@ if ($user_id) {
 
                         <div class="mt-4">
                             <label class="block text-gray-700 font-medium mb-2">Postal Code</label>
-                            <input type="number" id="postalCode" 
+                            <input type="text" id="postalCode"
+                                   inputmode="numeric"
+                                   maxlength="4"
+                                   pattern="^\d{1,4}$"
+                                   oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
                                    placeholder="e.g., 2009"
                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
                         </div>
@@ -877,6 +881,16 @@ if ($user_id) {
                         icon: 'error',
                         title: 'Invalid Shipping Location',
                         text: 'Shipping is only available in Angeles City, Pampanga barangays.',
+                        confirmButtonColor: '#08415c'
+                    });
+                    return;
+                }
+
+                if (postalCode && !/^\d{1,4}$/.test(postalCode)) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Invalid Postal Code',
+                        text: 'Postal code must be up to 4 digits and cannot be negative.',
                         confirmButtonColor: '#08415c'
                     });
                     return;
