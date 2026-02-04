@@ -377,9 +377,9 @@ if ($user_id) {
                             <input type="text" id="postalCode"
                                    inputmode="numeric"
                                    maxlength="4"
-                                   pattern="^\d{1,4}$"
+                                   pattern="^\d{4}$"
                                    oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
-                                   placeholder="e.g., 2009"
+                                   placeholder="2000 to 2100"
                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
                         </div>
 
@@ -886,14 +886,18 @@ if ($user_id) {
                     return;
                 }
 
-                if (postalCode && !/^\d{1,4}$/.test(postalCode)) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Invalid Postal Code',
-                        text: 'Postal code must be up to 4 digits and cannot be negative.',
-                        confirmButtonColor: '#08415c'
-                    });
-                    return;
+                if (postalCode) {
+                    const postalCodeNum = Number(postalCode);
+                    const postalCodeValid = /^\d{4}$/.test(postalCode) && postalCodeNum >= 2000 && postalCodeNum <= 2100;
+                    if (!postalCodeValid) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Invalid Postal Code',
+                            text: 'Postal code must be between 2000 and 2100.',
+                            confirmButtonColor: '#08415c'
+                        });
+                        return;
+                    }
                 }
 
                 orderDetails += `<p class="mb-2"><strong>Address:</strong> ${address}, ${barangay}, ${city}, ${province}</p>`;

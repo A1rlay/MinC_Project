@@ -111,11 +111,16 @@ if ($delivery_method === 'shipping') {
     $shipping['barangay'] = trim((string)$shipping['barangay']);
     $shipping['postal_code'] = trim((string)($shipping['postal_code'] ?? ''));
 
-    if ($shipping['postal_code'] !== '' && !preg_match('/^\d{1,4}$/', $shipping['postal_code'])) {
-        echo json_encode(['success' => false, 'message' => 'Invalid postal code. Must be up to 4 digits and non-negative.']);
-        exit;
-    }
-    if ($shipping['postal_code'] === '') {
+    if ($shipping['postal_code'] !== '') {
+        $postalCodeInt = (int)$shipping['postal_code'];
+        $postalCodeValid = preg_match('/^\d{4}$/', $shipping['postal_code']) === 1
+            && $postalCodeInt >= 2000
+            && $postalCodeInt <= 2100;
+        if (!$postalCodeValid) {
+            echo json_encode(['success' => false, 'message' => 'Invalid postal code. Must be between 2000 and 2100.']);
+            exit;
+        }
+    } else {
         $shipping['postal_code'] = null;
     }
 
