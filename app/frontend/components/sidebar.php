@@ -37,10 +37,10 @@ if (!isset($config) || !isset($user)) {
      style="width: 250px;">
     
     <!-- Sidebar Header -->
-    <div class="flex items-center justify-between p-4 border-b border-gray-300 bg-gray-50 relative z-10">
-        <div class="relative h-10 w-full transition-all duration-300">
-            <div class="full-logo-wrapper flex items-center relative transition-all duration-300">
-                <a href="dashboard.php" class="flex items-center cursor-pointer z-10">
+    <div class="p-4 border-b border-gray-300 bg-gray-50 relative z-10">
+        <button id="toggle-sidebar" type="button" class="w-full text-left rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]/30">
+            <div class="relative h-10 w-full transition-all duration-300">
+                <div class="full-logo-wrapper flex items-center relative transition-all duration-300">
                     <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[#08415c] to-[#0a5273] flex items-center justify-center mr-3 shadow-md">
                         <i class="fas fa-car-side text-white text-sm"></i>
                     </div>
@@ -48,17 +48,13 @@ if (!isset($config) || !isset($user)) {
                         <div class="font-bold text-sm"><?php echo htmlspecialchars($config['site_short']); ?></div>
                         <div class="text-xs text-gray-500">Auto Parts</div>
                     </div>
-                </a>
-            </div>
-            <div class="small-logo-wrapper absolute inset-0 opacity-0 flex justify-center items-center transition transition-all duration-300">
-                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[#08415c] to-[#0a5273] flex items-center justify-center shadow-md">
-                    <i class="fas fa-car-side text-white text-sm"></i>
+                </div>
+                <div class="small-logo-wrapper absolute inset-0 opacity-0 flex justify-center items-center transition transition-all duration-300">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[#08415c] to-[#0a5273] flex items-center justify-center shadow-md">
+                        <i class="fas fa-car-side text-white text-sm"></i>
+                    </div>
                 </div>
             </div>
-        </div>
-        
-        <button id="toggle-sidebar" class="hidden lg:flex text-gray-600 bg-gray-200 border border-gray-300 hover:bg-gray-300 hover:text-gray-700 w-8 h-8 rounded-lg items-center justify-center cursor-pointer transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#08415c]/30 shadow-sm absolute right-0 top-1/2 transform -translate-y-1/2 -translate-x-12 z-40">
-            <i class="fas fa-chevron-left text-sm transition-transform duration-300" id="toggle-icon"></i>
         </button>
     </div>
     

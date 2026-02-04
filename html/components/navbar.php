@@ -355,29 +355,80 @@ $html_path = $is_in_html ? '' : 'html/';
         }
     }
 
-    function handleLogout() {
-        if (confirm('Are you sure you want to logout?')) {
-            fetch(BASE_PATH + 'backend/logout.php', {
+    async function handleLogout() {
+        let isConfirmed = false;
+
+        if (typeof Swal !== 'undefined') {
+            const result = await Swal.fire({
+                title: 'Are you sure?',
+                text: 'Do you want to logout?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#08415c',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, logout'
+            });
+            isConfirmed = !!result.isConfirmed;
+        } else {
+            isConfirmed = confirm('Are you sure you want to logout?');
+        }
+
+        if (!isConfirmed) {
+            return;
+        }
+
+        try {
+            const response = await fetch(BASE_PATH + 'backend/logout.php', {
                 cache: 'no-store',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json'
                 }
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success || data.message === 'Logged out successfully') {
-                        updateNavbarUI(false);
-                        alert('Logged out successfully');
-                    }
-                })
-                .catch(error => {
-                    console.error('Logout error:', error);
-                    updateNavbarUI(false);
-                    alert('Logged out');
+            });
+
+            let data = {};
+            try {
+                data = await response.json();
+            } catch (e) {
+                data = {};
+            }
+
+            if (!response.ok || data.success === false) {
+                throw new Error(data.message || 'Logout failed');
+            }
+
+            updateNavbarUI(false);
+
+            if (typeof Swal !== 'undefined') {
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Logged Out',
+                    text: 'You have been logged out successfully.',
+                    confirmButtonColor: '#08415c',
+                    timer: 1200
                 });
+            }
+
+            const currentPath = window.location.pathname.toLowerCase();
+            const shouldRedirectHome =
+                currentPath.endsWith('/html/profile.php') ||
+                currentPath.endsWith('/html/user-cart.php') ||
+                currentPath.endsWith('/html/checkout.php');
+
+            if (shouldRedirectHome) {
+                window.location.href = BASE_PATH + 'index.php';
+                return;
+            }
+
+            window.location.reload();
+        } catch (error) {
+            console.error('Logout error:', error);
+            updateNavbarUI(false);
+            window.location.reload();
         }
     }
+
+    window.globalHandleLogout = handleLogout;
 
     // Check session when navbar loads
     document.addEventListener('DOMContentLoaded', checkNavbarSession);

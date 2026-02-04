@@ -468,42 +468,9 @@ document.addEventListener('click', function(event) {
         }
         
         async function handleLogout() {
-            Swal.fire({
-                title: 'Are you sure?',
-                text: "Do you want to logout?",
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#08415c',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, logout'
-            }).then(async (result) => {
-                if (result.isConfirmed) {
-                    try {
-                        const response = await fetch('backend/logout.php', {
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'Accept': 'application/json'
-                            },
-                            cache: 'no-store'
-                        });
-                        const data = await response.json();
-                        
-                        if (data.success || data.message === 'Logged out successfully') {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Logged Out',
-                                text: 'You have been logged out successfully.',
-                                confirmButtonColor: '#08415c',
-                                timer: 1500
-                            }).then(() => {
-                                window.location.reload();
-                            });
-                        }
-                    } catch (error) {
-                        console.error('Logout error:', error);
-                    }
-                }
-            });
+            if (typeof window.globalHandleLogout === 'function') {
+                return window.globalHandleLogout();
+            }
         }
         
         // Smooth scroll for anchor links

@@ -255,7 +255,7 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
     
 /* Sidebar collapsed styles */
 .sidebar-collapsed {
-    width: 64px !important;
+    width: 88px !important;
 }
 
 /* Ensure content area takes full available width */
@@ -282,12 +282,16 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
 
     .sidebar-collapsed .nav-icon {
         margin: 0 auto;
+        width: 2.5rem;
+        height: 2.5rem;
     }
 
-    .sidebar-collapsed #toggle-icon {
-        transform: rotate(180deg);
+    .sidebar-collapsed .nav-link {
+        justify-content: center;
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
     }
-    
+
     /* Custom scrollbar - Blue theme */
     #sidebar::-webkit-scrollbar {
         width: 6px;
@@ -439,7 +443,7 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
     <?php include 'components/sidebar.php'; ?>
 
     <!-- Main Content Area -->
-    <div id="content" class="flex-1 transition-all duration-300 ease-in-out ml-0 lg:ml-64" style="width: calc(100% - 0px);">
+    <div id="content" class="flex-1 transition-all duration-300 ease-in-out ml-0 lg:ml-64">
 <!-- Updated Top Navigation Bar -->
 <nav class="minc-topbar text-white shadow-lg sticky top-0 z-20 no-print">
     <div class="px-4 sm:px-6 lg:px-8">
@@ -640,38 +644,52 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
                 });
             }
             
+            const resizeChartsIfAny = () => {
+                if (!window.Chart || !window.Chart.instances) return;
+                Object.values(window.Chart.instances).forEach((chartInstance) => {
+                    if (chartInstance && typeof chartInstance.resize === 'function') {
+                        chartInstance.resize();
+                    }
+                });
+            };
+
+            const applySidebarState = (collapsed, persist = true) => {
+                if (!sidebar || !content) return;
+
+                if (window.innerWidth < 1024) {
+                    content.style.marginLeft = '0';
+                    content.style.width = '100%';
+                    return;
+                }
+
+                if (collapsed) {
+                    sidebar.classList.add('sidebar-collapsed');
+                    content.style.marginLeft = '88px';
+                    content.style.width = 'calc(100% - 88px)';
+                } else {
+                    sidebar.classList.remove('sidebar-collapsed');
+                    content.style.marginLeft = '250px';
+                    content.style.width = 'calc(100% - 250px)';
+                }
+
+                if (persist) {
+                    localStorage.setItem('sidebarState', collapsed ? 'collapsed' : 'expanded');
+                }
+
+                setTimeout(() => {
+                    window.dispatchEvent(new Event('resize'));
+                    resizeChartsIfAny();
+                }, 320);
+            };
+
             // Desktop sidebar toggle
-// Desktop sidebar toggle - IMPROVED STABLE VERSION
-if (toggleBtn) {
-    toggleBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        const isCollapsed = sidebar.classList.contains('sidebar-collapsed');
-        
-        if (isCollapsed) {
-            // Expand sidebar
-            sidebar.classList.remove('sidebar-collapsed');
-            content.style.marginLeft = '250px';
-            content.style.width = 'calc(100% - 250px)';
-            localStorage.setItem('sidebarState', 'expanded');
-        } else {
-            // Collapse sidebar
-            sidebar.classList.add('sidebar-collapsed');
-            content.style.marginLeft = '64px';
-            content.style.width = 'calc(100% - 64px)';
-            localStorage.setItem('sidebarState', 'collapsed');
-        }
-    });
-    
-    // Restore sidebar state from localStorage
-    const savedState = localStorage.getItem('sidebarState');
-    if (savedState === 'collapsed') {
-        sidebar.classList.add('sidebar-collapsed');
-        content.style.marginLeft = '64px';
-        content.style.width = 'calc(100% - 64px)';
-    }
-}
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    applySidebarState(!sidebar.classList.contains('sidebar-collapsed'));
+                });
+            }
             
             // Mobile sidebar toggle
             if (mobileToggle) {
@@ -708,36 +726,20 @@ if (toggleBtn) {
             });
 
   
-// Handle window resize
-window.addEventListener('resize', function() {
-    if (window.innerWidth >= 1024) {
-        if (sidebar.classList.contains('sidebar-collapsed')) {
-            content.style.marginLeft = '64px';
-            content.style.width = 'calc(100% - 64px)';
-        } else {
-            content.style.marginLeft = '250px';
-            content.style.width = 'calc(100% - 250px)';
-        }
-    } else {
-        content.style.marginLeft = '0';
-        content.style.width = '100%';
-    }
-});
-            
-// Initialize margin and width on page load
-if (window.innerWidth >= 1024) {
-    const savedState = localStorage.getItem('sidebarState');
-    if (savedState === 'collapsed') {
-        content.style.marginLeft = '64px';
-        content.style.width = 'calc(100% - 64px)';
-    } else {
-        content.style.marginLeft = '250px';
-        content.style.width = 'calc(100% - 250px)';
-    }
-} else {
-    content.style.marginLeft = '0';
-    content.style.width = '100%';
-}
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                if (!sidebar || !content) return;
+                if (window.innerWidth >= 1024) {
+                    applySidebarState(sidebar.classList.contains('sidebar-collapsed'), false);
+                } else {
+                    content.style.marginLeft = '0';
+                    content.style.width = '100%';
+                }
+            });
+
+            // Initialize layout state on page load
+            const savedState = localStorage.getItem('sidebarState');
+            applySidebarState(savedState === 'collapsed', false);
             
             // Enhanced search functionality (optional)
             const searchInput = document.querySelector('input[placeholder="Search..."]');

@@ -8,6 +8,19 @@
 include_once '../../backend/auth.php';
 include_once '../../database/connect_database.php';
 
+// Validate session and permissions (match other admin pages)
+$validation = validateSession();
+if (!$validation['valid']) {
+    header('Location: ../../index.php?error=' . $validation['reason']);
+    exit;
+}
+
+if (!isManagementLevel()) {
+    $_SESSION['error_message'] = 'Access denied. You do not have permission to access this page.';
+    header('Location: ../../index.php');
+    exit;
+}
+
 // Fetch current user data (from session)
 $user_data = [
     'name' => $_SESSION['full_name'] ?? $_SESSION['fname'] ?? 'Admin',
@@ -15,7 +28,7 @@ $user_data = [
 ];
 
 // Page title
-$custom_title = 'Dashboard - AutoSupply Pro';
+$custom_title = 'Dashboard - MinC Project';
 
 // === DASHBOARD STATISTICS (Templated - Replace with real queries later) ===
 try {
@@ -45,7 +58,8 @@ try {
         SELECT c.category_name, SUM(oi.quantity) as units_sold
         FROM order_items oi
         JOIN products p ON oi.product_id = p.product_id
-        JOIN categories c ON p.category_id = c.category_id
+        JOIN product_lines pl ON p.product_line_id = pl.product_line_id
+        JOIN categories c ON pl.category_id = c.category_id
         JOIN orders o ON oi.order_id = o.order_id
         WHERE o.order_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
           AND o.status IN ('completed','shipped')

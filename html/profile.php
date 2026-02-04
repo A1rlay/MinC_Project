@@ -236,12 +236,9 @@ if (!isset($_SESSION['user_id'])) {
         }
         
         // Handle logout
-        function handleLogout() {
-            if (confirm('Are you sure you want to logout?')) {
-                fetch('/pages/MinC_Project/backend/logout.php')
-                    .then(() => {
-                        window.location.href = '/pages/MinC_Project/index.php';
-                    });
+        async function handleLogout() {
+            if (typeof window.globalHandleLogout === 'function') {
+                return window.globalHandleLogout();
             }
         }
         
