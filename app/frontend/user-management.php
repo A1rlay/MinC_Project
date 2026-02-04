@@ -44,7 +44,30 @@ $user = [
 // Fetch data for dropdowns
 try {
     // Get user levels from user_levels table
-    $user_levels_query = "SELECT user_level_id, user_type_name FROM user_levels WHERE user_type_status = 'active' ORDER BY user_type_name";
+    $user_levels_query = "
+        SELECT MIN(user_level_id) AS user_level_id, normalized_name AS user_type_name
+        FROM (
+            SELECT
+                user_level_id,
+                CASE
+                    WHEN LOWER(user_type_name) IN ('it personnel', 'admin') THEN 'Admin'
+                    WHEN LOWER(user_type_name) IN ('owner', 'manager', 'employee', 'employees') THEN 'Employee'
+                    WHEN LOWER(user_type_name) IN ('consumer', 'customer', 'customers') THEN 'Customer'
+                    ELSE user_type_name
+                END AS normalized_name
+            FROM user_levels
+            WHERE user_type_status = 'active'
+        ) roles
+        GROUP BY normalized_name
+        ORDER BY
+            CASE normalized_name
+                WHEN 'Admin' THEN 1
+                WHEN 'Employee' THEN 2
+                WHEN 'Customer' THEN 3
+                ELSE 4
+            END,
+            normalized_name
+    ";
     $user_levels_result = $pdo->query($user_levels_query);
     $user_levels = $user_levels_result->fetchAll(PDO::FETCH_ASSOC);
 
@@ -73,7 +96,12 @@ try {
             u.contact_num,
             u.user_status,
             u.user_level_id,
-            ul.user_type_name,
+            CASE
+                WHEN LOWER(ul.user_type_name) IN ('it personnel', 'admin') THEN 'Admin'
+                WHEN LOWER(ul.user_type_name) IN ('owner', 'manager', 'employee', 'employees') THEN 'Employee'
+                WHEN LOWER(ul.user_type_name) IN ('consumer', 'customer', 'customers') THEN 'Customer'
+                ELSE ul.user_type_name
+            END AS user_type_name,
             u.created_at
         FROM users u
         LEFT JOIN user_levels ul ON u.user_level_id = ul.user_level_id

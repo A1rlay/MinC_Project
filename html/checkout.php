@@ -285,14 +285,27 @@ if ($user_id) {
                     <div id="step2" class="form-section">
                         <h2 class="text-2xl font-bold text-[#08415c] mb-6">Delivery Method</h2>
 
+                        <?php if (!$user_id): ?>
+                        <div class="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            Guest checkout supports <strong>Pickup + COD only</strong>. Please sign in to use shipping and online payment methods.
+                        </div>
+                        <?php endif; ?>
+
                         <div class="mb-6 space-y-3">
-                            <label class="block p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-[#08415c] transition" onclick="toggleDeliveryMethod('shipping')">
+                            <label id="shippingOptionLabel" class="block p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-[#08415c] transition" onclick="toggleDeliveryMethod('shipping')">
                                 <input type="radio" name="deliveryMethod" value="shipping" checked class="mr-3" onchange="toggleDeliveryFields()">
                                 <span class="font-semibold"><i class="fas fa-truck text-blue-600 mr-2"></i>Delivery (Shipping)</span>
                                 <p class="text-sm text-gray-600 ml-8 mt-1">Get your order delivered to your address</p>
                             </label>
+                            <p class="text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 ml-8">
+                                Free shipping for orders over ₱1,000. Orders below that have a ₱150 shipping fee.
+                            </p>
+                            <p class="text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 ml-8">
+                                Shipping is available only within Pampanga.
+                            </p>
 
-                            <label class="block p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-[#08415c] transition" onclick="toggleDeliveryMethod('pickup')">
+                            <label id="pickupOptionLabel" class="block p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-[#08415c] transition" onclick="toggleDeliveryMethod('pickup')">
                                 <input type="radio" name="deliveryMethod" value="pickup" class="mr-3" onchange="toggleDeliveryFields()">
                                 <span class="font-semibold"><i class="fas fa-store text-green-600 mr-2"></i>Pickup</span>
                                 <p class="text-sm text-gray-600 ml-8 mt-1">Pick up your order at our store (No shipping fee)</p>
@@ -311,9 +324,30 @@ if ($user_id) {
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-gray-700 font-medium mb-2">City/Municipality *</label>
-                                <input type="text" id="city" 
-                                       placeholder="e.g., Angeles City"
-                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                                <select id="city"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                                    <option value="">Select Municipality/City (Pampanga)</option>
+                                    <option value="Angeles City">Angeles City</option>
+                                    <option value="Mabalacat City">Mabalacat City</option>
+                                    <option value="San Fernando City">San Fernando City</option>
+                                    <option value="Apalit">Apalit</option>
+                                    <option value="Arayat">Arayat</option>
+                                    <option value="Bacolor">Bacolor</option>
+                                    <option value="Candaba">Candaba</option>
+                                    <option value="Floridablanca">Floridablanca</option>
+                                    <option value="Guagua">Guagua</option>
+                                    <option value="Lubao">Lubao</option>
+                                    <option value="Masantol">Masantol</option>
+                                    <option value="Mexico">Mexico</option>
+                                    <option value="Minalin">Minalin</option>
+                                    <option value="Porac">Porac</option>
+                                    <option value="San Luis">San Luis</option>
+                                    <option value="San Simon">San Simon</option>
+                                    <option value="Santa Ana">Santa Ana</option>
+                                    <option value="Santa Rita">Santa Rita</option>
+                                    <option value="Santo Tomas">Santo Tomas</option>
+                                    <option value="Sasmuan">Sasmuan</option>
+                                </select>
                             </div>
                             <div>
                                 <label class="block text-gray-700 font-medium mb-2">Province *</label>
@@ -393,19 +427,19 @@ if ($user_id) {
                                 <p class="text-sm text-gray-600 ml-8 mt-1">Pay when you receive your order</p>
                             </label>
 
-                            <label class="block p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-[#08415c] transition">
+                            <label id="bankTransferOptionLabel" class="block p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-[#08415c] transition">
                                 <input type="radio" name="paymentMethod" value="bank_transfer" class="mr-3">
                                 <span class="font-semibold"><i class="fas fa-university text-blue-600 mr-2"></i>Bank Transfer</span>
                                 <p class="text-sm text-gray-600 ml-8 mt-1">Transfer to our bank account</p>
                             </label>
 
-                            <label class="block p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-[#08415c] transition">
+                            <label id="gcashOptionLabel" class="block p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-[#08415c] transition">
                                 <input type="radio" name="paymentMethod" value="gcash" class="mr-3">
                                 <span class="font-semibold"><i class="fas fa-mobile-alt text-blue-500 mr-2"></i>GCash</span>
                                 <p class="text-sm text-gray-600 ml-8 mt-1">Pay via GCash mobile wallet</p>
                             </label>
 
-                            <label class="block p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-[#08415c] transition">
+                            <label id="paymayaOptionLabel" class="block p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-[#08415c] transition">
                                 <input type="radio" name="paymentMethod" value="paymaya" class="mr-3">
                                 <span class="font-semibold"><i class="fas fa-credit-card text-green-500 mr-2"></i>PayMaya</span>
                                 <p class="text-sm text-gray-600 ml-8 mt-1">Pay via PayMaya digital wallet</p>
@@ -501,7 +535,14 @@ if ($user_id) {
         let cartItems = [];
         let subtotal = 0;
         const SHIPPING_FEE = 150;
-        const FREE_SHIPPING_THRESHOLD = 5000;
+        const FREE_SHIPPING_THRESHOLD = 1000;
+        const IS_GUEST_CHECKOUT = <?php echo $user_id ? 'false' : 'true'; ?>;
+        const PAMPANGA_MUNICIPALITIES = [
+            'Angeles City', 'Mabalacat City', 'San Fernando City', 'Apalit', 'Arayat',
+            'Bacolor', 'Candaba', 'Floridablanca', 'Guagua', 'Lubao', 'Masantol',
+            'Mexico', 'Minalin', 'Porac', 'San Luis', 'San Simon', 'Santa Ana',
+            'Santa Rita', 'Santo Tomas', 'Sasmuan'
+        ];
         let currentStep = 1;
 
         // Format currency
@@ -630,6 +671,16 @@ if ($user_id) {
 
             if (step === 3) {
                 const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked').value;
+
+                if (IS_GUEST_CHECKOUT && deliveryMethod !== 'pickup') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Pickup Only for Guest Checkout',
+                        text: 'Please use Pickup or sign in for shipping.',
+                        confirmButtonColor: '#08415c'
+                    });
+                    return;
+                }
                 
                 if (deliveryMethod === 'shipping') {
                     const address = document.getElementById('address').value.trim();
@@ -641,6 +692,16 @@ if ($user_id) {
                             icon: 'error',
                             title: 'Missing Information',
                             text: 'Please fill in all required shipping fields',
+                            confirmButtonColor: '#08415c'
+                        });
+                        return;
+                    }
+
+                    if (!PAMPANGA_MUNICIPALITIES.includes(city) || province !== 'Pampanga') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Invalid Shipping Location',
+                            text: 'Shipping is only available for Pampanga municipalities.',
                             confirmButtonColor: '#08415c'
                         });
                         return;
@@ -691,6 +752,12 @@ if ($user_id) {
 
         // Toggle delivery method display
         function toggleDeliveryMethod(method) {
+            if (IS_GUEST_CHECKOUT && method === 'shipping') {
+                method = 'pickup';
+                const pickupRadio = document.querySelector('input[name="deliveryMethod"][value="pickup"]');
+                if (pickupRadio) pickupRadio.checked = true;
+            }
+
             const shippingFields = document.getElementById('shippingFields');
             const pickupFields = document.getElementById('pickupFields');
 
@@ -728,6 +795,26 @@ if ($user_id) {
             const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked').value;
             const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
 
+            if (IS_GUEST_CHECKOUT && deliveryMethod !== 'pickup') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Pickup Only for Guest Checkout',
+                    text: 'Please use Pickup or sign in for shipping.',
+                    confirmButtonColor: '#08415c'
+                });
+                return;
+            }
+
+            if (IS_GUEST_CHECKOUT && paymentMethod !== 'cod') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'COD Only for Guest Checkout',
+                    text: 'Please use COD or sign in to use online payments.',
+                    confirmButtonColor: '#08415c'
+                });
+                return;
+            }
+
             let orderDetails = `
                 <div class="text-left">
                     <p class="mb-2"><strong>Name:</strong> ${firstName} ${lastName}</p>
@@ -753,6 +840,16 @@ if ($user_id) {
                 const province = document.getElementById('province').value;
                 const postalCode = document.getElementById('postalCode').value.trim();
                 const notes = document.getElementById('notes').value.trim();
+
+                if (!PAMPANGA_MUNICIPALITIES.includes(city) || province !== 'Pampanga') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Invalid Shipping Location',
+                        text: 'Shipping is only available for Pampanga municipalities.',
+                        confirmButtonColor: '#08415c'
+                    });
+                    return;
+                }
 
                 orderDetails += `<p class="mb-2"><strong>Address:</strong> ${address}, ${city}, ${province}</p>`;
                 if (notes) orderDetails += `<p class="mb-2"><strong>Notes:</strong> ${notes}</p>`;
@@ -902,9 +999,49 @@ if ($user_id) {
         }
     }
 
+    function applyGuestCheckoutRestrictions() {
+        if (!IS_GUEST_CHECKOUT) return;
+
+        const shippingRadio = document.querySelector('input[name="deliveryMethod"][value="shipping"]');
+        const pickupRadio = document.querySelector('input[name="deliveryMethod"][value="pickup"]');
+        const nonCodPaymentMethods = document.querySelectorAll('input[name="paymentMethod"]:not([value="cod"])');
+        const shippingLabel = document.getElementById('shippingOptionLabel');
+        const nonCodLabels = [
+            document.getElementById('bankTransferOptionLabel'),
+            document.getElementById('gcashOptionLabel'),
+            document.getElementById('paymayaOptionLabel')
+        ];
+
+        if (shippingRadio) {
+            shippingRadio.checked = false;
+            shippingRadio.disabled = true;
+        }
+        if (pickupRadio) {
+            pickupRadio.checked = true;
+        }
+        if (shippingLabel) {
+            shippingLabel.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
+        }
+
+        nonCodPaymentMethods.forEach((paymentInput) => {
+            paymentInput.checked = false;
+            paymentInput.disabled = true;
+        });
+        nonCodLabels.forEach((label) => {
+            if (label) label.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
+        });
+
+        const codRadio = document.querySelector('input[name="paymentMethod"][value="cod"]');
+        if (codRadio) codRadio.checked = true;
+
+        toggleDeliveryMethod('pickup');
+        updateSummary();
+    }
+
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', () => {
         loadCart();
+        applyGuestCheckoutRestrictions();
     });
 </script>
 </body>

@@ -81,46 +81,45 @@ function validateSession($redirect = true, $admin_only = false) {
  */
 
 /**
- * Check if user is IT Staff (user_level_id = 1)
+ * Check if user is Admin (user_level_id = 1)
  */
 function isITStaff() {
     return isset($_SESSION['user_level_id']) && $_SESSION['user_level_id'] == 1;
 }
 
 /**
- * Check if user is Owner (user_level_id = 2)
+ * Check if user is Employee (legacy Owner/Manager ids: 2, 3)
  */
 function isOwner() {
-    return isset($_SESSION['user_level_id']) && $_SESSION['user_level_id'] == 2;
+    return isset($_SESSION['user_level_id']) && in_array((int)$_SESSION['user_level_id'], [2, 3], true);
 }
 
 /**
- * Check if user is Manager (user_level_id = 3)
+ * Legacy alias for employee role checks
  */
 function isManager() {
-    return isset($_SESSION['user_level_id']) && $_SESSION['user_level_id'] == 3;
+    return isOwner();
 }
 
 /**
- * Check if user is Consumer (user_level_id = 4)
+ * Check if user is Customer (user_level_id = 4)
  */
 function isConsumer() {
     return isset($_SESSION['user_level_id']) && $_SESSION['user_level_id'] == 4;
 }
 
 /**
- * Check if user is Admin (IT Personnel or Owner)
- * Combines IT Personnel and Owner roles for admin-level access
+ * Admin and employee access
  */
 function isAdmin() {
     return isITStaff() || isOwner();
 }
 
 /**
- * Check if user has management level access (IT Personnel, Owner, or Manager)
+ * Management access (admin + employees)
  */
 function isManagementLevel() {
-    return isITStaff() || isOwner() || isManager();
+    return isITStaff() || isOwner();
 }
 
 /**

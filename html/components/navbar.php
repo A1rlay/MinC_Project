@@ -3,7 +3,7 @@
 $current_page = basename($_SERVER['PHP_SELF']);
 
 // Determine base paths for navigation
-$is_in_html = in_array($current_page, ['product.php', 'product_detail.php', 'user-cart.php', 'checkout.php', 'order-success.php', 'profile.php']);
+$is_in_html = in_array($current_page, ['product.php', 'product_detail.php', 'user-cart.php', 'checkout.php', 'order-success.php', 'profile.php', 'my-orders.php']);
 $base_path = $is_in_html ? '../' : './';
 $html_path = $is_in_html ? '' : 'html/';
 ?>
@@ -25,7 +25,8 @@ $html_path = $is_in_html ? '' : 'html/';
                 <a href="<?php echo $base_path; ?>index.php#contact-us" class="nav-link-custom text-gray-700 font-medium">Contact</a>
                 <a id="dashboardLink" href="<?php echo $base_path; ?>app/frontend/dashboard.php" class="nav-link-custom text-gray-700 font-medium flex items-center hidden"><i class="fas fa-chart-line mr-2"></i>Dashboard</a>
                 <a id="profileLink" href="<?php echo $html_path; ?>profile.php" class="nav-link-custom text-gray-700 font-medium flex items-center hidden"><i class="fas fa-user-circle mr-2"></i>Profile</a>
-                <a id="orderLink" href="<?php echo $html_path; ?>user-cart.php" class="nav-link-custom text-gray-700 font-medium flex items-center hidden"><i class="fas fa-shopping-cart mr-2"></i>Order</a>
+                <a id="cartLink" href="<?php echo $html_path; ?>user-cart.php" class="nav-link-custom text-gray-700 font-medium flex items-center hidden"><i class="fas fa-shopping-cart mr-2"></i>Cart</a>
+                <a id="orderLink" href="<?php echo $html_path; ?>my-orders.php" class="nav-link-custom text-gray-700 font-medium flex items-center hidden"><i class="fas fa-shopping-bag mr-2"></i>My Orders</a>
                 <button id="loginBtn" class="btn-primary-custom text-white px-4 py-2 rounded-lg font-medium ml-4" onclick="openLoginModal()">Login</button>
                 <button id="logoutBtn" class="hidden btn-primary-custom text-white px-4 py-2 rounded-lg font-medium ml-4" onclick="handleLogout()">Logout</button>
             </div>
@@ -46,7 +47,8 @@ $html_path = $is_in_html ? '' : 'html/';
             <a href="<?php echo $base_path; ?>index.php#contact-us" class="block text-gray-700 font-medium py-2">Contact</a>
             <a id="dashboardLinkMobile" href="<?php echo $base_path; ?>app/frontend/dashboard.php" class="block text-gray-700 font-medium py-2 flex items-center hidden"><i class="fas fa-chart-line mr-2"></i>Dashboard</a>
             <a id="profileLinkMobile" href="<?php echo $html_path; ?>profile.php" class="block text-gray-700 font-medium py-2 flex items-center hidden"><i class="fas fa-user-circle mr-2"></i>Profile</a>
-            <a id="orderLinkMobile" href="<?php echo $html_path; ?>user-cart.php" class="block text-gray-700 font-medium py-2 flex items-center hidden"><i class="fas fa-shopping-cart mr-2"></i>Order</a>
+            <a id="cartLinkMobile" href="<?php echo $html_path; ?>user-cart.php" class="block text-gray-700 font-medium py-2 flex items-center hidden"><i class="fas fa-shopping-cart mr-2"></i>Cart</a>
+            <a id="orderLinkMobile" href="<?php echo $html_path; ?>my-orders.php" class="block text-gray-700 font-medium py-2 flex items-center hidden"><i class="fas fa-shopping-bag mr-2"></i>My Orders</a>
             <button id="loginBtnMobile" class="w-full btn-primary-custom text-white px-4 py-2 rounded-lg font-medium mt-4" onclick="openLoginModal()">Login</button>
             <button id="logoutBtnMobile" class="hidden w-full btn-primary-custom text-white px-4 py-2 rounded-lg font-medium mt-4" onclick="handleLogout()">Logout</button>
         </div>
@@ -238,6 +240,8 @@ $html_path = $is_in_html ? '' : 'html/';
         const logoutBtnMobile = document.getElementById('logoutBtnMobile');
         const profileLink = document.getElementById('profileLink');
         const profileLinkMobile = document.getElementById('profileLinkMobile');
+        const cartLink = document.getElementById('cartLink');
+        const cartLinkMobile = document.getElementById('cartLinkMobile');
         const orderLink = document.getElementById('orderLink');
         const orderLinkMobile = document.getElementById('orderLinkMobile');
         const dashboardLink = document.getElementById('dashboardLink');
@@ -251,6 +255,8 @@ $html_path = $is_in_html ? '' : 'html/';
             if (logoutBtnMobile) logoutBtnMobile.classList.remove('hidden');
             if (profileLink) profileLink.classList.remove('hidden');
             if (profileLinkMobile) profileLinkMobile.classList.remove('hidden');
+            if (cartLink) cartLink.classList.remove('hidden');
+            if (cartLinkMobile) cartLinkMobile.classList.remove('hidden');
             if (orderLink) orderLink.classList.remove('hidden');
             if (orderLinkMobile) orderLinkMobile.classList.remove('hidden');
             
@@ -270,6 +276,8 @@ $html_path = $is_in_html ? '' : 'html/';
             if (logoutBtnMobile) logoutBtnMobile.classList.add('hidden');
             if (profileLink) profileLink.classList.add('hidden');
             if (profileLinkMobile) profileLinkMobile.classList.add('hidden');
+            if (cartLink) cartLink.classList.add('hidden');
+            if (cartLinkMobile) cartLinkMobile.classList.add('hidden');
             if (orderLink) orderLink.classList.add('hidden');
             if (orderLinkMobile) orderLinkMobile.classList.add('hidden');
             if (dashboardLink) dashboardLink.classList.add('hidden');
@@ -646,6 +654,7 @@ $html_path = $is_in_html ? '' : 'html/';
             const shouldRedirectHome =
                 currentPath.endsWith('/html/profile.php') ||
                 currentPath.endsWith('/html/user-cart.php') ||
+                currentPath.endsWith('/html/my-orders.php') ||
                 currentPath.endsWith('/html/checkout.php');
 
             if (shouldRedirectHome) {

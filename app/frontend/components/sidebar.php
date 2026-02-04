@@ -73,7 +73,7 @@ if (!isset($config) || !isset($user)) {
                 </a>
             </li>
 
-            <?php if (isITStaff() || isOwner()): ?>
+            <?php if (isITStaff() || isOwner() || isManager()): ?>
             <li>
                 <a href="audit-trail.php" class="nav-link group flex items-center px-3 py-2.5 text-gray-700 hover:bg-gray-200 hover:text-[#08415c] transition-all duration-200 rounded-lg <?php echo $current_page === 'audit-trail' ? 'active-link text-[#08415c] bg-gray-200' : ''; ?>">
                     <span class="inline-flex justify-center items-center w-8 h-8 rounded-lg bg-gray-200 group-hover:bg-gray-300 nav-icon transition-all duration-300 group-hover:text-[#08415c]">

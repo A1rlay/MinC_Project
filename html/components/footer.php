@@ -1,58 +1,51 @@
 <?php
 // Shared Footer Component for MinC
 // Include this file at the bottom of your PHP pages
+$current_page = basename($_SERVER['PHP_SELF']);
+$is_in_html = in_array($current_page, ['product.php', 'product_detail.php', 'user-cart.php', 'checkout.php', 'order-success.php', 'profile.php', 'my-orders.php', 'reset_password.php', 'blog.php']);
+$base_path = $is_in_html ? '../' : './';
+$product_path = $is_in_html ? 'product.php' : 'html/product.php';
 ?>
 
 <!-- Footer -->
-<footer class="bg-gray-900 text-gray-300 py-12">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <!-- Brand -->
-            <div class="col-span-1">
-                <h3 class="text-white text-2xl font-bold mb-4">MinC</h3>
-                <p class="text-sm">Quality computer parts and components for your needs.</p>
+<footer id="contact-us" class="bg-[#08415c] text-white py-16">
+    <div class="max-w-7xl mx-auto px-4">
+        <div class="grid md:grid-cols-4 gap-12">
+            <div>
+                <h3 class="text-2xl font-bold mb-6">MinC</h3>
+                <p class="text-blue-200 mb-4">Your trusted partner for quality auto parts and accessories.</p>
             </div>
-            
-            <!-- Quick Links -->
-            <div class="col-span-1">
-                <h4 class="text-white font-semibold mb-4">Quick Links</h4>
-                <ul class="space-y-2 text-sm">
-                    <li><a href="<?php echo strpos(basename($_SERVER['PHP_SELF']), 'product') !== false ? '../index.php' : 'index.php'; ?>" class="hover:text-white transition">Home</a></li>
-                    <li><a href="<?php echo strpos(basename($_SERVER['PHP_SELF']), 'product') !== false ? './product.php' : 'html/product.php'; ?>" class="hover:text-white transition">Products</a></li>
-                    <li><a href="<?php echo strpos(basename($_SERVER['PHP_SELF']), 'product') !== false ? '../index.php#about-us' : 'index.php#about-us'; ?>" class="hover:text-white transition">About</a></li>
-                    <li><a href="<?php echo strpos(basename($_SERVER['PHP_SELF']), 'product') !== false ? '../index.php#contact-us' : 'index.php#contact-us'; ?>" class="hover:text-white transition">Contact</a></li>
+
+            <div>
+                <h4 class="text-lg font-bold mb-4">Contact Us</h4>
+                <ul class="space-y-3 text-blue-200">
+                    <li><i class="fas fa-map-marker-alt mr-2"></i> Angeles City, Pampanga</li>
+                    <li><i class="fas fa-phone mr-2"></i> 0921-949-8978</li>
+                    <li><i class="fas fa-envelope mr-2"></i> MinC@gmail.com</li>
                 </ul>
             </div>
-            
-            <!-- Contact Info -->
-            <div class="col-span-1">
-                <h4 class="text-white font-semibold mb-4">Contact</h4>
-                <ul class="space-y-2 text-sm">
-                    <li><i class="fas fa-envelope mr-2"></i><a href="mailto:info@minc.com" class="hover:text-white transition">info@minc.com</a></li>
-                    <li><i class="fas fa-phone mr-2"></i>+1 (555) 123-4567</li>
-                    <li><i class="fas fa-map-marker-alt mr-2"></i>123 Tech Street, City, Country</li>
+
+            <div>
+                <h4 class="text-lg font-bold mb-4">Quick Links</h4>
+                <ul class="space-y-3 text-blue-200">
+                    <li><a href="<?php echo $base_path; ?>index.php#about-us" class="hover:text-white transition">About Us</a></li>
+                    <li><a href="<?php echo $base_path; ?>index.php#categories" class="hover:text-white transition">Categories</a></li>
+                    <li><a href="<?php echo $product_path; ?>" class="hover:text-white transition">Products</a></li>
                 </ul>
             </div>
-            
-            <!-- Follow Us -->
-            <div class="col-span-1">
-                <h4 class="text-white font-semibold mb-4">Follow Us</h4>
+
+            <div>
+                <h4 class="text-lg font-bold mb-4">Follow Us</h4>
                 <div class="flex space-x-4">
-                    <a href="https://www.facebook.com/ritzmoncar.autoparts?rdid=GbXdvmSnoK5FnqUs&share_url=https%3A%2F%2Fwww.facebook.com%2Fshare%2F1AR2ZrWwrF#" target="_blank" rel="noopener noreferrer" class="hover:text-white transition"><i class="fab fa-facebook-f"></i></a>
+                    <a href="https://www.facebook.com/ritzmoncar.autoparts?rdid=GbXdvmSnoK5FnqUs&share_url=https%3A%2F%2Fwww.facebook.com%2Fshare%2F1AR2ZrWwrF#" target="_blank" rel="noopener noreferrer" class="bg-[#0a5273] w-10 h-10 rounded-full flex items-center justify-center hover:bg-white hover:text-[#08415c] transition">
+                        <i class="fab fa-facebook-f"></i>
+                    </a>
                 </div>
             </div>
         </div>
-        
-        <!-- Divider -->
-        <div class="border-t border-gray-700 mt-8 pt-8">
-            <div class="flex justify-between items-center flex-col md:flex-row space-y-4 md:space-y-0">
-                <p class="text-sm">&copy; 2025-2026 MinC Computer Parts. All rights reserved.</p>
-                <div class="flex space-x-6 text-sm">
-                    <a href="#" class="hover:text-white transition">Privacy Policy</a>
-                    <a href="#" class="hover:text-white transition">Terms of Service</a>
-                    <a href="#" class="hover:text-white transition">Sitemap</a>
-                </div>
-            </div>
+
+        <div class="border-t border-blue-900 mt-12 pt-8 text-center text-blue-200">
+            <p>&copy; 2025-2026 MinC Computer Parts. All rights reserved.</p>
         </div>
     </div>
 </footer>

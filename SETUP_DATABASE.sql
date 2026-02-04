@@ -60,3 +60,34 @@ MODIFY `token_id` BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 -- 7. Ensure audit trail primary key auto-increments correctly
 ALTER TABLE `audit_trail`
 MODIFY `audit_trail_id` BIGINT(20) NOT NULL AUTO_INCREMENT;
+
+-- 8. Normalize user roles to 3 categories: Admin, Employee, Customer
+-- Legacy level 3 users are merged into Employee (level 2)
+UPDATE `users`
+SET `user_level_id` = 2
+WHERE `user_level_id` = 3;
+
+-- Keep legacy IDs for compatibility, but only 3 active categories
+UPDATE `user_levels` SET `user_type_name` = 'Admin', `user_type_status` = 'active' WHERE `user_level_id` = 1;
+UPDATE `user_levels` SET `user_type_name` = 'Employee', `user_type_status` = 'active' WHERE `user_level_id` = 2;
+UPDATE `user_levels` SET `user_type_name` = 'Employee', `user_type_status` = 'inactive' WHERE `user_level_id` = 3;
+UPDATE `user_levels` SET `user_type_name` = 'Customer', `user_type_status` = 'active' WHERE `user_level_id` = 4;
+
+-- 9. Supplier database
+CREATE TABLE IF NOT EXISTS `suppliers` (
+    `supplier_id` BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `supplier_name` VARCHAR(255) NOT NULL,
+    `contact_person` VARCHAR(255) DEFAULT NULL,
+    `email` VARCHAR(255) DEFAULT NULL,
+    `phone` VARCHAR(50) DEFAULT NULL,
+    `address` TEXT DEFAULT NULL,
+    `city` VARCHAR(100) DEFAULT NULL,
+    `province` VARCHAR(100) DEFAULT 'Pampanga',
+    `status` ENUM('active','inactive') NOT NULL DEFAULT 'active',
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`supplier_id`),
+    UNIQUE KEY `uniq_supplier_name` (`supplier_name`),
+    KEY `idx_supplier_status` (`status`),
+    KEY `idx_supplier_city` (`city`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

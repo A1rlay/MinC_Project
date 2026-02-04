@@ -300,7 +300,7 @@ INSERT INTO `users` (`user_id`, `fname`, `lname`, `username`, `email`, `password
 (1, 'Root', 'Admin', 'Root', 'root@gmail.com', '$2y$10$NEjqatumWgO1tu9DSqlC3.PZXjcDJPc6WX8UYwcti8xy/ZWFK2rdC', NULL, NULL, 'active', 1, '2025-10-23 05:16:23', '2025-10-23 05:16:23', NULL, NULL),
 (2, 'Test', 'User Edited', NULL, 'test@gmail.com', '$2y$10$lM1711u9sB4T1eI0jVIR0OliAINZ4lNQPt7Uxa7.ez3sku9qvmV0a', NULL, NULL, 'active', 2, '2025-10-23 09:44:23', '2025-10-23 12:51:02', NULL, NULL),
 (3, 'Student', 'Test', NULL, 'Student@test.com', '$2y$10$DmnXCDsMEOPwEtkZd3JKrO5q/3hLibcBq7yz3sA/zSgFCgDTfKDem', NULL, NULL, 'active', 4, '2025-10-26 03:51:20', NULL, NULL, NULL),
-(4, 'Parent', 'Test', NULL, 'Parent@gmail.com', '$2y$10$dEo9fS4GradqSB9AHz4M4Okal2L/meSIUi/16tL44Ki5y0rd7Q1Vm', NULL, NULL, 'active', 3, '2025-10-27 08:55:27', NULL, NULL, NULL),
+(4, 'Parent', 'Test', NULL, 'Parent@gmail.com', '$2y$10$dEo9fS4GradqSB9AHz4M4Okal2L/meSIUi/16tL44Ki5y0rd7Q1Vm', NULL, NULL, 'active', 2, '2025-10-27 08:55:27', NULL, NULL, NULL),
 (5, 'Teacher', 'Testt', NULL, 'teacher@gmail.com', '$2y$10$Ekm0TUyx9e22OYjEqKdBNeDIRrIAYpYFHBjHfNFCCH8mafF9qMcOe', NULL, NULL, 'active', 2, '2025-10-27 13:21:31', '2025-11-29 02:50:34', NULL, NULL);
 
 CREATE TABLE `user_levels` (
@@ -312,10 +312,28 @@ CREATE TABLE `user_levels` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `user_levels` (`user_level_id`, `user_type_name`, `user_type_status`, `created_at`, `updated_at`) VALUES
-(1, 'IT Personnel', 'active', '2025-10-23 05:06:26', '2025-10-23 05:06:26'),
-(2, 'Owner', 'active', '2025-10-23 05:06:26', '2025-10-23 05:06:26'),
-(3, 'Manager', 'active', '2025-10-23 05:06:26', '2025-10-23 05:06:26'),
-(4, 'Consumer', 'active', '2025-10-23 05:06:26', '2025-10-23 05:06:26');
+(1, 'Admin', 'active', '2025-10-23 05:06:26', '2025-10-23 05:06:26'),
+(2, 'Employee', 'active', '2025-10-23 05:06:26', '2025-10-23 05:06:26'),
+(3, 'Employee', 'inactive', '2025-10-23 05:06:26', '2025-10-23 05:06:26'),
+(4, 'Customer', 'active', '2025-10-23 05:06:26', '2025-10-23 05:06:26');
+
+CREATE TABLE `suppliers` (
+  `supplier_id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `supplier_name` varchar(255) NOT NULL,
+  `contact_person` varchar(255) DEFAULT NULL,
+  `email` varchar(255) DEFAULT NULL,
+  `phone` varchar(50) DEFAULT NULL,
+  `address` text DEFAULT NULL,
+  `city` varchar(100) DEFAULT NULL,
+  `province` varchar(100) DEFAULT 'Pampanga',
+  `status` enum('active','inactive') NOT NULL DEFAULT 'active',
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`supplier_id`),
+  UNIQUE KEY `uniq_supplier_name` (`supplier_name`),
+  KEY `idx_supplier_status` (`status`),
+  KEY `idx_supplier_city` (`city`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 ALTER TABLE `audit_trail`

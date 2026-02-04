@@ -16,7 +16,7 @@ if (!$validation['valid']) {
 
 // Check if user has permission
 if (!isITStaff() && !isOwner()) {
-    $_SESSION['error_message'] = 'Access denied. Only IT Personnel and Owner can manage suppliers.';
+    $_SESSION['error_message'] = 'Access denied. Only admin and employee accounts can manage suppliers.';
     header('Location: dashboard.php');
     exit;
 }

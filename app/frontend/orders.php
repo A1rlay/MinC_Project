@@ -446,6 +446,7 @@ ob_start();
                 <?php else: ?>
                     <?php foreach ($orders as $order): ?>
                         <tr class="order-row" 
+                            data-order-id="<?php echo (int)$order['order_id']; ?>"
                             data-order-number="<?php echo strtolower($order['order_number']); ?>" 
                             data-customer="<?php echo strtolower($order['customer_name']); ?>"
                             data-status="<?php echo $order['order_status']; ?>"
@@ -537,6 +538,7 @@ ob_start();
         <?php else: ?>
             <?php foreach ($orders as $order): ?>
                 <div class="bg-white border border-gray-200 rounded-xl p-4 order-card" 
+                     data-order-id="<?php echo (int)$order['order_id']; ?>"
                      data-order-number="<?php echo strtolower($order['order_number']); ?>" 
                      data-customer="<?php echo strtolower($order['customer_name']); ?>"
                      data-status="<?php echo $order['order_status']; ?>"
@@ -760,7 +762,6 @@ function displayOrderDetails(order, items) {
     
     content.innerHTML = `
         <div class="space-y-6">
-            <!-- Order Header -->
             <div class="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-6">
                 <div class="flex justify-between items-start mb-4">
                     <div>
@@ -787,7 +788,6 @@ function displayOrderDetails(order, items) {
             </div>
             
             <div class="grid md:grid-cols-2 gap-6">
-                <!-- Customer Information -->
                 <div class="bg-white border border-gray-200 rounded-lg p-6">
                     <h5 class="text-sm font-semibold text-gray-700 mb-4 flex items-center">
                         <i class="fas fa-user mr-2 text-green-600"></i>Customer Information
@@ -814,7 +814,6 @@ function displayOrderDetails(order, items) {
                     </div>
                 </div>
                 
-                <!-- Shipping Information -->
                 <div class="bg-white border border-gray-200 rounded-lg p-6">
                     <h5 class="text-sm font-semibold text-gray-700 mb-4 flex items-center">
                         <i class="fas fa-map-marker-alt mr-2 text-green-600"></i>Shipping Information
@@ -848,7 +847,6 @@ function displayOrderDetails(order, items) {
                 </div>
             </div>
             
-            <!-- Payment Information -->
             <div class="bg-white border border-gray-200 rounded-lg p-6">
                 <h5 class="text-sm font-semibold text-gray-700 mb-4 flex items-center">
                     <i class="fas fa-credit-card mr-2 text-green-600"></i>Payment Information
@@ -856,15 +854,17 @@ function displayOrderDetails(order, items) {
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
                         <p class="text-xs text-gray-500">Payment Method</p>
-                        <span class="payment-method-badge mt-1">
-                            ${getPaymentMethodLabel(order.payment_method)}
-                        </span>
+                        <span class="payment-method-badge mt-1">${getPaymentMethodLabel(order.payment_method)}</span>
                     </div>
                     <div>
                         <p class="text-xs text-gray-500">Payment Status</p>
-                        <span class="payment-status-badge payment-${order.payment_status} mt-1">
-                            ${capitalizeFirst(order.payment_status)}
-                        </span>
+                        <span class="payment-status-badge payment-${order.payment_status} mt-1">${capitalizeFirst(order.payment_status)}</span>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500">Payment Receipt</p>
+                        ${order.payment_receipt
+                            ? `<a href="${escapeHtml(order.payment_receipt)}" target="_blank" rel="noopener noreferrer" class="text-sm text-blue-600 hover:underline">View receipt</a>`
+                            : `<p class="text-sm text-gray-500">No receipt uploaded</p>`}
                     </div>
                     <div>
                         <p class="text-xs text-gray-500">Subtotal</p>
@@ -882,8 +882,15 @@ function displayOrderDetails(order, items) {
                     </div>
                 </div>
             </div>
+
+            <div class="bg-white border border-gray-200 rounded-lg p-6">
+                <h5 class="text-sm font-semibold text-gray-700 mb-4 flex items-center">
+                    <i class="fas fa-cogs mr-2 text-green-600"></i>Order Actions
+                </h5>
+                <div class="flex flex-wrap gap-2">${getOrderActionButtons(order)}</div>
+                <p class="text-xs text-gray-500 mt-3">Cancellation is only allowed before processing. Refund is only for paid and eligible orders.</p>
+            </div>
             
-            <!-- Order Items -->
             <div class="bg-white border border-gray-200 rounded-lg p-6">
                 <h5 class="text-sm font-semibold text-gray-700 mb-4 flex items-center">
                     <i class="fas fa-box mr-2 text-green-600"></i>Order Items (${items.length})
@@ -892,7 +899,6 @@ function displayOrderDetails(order, items) {
             </div>
             
             ${order.notes ? `
-                <!-- Order Notes -->
                 <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
                     <h5 class="text-sm font-semibold text-gray-700 mb-2 flex items-center">
                         <i class="fas fa-sticky-note mr-2 text-yellow-600"></i>Order Notes
@@ -902,6 +908,71 @@ function displayOrderDetails(order, items) {
             ` : ''}
         </div>
     `;
+}
+
+function getOrderActionButtons(order) {
+    const buttons = [];
+    const orderId = Number(order.order_id);
+
+    if (order.order_status === 'pending') {
+        buttons.push(`<button onclick="handleOrderAction(${orderId}, 'confirm_order')" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">Confirm Order</button>`);
+    }
+    if (order.order_status === 'confirmed') {
+        buttons.push(`<button onclick="handleOrderAction(${orderId}, 'process_order')" class="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm">Mark Processing</button>`);
+    }
+    if (order.order_status === 'processing') {
+        buttons.push(`<button onclick="handleOrderAction(${orderId}, 'ship_order')" class="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm">Mark Shipped</button>`);
+    }
+    if (order.order_status === 'shipped') {
+        buttons.push(`<button onclick="handleOrderAction(${orderId}, 'deliver_order')" class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">Mark Delivered</button>`);
+    }
+    if (order.payment_status === 'pending' && order.order_status !== 'cancelled') {
+        buttons.push(`<button onclick="handleOrderAction(${orderId}, 'mark_paid')" class="px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm">Complete Payment</button>`);
+    }
+    if (order.order_status === 'pending' || order.order_status === 'confirmed') {
+        buttons.push(`<button onclick="handleOrderAction(${orderId}, 'cancel_order', true)" class="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm">Cancel Order</button>`);
+    }
+    if (order.payment_status === 'paid' && (order.order_status === 'cancelled' || order.order_status === 'delivered')) {
+        buttons.push(`<button onclick="handleOrderAction(${orderId}, 'refund_payment', true)" class="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 text-sm">Process Refund</button>`);
+    }
+
+    return buttons.length ? buttons.join('') : '<span class="text-sm text-gray-500">No available actions for current state.</span>';
+}
+
+async function handleOrderAction(orderId, action, askReason = false) {
+    let reason = '';
+
+    const actionLabel = {
+        confirm_order: 'confirm this order',
+        process_order: 'mark this order as processing',
+        ship_order: 'mark this order as shipped',
+        deliver_order: 'mark this order as delivered',
+        mark_paid: 'mark payment as completed',
+        cancel_order: 'cancel this order',
+        refund_payment: 'process a refund'
+    }[action] || 'update this order';
+
+    if (!confirm(`Are you sure you want to ${actionLabel}?`)) return;
+    if (askReason) reason = prompt('Optional note/reason:') || '';
+
+    try {
+        const response = await fetch('../../backend/order-management/update_order.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order_id: orderId, action, reason })
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Failed to update order');
+        }
+
+        showNotification(data.message || 'Order updated successfully', 'success');
+        setTimeout(() => window.location.reload(), 700);
+    } catch (error) {
+        console.error('Order action error:', error);
+        showNotification(error.message || 'Failed to update order', 'error');
+    }
 }
 
 // Close order details modal
@@ -1052,3 +1123,5 @@ $order_management_content = ob_get_clean();// Set the content for app.php
 $content = $order_management_content;// Include the app.php layout
 include 'app.php';
 ?>
+
+

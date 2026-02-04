@@ -28,11 +28,15 @@ foreach ($required as $field) {
     }
 }
 
-$delivery_method = $data['delivery_method'];
+$delivery_method = strtolower(trim((string)$data['delivery_method']));
 if (!in_array($delivery_method, ['shipping', 'pickup'], true)) {
     echo json_encode(['success' => false, 'message' => 'Invalid delivery method']);
     exit;
 }
+
+$payment_method = strtolower(trim((string)$data['payment_method']));
+$user_id = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : null;
+$is_guest_checkout = !$user_id;
 
 // Validate customer data
 $customer = $data['customer'];
@@ -59,6 +63,17 @@ if ($delivery_method === 'shipping') {
             exit;
         }
     }
+
+    $allowedCities = [
+        'Angeles City', 'Mabalacat City', 'San Fernando City', 'Apalit', 'Arayat',
+        'Bacolor', 'Candaba', 'Floridablanca', 'Guagua', 'Lubao', 'Masantol',
+        'Mexico', 'Minalin', 'Porac', 'San Luis', 'San Simon', 'Santa Ana',
+        'Santa Rita', 'Santo Tomas', 'Sasmuan'
+    ];
+    if (trim((string)$shipping['province']) !== 'Pampanga' || !in_array(trim((string)$shipping['city']), $allowedCities, true)) {
+        echo json_encode(['success' => false, 'message' => 'Shipping is only available within Pampanga municipalities.']);
+        exit;
+    }
 } else {
     $shipping = [
         'address' => 'Pickup at Store',
@@ -70,9 +85,20 @@ if ($delivery_method === 'shipping') {
 
 // Validate payment method
 $validPaymentMethods = ['cod', 'bank_transfer', 'gcash', 'paymaya'];
-if (!in_array($data['payment_method'], $validPaymentMethods)) {
+if (!in_array($payment_method, $validPaymentMethods, true)) {
     echo json_encode(['success' => false, 'message' => 'Invalid payment method']);
     exit;
+}
+
+if ($is_guest_checkout) {
+    if ($delivery_method !== 'pickup') {
+        echo json_encode(['success' => false, 'message' => 'Guest checkout only supports pickup orders.']);
+        exit;
+    }
+    if ($payment_method !== 'cod') {
+        echo json_encode(['success' => false, 'message' => 'Guest checkout only supports COD payment.']);
+        exit;
+    }
 }
 
 try {
@@ -80,7 +106,7 @@ try {
     $pdo->beginTransaction();
     
     // Get user ID if logged in
-    $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
+    $user_id = $user_id ?: null;
     $session_id = session_id();
     
     // Get cart
@@ -126,7 +152,7 @@ try {
         $subtotal += $item['price'] * $item['quantity'];
     }
     
-    $FREE_SHIPPING_THRESHOLD = 5000;
+    $FREE_SHIPPING_THRESHOLD = 1000;
     $SHIPPING_FEE = 150;
     $shipping_fee = $delivery_method === 'shipping'
         ? ($subtotal >= $FREE_SHIPPING_THRESHOLD ? 0 : $SHIPPING_FEE)
@@ -263,7 +289,7 @@ try {
         $subtotal,
         $shipping_fee,
         $total_amount,
-        $data['payment_method'],
+        $payment_method,
         $shipping['address'],
         $shipping['city'],
         $shipping['province'],
@@ -330,7 +356,7 @@ try {
         $new_value = json_encode([
             'order_number' => $order_number,
             'total_amount' => $total_amount,
-            'payment_method' => $data['payment_method'],
+            'payment_method' => $payment_method,
             'items_count' => count($cart_items)
         ]);
         

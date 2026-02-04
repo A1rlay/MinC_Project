@@ -325,7 +325,7 @@ ob_start();
     <div class="professional-card rounded-xl p-6 hover-lift">
         <div class="flex items-center justify-between">
             <div>
-                <p class="text-sm font-medium text-gray-600 mb-1">Total Records</p>
+                <p class="text-sm font-medium text-gray-600 mb-1">Total Logs</p>
                 <p class="text-3xl font-bold text-gray-900"><?php echo count($audit_records); ?></p>
             </div>
             <div class="p-4 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl shadow-lg">

@@ -42,7 +42,12 @@ if (isset($_SESSION['user_id'])) {
                 u.lname,
                 u.email,
                 u.contact_num,
-                ul.user_type_name as user_type,
+                CASE
+                    WHEN LOWER(ul.user_type_name) IN ('it personnel', 'admin') THEN 'Admin'
+                    WHEN LOWER(ul.user_type_name) IN ('owner', 'manager', 'employee', 'employees') THEN 'Employee'
+                    WHEN LOWER(ul.user_type_name) IN ('consumer', 'customer', 'customers') THEN 'Customer'
+                    ELSE ul.user_type_name
+                END as user_type,
                 u.user_status,
                 u.user_level_id
             FROM users u

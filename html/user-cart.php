@@ -152,7 +152,7 @@ session_start();
                 <div class="mt-6 p-4 bg-blue-50 rounded-lg">
                     <p class="text-sm text-gray-600">
                         <i class="fas fa-truck mr-2 text-[#08415c]"></i>
-                        Free shipping on orders over ₱5,000
+                        Free shipping on orders over ₱1,000 (otherwise ₱150 shipping fee)
                     </p>
                 </div>
             </div>
@@ -227,7 +227,7 @@ session_start();
     let cartItems = [];
     let subtotal = 0;
     const SHIPPING_FEE = 150;
-    const FREE_SHIPPING_THRESHOLD = 5000;
+    const FREE_SHIPPING_THRESHOLD = 1000;
 
     // Format currency
     function formatPeso(amount) {

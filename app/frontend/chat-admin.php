@@ -71,9 +71,8 @@ try {
     error_log("Error fetching user data in chat-admin.php: " . $e->getMessage());
 }
 
-// Check authorization - owner (2) or IT staff (1)
-// Allow both to ensure compatibility
-if (!isset($user['user_level_id']) || ($user['user_level_id'] != 1 && $user['user_level_id'] != 2 && $user['user_level_id'] != 5)) {
+// Check authorization - IT staff (1), owner (2), manager (3)
+if (!isset($user['user_level_id']) || !in_array((int)$user['user_level_id'], [1, 2, 3], true)) {
     header('Location: ../../index.php?error=unauthorized');
     exit;
 }
