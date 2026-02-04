@@ -302,7 +302,7 @@ if ($user_id) {
                                 Free shipping for orders over ₱1,000. Orders below that have a ₱150 shipping fee.
                             </p>
                             <p class="text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 ml-8">
-                                Shipping is available only within Pampanga.
+                                Shipping is available only within Angeles City, Pampanga barangays.
                             </p>
 
                             <label id="pickupOptionLabel" class="block p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-[#08415c] transition" onclick="toggleDeliveryMethod('pickup')">
@@ -317,36 +317,50 @@ if ($user_id) {
                             <div class="mb-4">
                             <label class="block text-gray-700 font-medium mb-2">Complete Address *</label>
                             <textarea id="address" rows="3"
-                                      placeholder="House/Unit No., Street Name, Barangay"
+                                      placeholder="House/Unit No., Street Name"
                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]"></textarea>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
-                                <label class="block text-gray-700 font-medium mb-2">Municipality *</label>
+                                <label class="block text-gray-700 font-medium mb-2">Barangay *</label>
+                                <select id="barangay"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                                    <option value="">Select Barangay</option>
+                                    <option value="Agapito del Rosario">Agapito del Rosario</option>
+                                    <option value="Amsic">Amsic</option>
+                                    <option value="Balibago">Balibago</option>
+                                    <option value="Capaya">Capaya</option>
+                                    <option value="Claro M. Recto">Claro M. Recto</option>
+                                    <option value="Cuayan">Cuayan</option>
+                                    <option value="Lourdes North-West">Lourdes North-West</option>
+                                    <option value="Lourdes Sur (South)">Lourdes Sur (South)</option>
+                                    <option value="Lourdes Sur-East">Lourdes Sur-East</option>
+                                    <option value="Malabanas">Malaba&ntilde;as</option>
+                                    <option value="Margot">Margot</option>
+                                    <option value="Mining">Mining</option>
+                                    <option value="Ninoy Aquino">Ninoy Aquino</option>
+                                    <option value="Pampang">Pampang</option>
+                                    <option value="Pandan">Pandan</option>
+                                    <option value="Pulungbulu">Pulungbulu</option>
+                                    <option value="Pulung Cacutud">Pulung Cacutud</option>
+                                    <option value="Pulung Maragul">Pulung Maragul</option>
+                                    <option value="Pulungbato">Pulungbato</option>
+                                    <option value="Salapungan">Salapungan</option>
+                                    <option value="San Jose">San Jose</option>
+                                    <option value="San Nicolas">San Nicolas</option>
+                                    <option value="Santa Teresita">Santa Teresita</option>
+                                    <option value="Santa Trinidad">Santa Trinidad</option>
+                                    <option value="Santo Cristo">Santo Cristo</option>
+                                    <option value="Santo Domingo">Santo Domingo</option>
+                                    <option value="Sapangbato">Sapangbato</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 font-medium mb-2">City *</label>
                                 <select id="city"
                                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
-                                    <option value="">Select Municipality</option>
                                     <option value="Angeles City">Angeles City</option>
-                                    <option value="Mabalacat City">Mabalacat City</option>
-                                    <option value="San Fernando City">San Fernando City</option>
-                                    <option value="Apalit">Apalit</option>
-                                    <option value="Arayat">Arayat</option>
-                                    <option value="Bacolor">Bacolor</option>
-                                    <option value="Candaba">Candaba</option>
-                                    <option value="Floridablanca">Floridablanca</option>
-                                    <option value="Guagua">Guagua</option>
-                                    <option value="Lubao">Lubao</option>
-                                    <option value="Masantol">Masantol</option>
-                                    <option value="Mexico">Mexico</option>
-                                    <option value="Minalin">Minalin</option>
-                                    <option value="Porac">Porac</option>
-                                    <option value="San Luis">San Luis</option>
-                                    <option value="San Simon">San Simon</option>
-                                    <option value="Santa Ana">Santa Ana</option>
-                                    <option value="Santa Rita">Santa Rita</option>
-                                    <option value="Santo Tomas">Santo Tomas</option>
-                                    <option value="Sasmuan">Sasmuan</option>
                                 </select>
                             </div>
                             <div>
@@ -360,7 +374,7 @@ if ($user_id) {
 
                         <div class="mt-4">
                             <label class="block text-gray-700 font-medium mb-2">Postal Code</label>
-                            <input type="text" id="postalCode" 
+                            <input type="number" id="postalCode" 
                                    placeholder="e.g., 2009"
                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
                         </div>
@@ -536,11 +550,13 @@ if ($user_id) {
         const SHIPPING_FEE = 150;
         const FREE_SHIPPING_THRESHOLD = 1000;
         const IS_GUEST_CHECKOUT = <?php echo $user_id ? 'false' : 'true'; ?>;
-        const PAMPANGA_MUNICIPALITIES = [
-            'Angeles City', 'Mabalacat City', 'San Fernando City', 'Apalit', 'Arayat',
-            'Bacolor', 'Candaba', 'Floridablanca', 'Guagua', 'Lubao', 'Masantol',
-            'Mexico', 'Minalin', 'Porac', 'San Luis', 'San Simon', 'Santa Ana',
-            'Santa Rita', 'Santo Tomas', 'Sasmuan'
+        const ANGELES_CITY_BARANGAYS = [
+            'Agapito del Rosario', 'Amsic', 'Balibago', 'Capaya', 'Claro M. Recto', 'Cuayan',
+            'Lourdes North-West', 'Lourdes Sur (South)', 'Lourdes Sur-East', 'Malabanas',
+            'Margot', 'Mining', 'Ninoy Aquino', 'Pampang', 'Pandan', 'Pulungbulu',
+            'Pulung Cacutud', 'Pulung Maragul', 'Pulungbato', 'Salapungan', 'San Jose',
+            'San Nicolas', 'Santa Teresita', 'Santa Trinidad', 'Santo Cristo', 'Santo Domingo',
+            'Sapangbato'
         ];
         let currentStep = 1;
 
@@ -686,8 +702,9 @@ if ($user_id) {
                     const address = document.getElementById('address').value.trim();
                     const city = document.getElementById('city').value.trim();
                     const province = document.getElementById('province').value;
+                    const barangay = document.getElementById('barangay').value.trim();
 
-                    if (!address || !city || !province) {
+                    if (!address || !city || !province || !barangay) {
                         Swal.fire({
                             icon: 'error',
                             title: 'Missing Information',
@@ -697,11 +714,11 @@ if ($user_id) {
                         return;
                     }
 
-                    if (!PAMPANGA_MUNICIPALITIES.includes(city) || province !== 'Pampanga') {
+                    if (province !== 'Pampanga' || city !== 'Angeles City' || !ANGELES_CITY_BARANGAYS.includes(barangay)) {
                         Swal.fire({
                             icon: 'error',
                             title: 'Invalid Shipping Location',
-                            text: 'Shipping is only available for Pampanga municipalities.',
+                            text: 'Shipping is only available in Angeles City, Pampanga barangays.',
                             confirmButtonColor: '#08415c'
                         });
                         return;
@@ -768,9 +785,12 @@ if ($user_id) {
                 document.getElementById('address').value = '';
                 document.getElementById('city').value = '';
                 document.getElementById('province').value = '';
+                document.getElementById('barangay').value = '';
             } else {
                 shippingFields.classList.remove('hidden');
                 pickupFields.classList.add('hidden');
+                document.getElementById('city').value = 'Angeles City';
+                document.getElementById('province').value = 'Pampanga';
                 // Clear pickup validation
                 document.getElementById('pickupDate').value = '';
                 document.getElementById('pickupTime').value = '';
@@ -838,24 +858,36 @@ if ($user_id) {
                 const address = document.getElementById('address').value.trim();
                 const city = document.getElementById('city').value.trim();
                 const province = document.getElementById('province').value;
+                const barangay = document.getElementById('barangay').value.trim();
                 const postalCode = document.getElementById('postalCode').value.trim();
                 const notes = document.getElementById('notes').value.trim();
 
-                if (!PAMPANGA_MUNICIPALITIES.includes(city) || province !== 'Pampanga') {
+                if (!address || !barangay || !city || !province) {
                     Swal.fire({
                         icon: 'error',
-                        title: 'Invalid Shipping Location',
-                        text: 'Shipping is only available for Pampanga municipalities.',
+                        title: 'Missing Information',
+                        text: 'Please fill in all required shipping fields',
                         confirmButtonColor: '#08415c'
                     });
                     return;
                 }
 
-                orderDetails += `<p class="mb-2"><strong>Address:</strong> ${address}, ${city}, ${province}</p>`;
+                if (province !== 'Pampanga' || city !== 'Angeles City' || !ANGELES_CITY_BARANGAYS.includes(barangay)) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Invalid Shipping Location',
+                        text: 'Shipping is only available in Angeles City, Pampanga barangays.',
+                        confirmButtonColor: '#08415c'
+                    });
+                    return;
+                }
+
+                orderDetails += `<p class="mb-2"><strong>Address:</strong> ${address}, ${barangay}, ${city}, ${province}</p>`;
                 if (notes) orderDetails += `<p class="mb-2"><strong>Notes:</strong> ${notes}</p>`;
 
                 orderData.shipping = {
                     address: address,
+                    barangay: barangay,
                     city: city,
                     province: province,
                     postal_code: postalCode

@@ -88,7 +88,7 @@ if ($delivery_method === 'shipping') {
     }
 
     $shipping = $data['shipping'];
-    $requiredShipping = ['address', 'city', 'province'];
+    $requiredShipping = ['address', 'city', 'province', 'barangay'];
     foreach ($requiredShipping as $field) {
         if (empty($shipping[$field])) {
             echo json_encode(['success' => false, 'message' => "Missing shipping information: $field"]);
@@ -96,19 +96,32 @@ if ($delivery_method === 'shipping') {
         }
     }
 
-    $allowedCities = [
-        'Angeles City', 'Mabalacat City', 'San Fernando City', 'Apalit', 'Arayat',
-        'Bacolor', 'Candaba', 'Floridablanca', 'Guagua', 'Lubao', 'Masantol',
-        'Mexico', 'Minalin', 'Porac', 'San Luis', 'San Simon', 'Santa Ana',
-        'Santa Rita', 'Santo Tomas', 'Sasmuan'
+    $allowedBarangays = [
+        'Agapito del Rosario', 'Amsic', 'Balibago', 'Capaya', 'Claro M. Recto', 'Cuayan',
+        'Lourdes North-West', 'Lourdes Sur (South)', 'Lourdes Sur-East', 'Malabanas',
+        'Margot', 'Mining', 'Ninoy Aquino', 'Pampang', 'Pandan', 'Pulungbulu',
+        'Pulung Cacutud', 'Pulung Maragul', 'Pulungbato', 'Salapungan', 'San Jose',
+        'San Nicolas', 'Santa Teresita', 'Santa Trinidad', 'Santo Cristo', 'Santo Domingo',
+        'Sapangbato'
     ];
-    if (trim((string)$shipping['province']) !== 'Pampanga' || !in_array(trim((string)$shipping['city']), $allowedCities, true)) {
-        echo json_encode(['success' => false, 'message' => 'Shipping is only available within Pampanga municipalities.']);
+
+    $shipping['address'] = trim((string)$shipping['address']);
+    $shipping['city'] = trim((string)$shipping['city']);
+    $shipping['province'] = trim((string)$shipping['province']);
+    $shipping['barangay'] = trim((string)$shipping['barangay']);
+
+    if (
+        $shipping['province'] !== 'Pampanga' ||
+        $shipping['city'] !== 'Angeles City' ||
+        !in_array($shipping['barangay'], $allowedBarangays, true)
+    ) {
+        echo json_encode(['success' => false, 'message' => 'Shipping is only available in Angeles City, Pampanga barangays.']);
         exit;
     }
 } else {
     $shipping = [
         'address' => 'Pickup at Store',
+        'barangay' => null,
         'city' => 'Pickup',
         'province' => 'Pickup',
         'postal_code' => null
@@ -191,6 +204,11 @@ try {
         : 0;
     $total_amount = $subtotal + $shipping_fee;
     
+    $shippingAddressForStorage = $shipping['address'];
+    if ($delivery_method === 'shipping' && !empty($shipping['barangay'])) {
+        $shippingAddressForStorage .= ', ' . $shipping['barangay'];
+    }
+
     // Create or get customer
     $stmt = $pdo->prepare("
         SELECT customer_id FROM customers 
@@ -222,7 +240,7 @@ try {
                 $customer['first_name'],
                 $customer['last_name'],
                 $customer['phone'],
-                $shipping['address'],
+                $shippingAddressForStorage,
                 $shipping['city'],
                 $shipping['province'],
                 $shipping['postal_code'] ?? null,
@@ -261,7 +279,7 @@ try {
                 $customer['last_name'],
                 $customer['email'],
                 $customer['phone'],
-                $shipping['address'],
+                $shippingAddressForStorage,
                 $shipping['city'],
                 $shipping['province'],
                 $shipping['postal_code'] ?? null,
@@ -322,7 +340,7 @@ try {
         $shipping_fee,
         $total_amount,
         $payment_method,
-        $shipping['address'],
+        $shippingAddressForStorage,
         $shipping['city'],
         $shipping['province'],
         $shipping['postal_code'] ?? null,
