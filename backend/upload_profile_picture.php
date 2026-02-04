@@ -49,6 +49,21 @@ try {
         exit;
     }
 
+    // Ensure profile_picture column exists
+    $columnsStmt = $pdo->query("SHOW COLUMNS FROM users");
+    $columns = array_column($columnsStmt->fetchAll(PDO::FETCH_ASSOC), 'Field');
+    if (!in_array('profile_picture', $columns, true)) {
+        try {
+            $pdo->exec("ALTER TABLE users ADD COLUMN profile_picture VARCHAR(255) NULL AFTER address");
+        } catch (Exception $schemaError) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Database schema mismatch: profile picture column is missing'
+            ]);
+            exit;
+        }
+    }
+
     // Check if file was uploaded
     if (!isset($_FILES['profile_picture'])) {
         echo json_encode([
@@ -146,20 +161,24 @@ try {
     ]);
 
     // Log audit trail
-    $auditQuery = "INSERT INTO audit_trail (user_id, session_username, action, entity_type, entity_id, change_reason, ip_address, user_agent) 
-                   VALUES (:user_id, :session_username, :action, :entity_type, :entity_id, :change_reason, :ip_address, :user_agent)";
-    
-    $auditStmt = $pdo->prepare($auditQuery);
-    $auditStmt->execute([
-        ':user_id' => $user_id,
-        ':session_username' => $_SESSION['fname'] . ' ' . $_SESSION['lname'],
-        ':action' => 'upload_profile_picture',
-        ':entity_type' => 'user',
-        ':entity_id' => $user_id,
-        ':change_reason' => 'User uploaded profile picture',
-        ':ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
-        ':user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown'
-    ]);
+    try {
+        $auditQuery = "INSERT INTO audit_trail (user_id, session_username, action, entity_type, entity_id, change_reason, ip_address, user_agent) 
+                       VALUES (:user_id, :session_username, :action, :entity_type, :entity_id, :change_reason, :ip_address, :user_agent)";
+        
+        $auditStmt = $pdo->prepare($auditQuery);
+        $auditStmt->execute([
+            ':user_id' => $user_id,
+            ':session_username' => $_SESSION['fname'] . ' ' . $_SESSION['lname'],
+            ':action' => 'upload_profile_picture',
+            ':entity_type' => 'user',
+            ':entity_id' => $user_id,
+            ':change_reason' => 'User uploaded profile picture',
+            ':ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+            ':user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown'
+        ]);
+    } catch (Exception $auditError) {
+        error_log('Audit log failed in upload_profile_picture.php: ' . $auditError->getMessage());
+    }
 
     echo json_encode([
         'success' => true,

@@ -952,8 +952,12 @@ async function handleOrderAction(orderId, action, askReason = false) {
         refund_payment: 'process a refund'
     }[action] || 'update this order';
 
-    if (!confirm(`Are you sure you want to ${actionLabel}?`)) return;
-    if (askReason) reason = prompt('Optional note/reason:') || '';
+    if (!(await showConfirmModal(`Are you sure you want to ${actionLabel}?`, 'Confirm Order Action'))) return;
+    if (askReason) {
+        const promptReason = await showPromptModal('Optional note/reason', 'You may leave a reason for this action');
+        if (promptReason === null) return;
+        reason = promptReason || '';
+    }
 
     try {
         const response = await fetch('../../backend/order-management/update_order.php', {

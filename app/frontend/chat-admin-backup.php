@@ -393,12 +393,12 @@ try {
                             messagesContainer.scrollTop = messagesContainer.scrollHeight;
                         }
                     } else {
-                        alert('Error: ' + data.message);
+                        showAlertModal('Error: ' + data.message, 'error', 'Message Error');
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('Failed to send message');
+                    showAlertModal('Failed to send message', 'error', 'Message Error');
                 });
             });
             

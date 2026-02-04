@@ -497,13 +497,23 @@ if (!isset($_SESSION['user_id'])) {
             });
         }
 
-        function handleDeactivateAccount() {
+        async function handleDeactivateAccount() {
             const password = document.getElementById('deactivate_password').value;
             if (!password) {
                 showAlert('Password is required to deactivate your account.', 'error');
                 return;
             }
-            const confirmed = confirm('Are you sure you want to deactivate your account? You will be logged out.');
+            const confirmed = (typeof Swal !== 'undefined')
+                ? (await Swal.fire({
+                    icon: 'warning',
+                    title: 'Deactivate Account?',
+                    text: 'Are you sure you want to deactivate your account? You will be logged out.',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#08415c',
+                    confirmButtonText: 'Yes, deactivate'
+                })).isConfirmed
+                : confirm('Are you sure you want to deactivate your account? You will be logged out.');
             if (!confirmed) return;
 
             fetch('/pages/MinC_Project/backend/deactivate_account.php', {
@@ -573,8 +583,20 @@ if (!isset($_SESSION['user_id'])) {
             });
         }
 
-        function handleDeletePicture() {
-            if (!confirm('Are you sure you want to delete your profile picture?')) {
+        async function handleDeletePicture() {
+            const confirmed = (typeof Swal !== 'undefined')
+                ? (await Swal.fire({
+                    icon: 'warning',
+                    title: 'Delete Profile Picture?',
+                    text: 'Are you sure you want to delete your profile picture?',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#08415c',
+                    confirmButtonText: 'Yes, delete'
+                })).isConfirmed
+                : confirm('Are you sure you want to delete your profile picture?');
+
+            if (!confirmed) {
                 return;
             }
 

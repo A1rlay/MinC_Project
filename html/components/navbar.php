@@ -215,8 +215,38 @@ $html_path = $is_in_html ? '' : 'html/';
     }
 </style>
 
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     const BASE_PATH = '<?php echo $base_path; ?>';
+
+    function showAlertModal(message, icon = 'info', title = 'Notice') {
+        if (typeof Swal !== 'undefined') {
+            return Swal.fire({
+                icon,
+                title,
+                text: String(message ?? ''),
+                confirmButtonColor: '#08415c'
+            });
+        }
+        alert(message);
+        return Promise.resolve();
+    }
+
+    async function showConfirmModal(message, title = 'Please Confirm') {
+        if (typeof Swal !== 'undefined') {
+            const result = await Swal.fire({
+                icon: 'question',
+                title,
+                text: String(message ?? ''),
+                showCancelButton: true,
+                confirmButtonColor: '#08415c',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Confirm'
+            });
+            return !!result.isConfirmed;
+        }
+        return confirm(message);
+    }
     const HTML_PATH = '<?php echo $html_path; ?>';
 
     // Check session on navbar load
@@ -419,11 +449,11 @@ $html_path = $is_in_html ? '' : 'html/';
                 closeLoginModal();
                 window.location.href = data.redirect || (BASE_PATH + 'index.php');
             } else {
-                alert('Login failed: ' + data.message);
+                showAlertModal('Login failed: ' + data.message, 'error', 'Login Failed');
             }
         } catch (error) {
             console.error('Login error:', error);
-            alert('An error occurred during login');
+            showAlertModal('An error occurred during login', 'error', 'Login Error');
         }
     }
 
@@ -437,7 +467,7 @@ $html_path = $is_in_html ? '' : 'html/';
         const address = addressInput ? addressInput.value.trim() : '';
 
         if (!address) {
-            alert('Delivery address is required.');
+            showAlertModal('Delivery address is required.', 'warning', 'Missing Address');
             return;
         }
 
@@ -463,13 +493,13 @@ $html_path = $is_in_html ? '' : 'html/';
                 document.getElementById('otpStep').classList.remove('hidden');
                 document.getElementById('passwordStep').classList.add('hidden');
                 document.getElementById('otpCode').focus();
-                alert(data.message || 'OTP sent to your email.');
+                showAlertModal(data.message || 'OTP sent to your email.', 'success', 'OTP Sent');
             } else {
-                alert('Registration failed: ' + data.message);
+                showAlertModal('Registration failed: ' + data.message, 'error', 'Registration Failed');
             }
         } catch (error) {
             console.error('Register error:', error);
-            alert('An error occurred during registration');
+            showAlertModal('An error occurred during registration', 'error', 'Registration Error');
         }
     }
 
@@ -487,13 +517,13 @@ $html_path = $is_in_html ? '' : 'html/';
             });
 
             const data = await response.json();
-            alert(data.message || 'If this email exists, a recovery link has been sent.');
+            showAlertModal(data.message || 'If this email exists, a recovery link has been sent.', 'info', 'Password Recovery');
             closeForgotPasswordModal();
             openLoginModal();
             document.getElementById('loginEmail').value = email;
         } catch (error) {
             console.error('Forgot password error:', error);
-            alert('An error occurred while requesting password reset.');
+            showAlertModal('An error occurred while requesting password reset.', 'error', 'Password Reset Error');
         }
     }
 
@@ -504,7 +534,7 @@ $html_path = $is_in_html ? '' : 'html/';
         const otp = (document.getElementById('otpCode').value || '').trim();
 
         if (!/^\d{6}$/.test(otp)) {
-            alert('Please enter a valid 6-digit OTP.');
+            showAlertModal('Please enter a valid 6-digit OTP.', 'warning', 'Invalid OTP');
             return;
         }
 
@@ -519,7 +549,7 @@ $html_path = $is_in_html ? '' : 'html/';
 
             const data = await response.json();
             if (!data.success) {
-                alert(data.message || 'OTP verification failed.');
+                showAlertModal(data.message || 'OTP verification failed.', 'error', 'OTP Verification Failed');
                 return;
             }
 
@@ -528,14 +558,14 @@ $html_path = $is_in_html ? '' : 'html/';
             document.getElementById('registerPassword').focus();
         } catch (error) {
             console.error('OTP verification error:', error);
-            alert('An error occurred while verifying OTP.');
+            showAlertModal('An error occurred while verifying OTP.', 'error', 'OTP Error');
         }
     }
 
     async function handleResendOtp() {
         const email = pendingRegistrationEmail || document.getElementById('registerEmail').value;
         if (!email) {
-            alert('Please enter your email first.');
+            showAlertModal('Please enter your email first.', 'warning', 'Missing Email');
             return;
         }
 
@@ -550,14 +580,14 @@ $html_path = $is_in_html ? '' : 'html/';
 
             const data = await response.json();
             if (!data.success) {
-                alert(data.message || 'Failed to resend OTP.');
+                showAlertModal(data.message || 'Failed to resend OTP.', 'error', 'Resend Failed');
                 return;
             }
 
-            alert(data.message || 'OTP resent successfully.');
+            showAlertModal(data.message || 'OTP resent successfully.', 'success', 'OTP Resent');
         } catch (error) {
             console.error('Resend OTP error:', error);
-            alert('An error occurred while resending OTP.');
+            showAlertModal('An error occurred while resending OTP.', 'error', 'Resend Error');
         }
     }
 
@@ -568,7 +598,7 @@ $html_path = $is_in_html ? '' : 'html/';
         const password = document.getElementById('registerPassword').value;
 
         if (!isStrongPassword(password)) {
-            alert('Password must be at least 8 characters long and include a letter, number, and special character.');
+            showAlertModal('Password must be at least 8 characters long and include a letter, number, and special character.', 'warning', 'Weak Password');
             return;
         }
 
@@ -583,16 +613,16 @@ $html_path = $is_in_html ? '' : 'html/';
 
             const data = await response.json();
             if (!data.success) {
-                alert(data.message || 'Failed to set password.');
+                showAlertModal(data.message || 'Failed to set password.', 'error', 'Password Setup Failed');
                 return;
             }
 
-            alert(data.message || 'Registration complete. You can now login.');
+            showAlertModal(data.message || 'Registration complete. You can now login.', 'success', 'Registration Complete');
             showLogin();
             document.getElementById('loginEmail').value = email;
         } catch (error) {
             console.error('Set password error:', error);
-            alert('An error occurred while setting password.');
+            showAlertModal('An error occurred while setting password.', 'error', 'Password Error');
         }
     }
 
@@ -611,7 +641,7 @@ $html_path = $is_in_html ? '' : 'html/';
             });
             isConfirmed = !!result.isConfirmed;
         } else {
-            isConfirmed = confirm('Are you sure you want to logout?');
+            isConfirmed = await showConfirmModal('Are you sure you want to logout?', 'Logout');
         }
 
         if (!isConfirmed) {

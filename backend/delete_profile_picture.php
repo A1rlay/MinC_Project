@@ -49,6 +49,17 @@ try {
         exit;
     }
 
+    // Ensure profile_picture column exists
+    $columnsStmt = $pdo->query("SHOW COLUMNS FROM users");
+    $columns = array_column($columnsStmt->fetchAll(PDO::FETCH_ASSOC), 'Field');
+    if (!in_array('profile_picture', $columns, true)) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'No profile picture to delete'
+        ]);
+        exit;
+    }
+
     // Get current profile picture
     $query = "SELECT profile_picture FROM users WHERE user_id = :user_id";
     $stmt = $pdo->prepare($query);
@@ -87,20 +98,24 @@ try {
     $updateStmt->execute();
 
     // Log audit trail
-    $auditQuery = "INSERT INTO audit_trail (user_id, session_username, action, entity_type, entity_id, change_reason, ip_address, user_agent) 
-                   VALUES (:user_id, :session_username, :action, :entity_type, :entity_id, :change_reason, :ip_address, :user_agent)";
-    
-    $auditStmt = $pdo->prepare($auditQuery);
-    $auditStmt->execute([
-        ':user_id' => $user_id,
-        ':session_username' => $_SESSION['fname'] . ' ' . $_SESSION['lname'],
-        ':action' => 'delete_profile_picture',
-        ':entity_type' => 'user',
-        ':entity_id' => $user_id,
-        ':change_reason' => 'User deleted profile picture',
-        ':ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
-        ':user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown'
-    ]);
+    try {
+        $auditQuery = "INSERT INTO audit_trail (user_id, session_username, action, entity_type, entity_id, change_reason, ip_address, user_agent) 
+                       VALUES (:user_id, :session_username, :action, :entity_type, :entity_id, :change_reason, :ip_address, :user_agent)";
+        
+        $auditStmt = $pdo->prepare($auditQuery);
+        $auditStmt->execute([
+            ':user_id' => $user_id,
+            ':session_username' => $_SESSION['fname'] . ' ' . $_SESSION['lname'],
+            ':action' => 'delete_profile_picture',
+            ':entity_type' => 'user',
+            ':entity_id' => $user_id,
+            ':change_reason' => 'User deleted profile picture',
+            ':ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+            ':user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown'
+        ]);
+    } catch (Exception $auditError) {
+        error_log('Audit log failed in delete_profile_picture.php: ' . $auditError->getMessage());
+    }
 
     echo json_encode([
         'success' => true,

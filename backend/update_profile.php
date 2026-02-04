@@ -28,6 +28,11 @@ try {
     require_once '../database/connect_database.php';
     require_once 'auth.php';
 
+    $hasProfilePictureColumn = false;
+    $columnsStmt = $pdo->query("SHOW COLUMNS FROM users");
+    $columns = array_column($columnsStmt->fetchAll(PDO::FETCH_ASSOC), 'Field');
+    $hasProfilePictureColumn = in_array('profile_picture', $columns, true);
+
     // Validate session
     $validation = validateSession(false);
     if (!$validation['valid']) {
@@ -140,25 +145,31 @@ try {
         'address' => $address
     ]);
 
-    $auditQuery = "INSERT INTO audit_trail (user_id, session_username, action, entity_type, entity_id, old_value, new_value, change_reason, ip_address, user_agent) 
-                   VALUES (:user_id, :session_username, :action, :entity_type, :entity_id, :old_value, :new_value, :change_reason, :ip_address, :user_agent)";
-    
-    $auditStmt = $pdo->prepare($auditQuery);
-    $auditStmt->execute([
-        ':user_id' => $user_id,
-        ':session_username' => $_SESSION['fname'] . ' ' . $_SESSION['lname'],
-        ':action' => 'update_profile',
-        ':entity_type' => 'user',
-        ':entity_id' => $user_id,
-        ':old_value' => $oldValue,
-        ':new_value' => $newValue,
-        ':change_reason' => 'User updated own profile information',
-        ':ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
-        ':user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown'
-    ]);
+    try {
+        $auditQuery = "INSERT INTO audit_trail (user_id, session_username, action, entity_type, entity_id, old_value, new_value, change_reason, ip_address, user_agent) 
+                       VALUES (:user_id, :session_username, :action, :entity_type, :entity_id, :old_value, :new_value, :change_reason, :ip_address, :user_agent)";
+        
+        $auditStmt = $pdo->prepare($auditQuery);
+        $auditStmt->execute([
+            ':user_id' => $user_id,
+            ':session_username' => $_SESSION['fname'] . ' ' . $_SESSION['lname'],
+            ':action' => 'update_profile',
+            ':entity_type' => 'user',
+            ':entity_id' => $user_id,
+            ':old_value' => $oldValue,
+            ':new_value' => $newValue,
+            ':change_reason' => 'User updated own profile information',
+            ':ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+            ':user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown'
+        ]);
+    } catch (Exception $auditError) {
+        error_log('Audit log failed in update_profile.php: ' . $auditError->getMessage());
+    }
 
     // Get updated user data
-    $fetchQuery = "SELECT user_id, fname, lname, email, contact_num, address, profile_picture FROM users WHERE user_id = :user_id";
+    $fetchQuery = $hasProfilePictureColumn
+        ? "SELECT user_id, fname, lname, email, contact_num, address, profile_picture FROM users WHERE user_id = :user_id"
+        : "SELECT user_id, fname, lname, email, contact_num, address, NULL AS profile_picture FROM users WHERE user_id = :user_id";
     $fetchStmt = $pdo->prepare($fetchQuery);
     $fetchStmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);
     $fetchStmt->execute();

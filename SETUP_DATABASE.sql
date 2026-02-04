@@ -3,11 +3,11 @@
 
 -- 1. Add columns to users table if they don't exist
 ALTER TABLE `users` 
-ADD COLUMN `is_email_verified` TINYINT(1) NOT NULL DEFAULT 0 AFTER `user_status`,
-ADD COLUMN `email_verified_at` TIMESTAMP NULL AFTER `is_email_verified`;
+ADD COLUMN IF NOT EXISTS `is_email_verified` TINYINT(1) NOT NULL DEFAULT 0 AFTER `user_status`,
+ADD COLUMN IF NOT EXISTS `email_verified_at` TIMESTAMP NULL AFTER `is_email_verified`;
 
 -- 2. Create email_verification_tokens table
-CREATE TABLE `email_verification_tokens` (
+CREATE TABLE IF NOT EXISTS `email_verification_tokens` (
     `token_id` BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
     `user_id` BIGINT(20) UNSIGNED NOT NULL,
     `token` VARCHAR(255) NOT NULL UNIQUE,
@@ -26,7 +26,7 @@ CREATE TABLE `email_verification_tokens` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 3. Create password_reset_tokens table (for future password reset feature)
-CREATE TABLE `password_reset_tokens` (
+CREATE TABLE IF NOT EXISTS `password_reset_tokens` (
     `reset_id` BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
     `user_id` BIGINT(20) UNSIGNED NOT NULL,
     `token` VARCHAR(255) NOT NULL UNIQUE,
@@ -45,6 +45,9 @@ CREATE TABLE `password_reset_tokens` (
 -- 4. User profile schema updates
 ALTER TABLE `users`
 ADD COLUMN IF NOT EXISTS `address` TEXT NULL AFTER `contact_num`;
+
+ALTER TABLE `users`
+ADD COLUMN IF NOT EXISTS `profile_picture` VARCHAR(255) NULL AFTER `address`;
 
 ALTER TABLE `users`
 DROP COLUMN IF EXISTS `mname`;

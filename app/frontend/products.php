@@ -1439,7 +1439,7 @@ function openEditModal(productId) {
                 
                 console.log("Form populated successfully");
             } else {
-                alert("Error: " + (data.message || "Failed to load product data"));
+                showAlertModal("Error: " + (data.message || "Failed to load product data"), 'error', 'Load Error');
                 closeEditModal();
             }
         })
@@ -1452,7 +1452,7 @@ function openEditModal(productId) {
                 form.style.pointerEvents = "auto";
             }
             
-            alert("Error loading product data: " + error.message);
+            showAlertModal("Error loading product data: " + error.message, 'error', 'Load Error');
             closeEditModal();
         });
 }
@@ -1466,20 +1466,20 @@ function closeEditModal() {
     }
 }
 
-function toggleProductStatus(productId, currentStatus) {
+async function toggleProductStatus(productId, currentStatus) {
     console.log("Toggle status for product:", productId, "Current status:", currentStatus);
     const newStatus = currentStatus === "active" ? "inactive" : "active";
     const action = newStatus === "active" ? "activate" : "deactivate";
     
-    if (confirm("Are you sure you want to " + action + " this product?")) {
+    if (await showConfirmModal("Are you sure you want to " + action + " this product?", "Confirm Action")) {
         window.location.href = "../../backend/products/toggle_product_status.php?id=" + productId + "&status=" + newStatus;
     }
 }
 
-function deleteProduct(productId) {
+async function deleteProduct(productId) {
     console.log("Delete product:", productId);
     
-    if (confirm("Are you sure you want to delete this product? This action cannot be undone.")) {
+    if (await showConfirmModal("Are you sure you want to delete this product? This action cannot be undone.", "Delete Product")) {
         window.location.href = "../../backend/products/delete_product.php?id=" + productId;
     }
 }

@@ -302,12 +302,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 addMessageToUI(message, 'customer', isExpanded);
                 loadMessages(isExpanded);
             } else {
-                alert('Error sending message: ' + data.message);
+                if (typeof showAlertModal === 'function') {
+                    showAlertModal('Error sending message: ' + data.message, 'error', 'Chat Error');
+                } else {
+                    alert('Error sending message: ' + data.message);
+                }
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Failed to send message. Please try again.');
+            if (typeof showAlertModal === 'function') {
+                showAlertModal('Failed to send message. Please try again.', 'error', 'Chat Error');
+            } else {
+                alert('Failed to send message. Please try again.');
+            }
         });
     }
     

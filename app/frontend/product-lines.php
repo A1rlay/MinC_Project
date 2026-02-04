@@ -1127,7 +1127,7 @@ function openEditModal(productLineId) {
                 
                 console.log("Form populated successfully");
             } else {
-                alert("Error: " + (data.message || "Failed to load product line data"));
+                showAlertModal("Error: " + (data.message || "Failed to load product line data"), 'error', 'Load Error');
                 closeEditModal();
             }
         })
@@ -1140,7 +1140,7 @@ function openEditModal(productLineId) {
                 form.style.pointerEvents = "auto";
             }
             
-            alert("Error loading product line data: " + error.message);
+            showAlertModal("Error loading product line data: " + error.message, 'error', 'Load Error');
             closeEditModal();
         });
 }
@@ -1154,20 +1154,20 @@ function closeEditModal() {
     }
 }
 
-function toggleProductLineStatus(productLineId, currentStatus) {
+async function toggleProductLineStatus(productLineId, currentStatus) {
     console.log("Toggle status for product line:", productLineId, "Current status:", currentStatus);
     const newStatus = currentStatus === "active" ? "inactive" : "active";
     const action = newStatus === "active" ? "activate" : "deactivate";
     
-    if (confirm("Are you sure you want to " + action + " this product line?")) {
+    if (await showConfirmModal("Are you sure you want to " + action + " this product line?", "Confirm Action")) {
         window.location.href = "../../backend/product-lines/toggle_product_line_status.php?id=" + productLineId + "&status=" + newStatus;
     }
 }
 
-function deleteProductLine(productLineId) {
+async function deleteProductLine(productLineId) {
     console.log("Delete product line:", productLineId);
     
-    if (confirm("Are you sure you want to delete this product line? This action cannot be undone.")) {
+    if (await showConfirmModal("Are you sure you want to delete this product line? This action cannot be undone.", "Delete Product Line")) {
         window.location.href = "../../backend/product-lines/delete_product_line.php?id=" + productLineId;
     }
 }

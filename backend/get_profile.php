@@ -50,9 +50,29 @@ try {
 
     $user_id = (int)$_SESSION['user_id'];
 
-    // Prepare query
-    $query = "SELECT user_id, fname, lname, email, contact_num, address, profile_picture, user_level_id, user_status, created_at 
-              FROM users WHERE user_id = :user_id";
+    // Build a safe profile query based on available columns
+    $columnsStmt = $pdo->query("SHOW COLUMNS FROM users");
+    $availableColumns = array_column($columnsStmt->fetchAll(PDO::FETCH_ASSOC), 'Field');
+
+    $selectParts = [
+        "user_id",
+        "fname",
+        "lname",
+        "email",
+        "contact_num",
+        "address",
+        "user_level_id",
+        "user_status",
+        "created_at"
+    ];
+
+    if (in_array('profile_picture', $availableColumns, true)) {
+        $selectParts[] = "profile_picture";
+    } else {
+        $selectParts[] = "NULL AS profile_picture";
+    }
+
+    $query = "SELECT " . implode(", ", $selectParts) . " FROM users WHERE user_id = :user_id";
     
     $stmt = $pdo->prepare($query);
     $stmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);

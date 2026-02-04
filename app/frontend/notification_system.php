@@ -1108,8 +1108,8 @@ function markAsUnread(notificationId) {
 }
 
 // Delete notification
-function deleteNotification(notificationId) {
-    if (confirm('Are you sure you want to delete this notification? This action cannot be undone.')) {
+async function deleteNotification(notificationId) {
+    if (await showConfirmModal('Are you sure you want to delete this notification? This action cannot be undone.', 'Delete Notification')) {
         sendRequest('delete', { notification_id: notificationId }, () => {
             const notification = document.querySelector(`[data-notification-id="${notificationId}"]`);
             if (notification) {
@@ -1132,8 +1132,8 @@ function deleteNotification(notificationId) {
 }
 
 // Mark all notifications as read
-function markAllAsRead() {
-    if (confirm('Mark all notifications as read?')) {
+async function markAllAsRead() {
+    if (await showConfirmModal('Mark all notifications as read?', 'Mark All Read')) {
         sendRequest('mark_all_read', {}, () => {
             setTimeout(() => location.reload(), 1000);
         });
@@ -1141,8 +1141,8 @@ function markAllAsRead() {
 }
 
 // Clear all notifications (admin/staff only)
-function clearAllNotifications() {
-    if (confirm('Are you sure you want to delete ALL notifications? This action cannot be undone.')) {
+async function clearAllNotifications() {
+    if (await showConfirmModal('Are you sure you want to delete ALL notifications? This action cannot be undone.', 'Clear Notifications')) {
         sendRequest('clear_all', {}, () => {
             setTimeout(() => location.reload(), 1000);
         });

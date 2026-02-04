@@ -185,15 +185,28 @@ session_start();
 
             <!-- Products Grid -->
             <div class="lg:col-span-3">
-                <!-- Sorting -->
-                <div class="flex justify-between items-center mb-8">
-                    <p id="product-count" class="text-gray-700 font-medium">Loading products...</p>
-                    <select id="sort-select" onchange="sortProducts()" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
-                        <option value="default">Sort By</option>
-                        <option value="price-low">Price: Low to High</option>
-                        <option value="price-high">Price: High to Low</option>
-                        <option value="name">Name: A to Z</option>
-                    </select>
+                <!-- Search and Sorting -->
+                <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
+                    <div class="flex-1 max-w-xl">
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            <input
+                                type="text"
+                                id="product-search"
+                                placeholder="Search products by name, description, or category..."
+                                class="w-full pl-12 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]"
+                            >
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between md:justify-end gap-4">
+                        <p id="product-count" class="text-gray-700 font-medium">Loading products...</p>
+                        <select id="sort-select" onchange="sortProducts()" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                            <option value="default">Sort By</option>
+                            <option value="price-low">Price: Low to High</option>
+                            <option value="price-high">Price: High to Low</option>
+                            <option value="name">Name: A to Z</option>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- Products Container -->
@@ -401,7 +414,12 @@ function initializeCart() {
 // Initialize filter checkboxes
         function initializeFilters() {
             const filterContainer = document.getElementById('productline-filters');
+            const searchInput = document.getElementById('product-search');
             filterContainer.innerHTML = '';
+
+            if (searchInput) {
+                searchInput.oninput = applyFilters;
+            }
 
             // If viewing a specific product line, don't show product line filter
             if (currentProductLineId) {
@@ -488,11 +506,18 @@ function initializeCart() {
             const selectedCategories = Array.from(document.querySelectorAll('.category-filter:checked')).map(el => parseInt(el.value));
             const selectedProductLines = Array.from(document.querySelectorAll('.productline-filter:checked')).map(el => parseInt(el.value));
             const selectedPrices = Array.from(document.querySelectorAll('.price-filter:checked')).map(el => el.value);
+            const searchTerm = (document.getElementById('product-search')?.value || '').trim().toLowerCase();
 
             filteredProducts = allProducts.filter(product => {
                 const categoryMatch = selectedCategories.length === 0 || selectedCategories.includes(product.category_id);
                 const productLineMatch = selectedProductLines.length === 0 || selectedProductLines.includes(product.product_line_id);
                 let priceMatch = selectedPrices.length === 0;
+                const searchMatch = !searchTerm ||
+                    (product.product_name || '').toLowerCase().includes(searchTerm) ||
+                    (product.product_description || '').toLowerCase().includes(searchTerm) ||
+                    (product.product_line_name || '').toLowerCase().includes(searchTerm) ||
+                    (product.category_name || '').toLowerCase().includes(searchTerm) ||
+                    (product.product_code || '').toLowerCase().includes(searchTerm);
 
                 if (!priceMatch) {
                     priceMatch = selectedPrices.some(range => {
@@ -501,7 +526,7 @@ function initializeCart() {
                     });
                 }
 
-                return categoryMatch && productLineMatch && priceMatch;
+                return categoryMatch && productLineMatch && priceMatch && searchMatch;
             });
 
             displayProducts();
@@ -594,7 +619,9 @@ function initializeCart() {
 
         // Clear all filters
         function clearFilters() {
-            document.querySelectorAll('.productline-filter, .price-filter').forEach(el => el.checked = false);
+            document.querySelectorAll('.category-filter, .productline-filter, .price-filter').forEach(el => el.checked = false);
+            const searchInput = document.getElementById('product-search');
+            if (searchInput) searchInput.value = '';
             filteredProducts = [...allProducts];
             document.getElementById('sort-select').value = 'default';
             displayProducts();

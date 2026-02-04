@@ -950,13 +950,13 @@ function initializePasswordValidation() {
             
             if (!validatePassword(password)) {
                 e.preventDefault();
-                alert("Please ensure your password meets all requirements.");
+                showAlertModal("Please ensure your password meets all requirements.", 'warning', 'Weak Password');
                 return false;
             }
             
             if (password !== confirmPassword) {
                 e.preventDefault();
-                alert("Passwords do not match.");
+                showAlertModal("Passwords do not match.", 'warning', 'Validation Error');
                 return false;
             }
             
@@ -975,13 +975,13 @@ function initializePasswordValidation() {
             if (password) {
                 if (!validatePassword(password)) {
                     e.preventDefault();
-                    alert("Please ensure your password meets all requirements.");
+                    showAlertModal("Please ensure your password meets all requirements.", 'warning', 'Weak Password');
                     return false;
                 }
                 
                 if (password !== confirmPassword) {
                     e.preventDefault();
-                    alert("Passwords do not match.");
+                    showAlertModal("Passwords do not match.", 'warning', 'Validation Error');
                     return false;
                 }
             }
@@ -1130,7 +1130,7 @@ function openEditModal(userId) {
                 
                 console.log("Form populated successfully");
             } else {
-                alert("Error: " + (data.message || "Failed to load user data"));
+                showAlertModal("Error: " + (data.message || "Failed to load user data"), 'error', 'Load Error');
                 closeEditModal();
             }
         })
@@ -1143,7 +1143,7 @@ function openEditModal(userId) {
                 form.style.pointerEvents = "auto";
             }
             
-            alert("Error loading user data: " + error.message);
+            showAlertModal("Error loading user data: " + error.message, 'error', 'Load Error');
             closeEditModal();
         });
 }
@@ -1157,12 +1157,12 @@ function closeEditModal() {
     }
 }
 
-function toggleUserStatus(userId, currentStatus) {
+async function toggleUserStatus(userId, currentStatus) {
     console.log("Toggle status for user:", userId, "Current status:", currentStatus);
     const newStatus = currentStatus === "active" ? "inactive" : "active";
     const action = newStatus === "active" ? "activate" : "deactivate";
     
-    if (confirm("Are you sure you want to " + action + " this user?")) {
+    if (await showConfirmModal("Are you sure you want to " + action + " this user?", "Confirm Action")) {
         window.location.href = "../../backend/user-management/toggle_user_status.php?id=" + userId + "&status=" + newStatus;
     }
 }

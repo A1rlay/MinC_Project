@@ -1025,7 +1025,7 @@ function openEditModal(categoryId) {
                 
                 console.log("Form populated successfully");
             } else {
-                alert("Error: " + (data.message || "Failed to load category data"));
+                showAlertModal("Error: " + (data.message || "Failed to load category data"), 'error', 'Load Error');
                 closeEditModal();
             }
         })
@@ -1038,7 +1038,7 @@ function openEditModal(categoryId) {
                 form.style.pointerEvents = "auto";
             }
             
-            alert("Error loading category data: " + error.message);
+            showAlertModal("Error loading category data: " + error.message, 'error', 'Load Error');
             closeEditModal();
         });
 }
@@ -1052,20 +1052,20 @@ function closeEditModal() {
     }
 }
 
-function toggleCategoryStatus(categoryId, currentStatus) {
+async function toggleCategoryStatus(categoryId, currentStatus) {
     console.log("Toggle status for category:", categoryId, "Current status:", currentStatus);
     const newStatus = currentStatus === "active" ? "inactive" : "active";
     const action = newStatus === "active" ? "activate" : "deactivate";
     
-    if (confirm("Are you sure you want to " + action + " this category?")) {
+    if (await showConfirmModal("Are you sure you want to " + action + " this category?", "Confirm Action")) {
         window.location.href = "../../backend/categories/toggle_category_status.php?id=" + categoryId + "&status=" + newStatus;
     }
 }
 
-function deleteCategory(categoryId) {
+async function deleteCategory(categoryId) {
     console.log("Delete category:", categoryId);
     
-    if (confirm("Are you sure you want to delete this category? This action cannot be undone.")) {
+    if (await showConfirmModal("Are you sure you want to delete this category? This action cannot be undone.", "Delete Category")) {
         window.location.href = "../../backend/categories/delete_category.php?id=" + categoryId;
     }
 }

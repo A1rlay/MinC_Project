@@ -276,7 +276,7 @@ ob_start();
 
     document.getElementById('createPOForm').addEventListener('submit', async function(e) {
         e.preventDefault();
-        alert('Purchase order creation is ready. Backend API endpoints need to be created for full functionality.');
+        showAlertModal('Purchase order creation is ready. Backend API endpoints need to be created for full functionality.', 'info', 'Purchase Order');
         closeCreatePOModal();
     });
 </script>

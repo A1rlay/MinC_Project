@@ -253,7 +253,7 @@ ob_start();
 
     document.getElementById('addSupplierForm').addEventListener('submit', async function(e) {
         e.preventDefault();
-        alert('Supplier management module is ready. Backend API endpoints need to be created for full functionality.');
+        showAlertModal('Supplier management module is ready. Backend API endpoints need to be created for full functionality.', 'info', 'Suppliers');
         closeAddSupplierModal();
     });
 </script>

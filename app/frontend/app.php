@@ -141,6 +141,7 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
     
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -479,26 +480,6 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
                     
                     <!-- Right Side -->
                     <div class="flex items-center space-x-4">
-                        <!-- Search (Hidden on mobile) -->
-                        <div class="relative hidden md:block">
-                            <input type="text" placeholder="Search..." class="bg-white/10 text-white placeholder-white/60 rounded-xl py-2.5 pl-10 pr-4 w-64 focus:outline-none focus:ring-2 focus:ring-white/30 focus:bg-white/20 transition-all duration-200 border border-white/20">
-                            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60"></i>
-                        </div>
-                        
-<!-- Enhanced Notification Bell -->
-<div class="relative">
-    <a href="notification_system.php" class="notification-bell-link flex items-center p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-white/30 group" title="<?php echo $unread_notifications > 0 ? "You have {$unread_notifications} unread notifications" : 'No unread notifications'; ?>">
-        <i class="fas fa-bell text-white group-hover:scale-110 transition-transform duration-200"></i>
-        <?php if ($unread_notifications > 0): ?>
-            <span class="notification-bell-count absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[20px] h-5 text-xs font-bold leading-none text-white bg-red-600 rounded-full px-1.5 py-0.5 transform animate-pulse shadow-lg">
-                <?php echo $unread_notifications > 99 ? '99+' : $unread_notifications; ?>
-            </span>
-        <?php else: ?>
-            <span class="notification-bell-count hidden absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[20px] h-5 text-xs font-bold leading-none text-white bg-red-600 rounded-full px-1.5 py-0.5 transform shadow-lg"></span>
-        <?php endif; ?>
-    </a>
-</div>
-                        
                         <!-- User Profile Dropdown -->
                         <div class="relative">
                             <button id="user-menu-button" class="flex items-center p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-white/30">
@@ -614,6 +595,55 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
 
     <!-- JavaScript for enhanced functionality -->
     <script>
+        function showAlertModal(message, icon = 'info', title = 'Notice') {
+            if (typeof Swal !== 'undefined') {
+                return Swal.fire({
+                    icon,
+                    title,
+                    text: String(message ?? ''),
+                    confirmButtonColor: '#08415c'
+                });
+            }
+            alert(message);
+            return Promise.resolve();
+        }
+
+        async function showConfirmModal(message, title = 'Please Confirm') {
+            if (typeof Swal !== 'undefined') {
+                const result = await Swal.fire({
+                    icon: 'question',
+                    title,
+                    text: String(message ?? ''),
+                    showCancelButton: true,
+                    confirmButtonColor: '#08415c',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Confirm'
+                });
+                return !!result.isConfirmed;
+            }
+            return confirm(message);
+        }
+
+        async function showPromptModal(title = 'Input Required', inputLabel = '') {
+            if (typeof Swal !== 'undefined') {
+                const result = await Swal.fire({
+                    title,
+                    input: 'text',
+                    inputLabel,
+                    inputPlaceholder: 'Type here...',
+                    showCancelButton: true,
+                    confirmButtonColor: '#08415c',
+                    cancelButtonColor: '#d33'
+                });
+                return result.isConfirmed ? (result.value || '') : null;
+            }
+            return prompt(inputLabel || title);
+        }
+
+        window.showAlertModal = showAlertModal;
+        window.showConfirmModal = showConfirmModal;
+        window.showPromptModal = showPromptModal;
+
         document.addEventListener('DOMContentLoaded', function() {
             const sidebar = document.getElementById('sidebar');
             const content = document.getElementById('content');
@@ -746,19 +776,6 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
             const savedState = localStorage.getItem('sidebarState');
             applySidebarState(savedState === 'collapsed', false);
             
-            // Enhanced search functionality (optional)
-            const searchInput = document.querySelector('input[placeholder="Search..."]');
-            if (searchInput) {
-                searchInput.addEventListener('focus', function() {
-                    this.style.width = '300px';
-                });
-                
-                searchInput.addEventListener('blur', function() {
-                    if (!this.value) {
-                        this.style.width = '256px';
-                    }
-                });
-            }
         });
         
         // Help & Support Modal
@@ -769,34 +786,9 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
                 `Phone: 1-800-MINC-HELP\n` +
                 `Chat: Available 24/7 on the help page\n\n` +
                 `Common issues and FAQs are available in the Help section of the website.`;
-            alert(message);
+            showAlertModal(message, 'info', 'Help & Support');
         }
 
-        // Real-time notification count update
-function updateNotificationCount() {
-    fetch('get_notification_count.php')
-        .then(response => response.json())
-        .then(data => {
-            const notificationBell = document.querySelector('.notification-bell-count');
-            if (notificationBell) {
-                if (data.count > 0) {
-                    notificationBell.textContent = data.count > 99 ? '99+' : data.count;
-                    notificationBell.classList.remove('hidden');
-                    notificationBell.classList.add('animate-pulse');
-                } else {
-                    notificationBell.classList.add('hidden');
-                }
-            }
-        })
-        .catch(error => {
-            console.log('Error updating notification count:', error);
-        });
-}
-
-// Update notification count every 30 seconds
-if (<?php echo $user['is_logged_in'] ? 'true' : 'false'; ?>) {
-    setInterval(updateNotificationCount, 30000);
-}
     </script>
     
     <!-- Additional JavaScript -->

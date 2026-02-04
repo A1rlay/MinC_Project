@@ -363,12 +363,12 @@ if (isset($_GET['debug'])) {
                     document.getElementById('messageText').value = '';
                     location.reload();
                 } else {
-                    alert('Error: ' + (data.message || 'Failed to send message'));
+                    showAlertModal('Error: ' + (data.message || 'Failed to send message'), 'error', 'Message Error');
                 }
             })
             .catch(e => {
                 console.error('Error:', e);
-                alert('Failed to send message');
+                showAlertModal('Failed to send message', 'error', 'Message Error');
             });
         });
     }

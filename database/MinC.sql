@@ -289,6 +289,8 @@ CREATE TABLE `users` (
   `contact_num` varchar(255) DEFAULT NULL,
   `address` text DEFAULT NULL,
   `user_status` enum('active','inactive') NOT NULL DEFAULT 'active',
+  `is_email_verified` tinyint(1) NOT NULL DEFAULT 0,
+  `email_verified_at` timestamp NULL DEFAULT NULL,
   `user_level_id` bigint(20) UNSIGNED NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
@@ -296,12 +298,12 @@ CREATE TABLE `users` (
   `reset_expires_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `users` (`user_id`, `fname`, `lname`, `username`, `email`, `password`, `contact_num`, `address`, `user_status`, `user_level_id`, `created_at`, `updated_at`, `reset_token`, `reset_expires_at`) VALUES
-(1, 'Root', 'Admin', 'Root', 'root@gmail.com', '$2y$10$NEjqatumWgO1tu9DSqlC3.PZXjcDJPc6WX8UYwcti8xy/ZWFK2rdC', NULL, NULL, 'active', 1, '2025-10-23 05:16:23', '2025-10-23 05:16:23', NULL, NULL),
-(2, 'Test', 'User Edited', NULL, 'test@gmail.com', '$2y$10$lM1711u9sB4T1eI0jVIR0OliAINZ4lNQPt7Uxa7.ez3sku9qvmV0a', NULL, NULL, 'active', 2, '2025-10-23 09:44:23', '2025-10-23 12:51:02', NULL, NULL),
-(3, 'Student', 'Test', NULL, 'Student@test.com', '$2y$10$DmnXCDsMEOPwEtkZd3JKrO5q/3hLibcBq7yz3sA/zSgFCgDTfKDem', NULL, NULL, 'active', 4, '2025-10-26 03:51:20', NULL, NULL, NULL),
-(4, 'Parent', 'Test', NULL, 'Parent@gmail.com', '$2y$10$dEo9fS4GradqSB9AHz4M4Okal2L/meSIUi/16tL44Ki5y0rd7Q1Vm', NULL, NULL, 'active', 2, '2025-10-27 08:55:27', NULL, NULL, NULL),
-(5, 'Teacher', 'Testt', NULL, 'teacher@gmail.com', '$2y$10$Ekm0TUyx9e22OYjEqKdBNeDIRrIAYpYFHBjHfNFCCH8mafF9qMcOe', NULL, NULL, 'active', 2, '2025-10-27 13:21:31', '2025-11-29 02:50:34', NULL, NULL);
+INSERT INTO `users` (`user_id`, `fname`, `lname`, `username`, `email`, `password`, `contact_num`, `address`, `user_status`, `is_email_verified`, `email_verified_at`, `user_level_id`, `created_at`, `updated_at`, `reset_token`, `reset_expires_at`) VALUES
+(1, 'Root', 'Admin', 'Root', 'root@gmail.com', '$2y$10$NEjqatumWgO1tu9DSqlC3.PZXjcDJPc6WX8UYwcti8xy/ZWFK2rdC', NULL, NULL, 'active', 1, '2025-10-23 05:16:23', 1, '2025-10-23 05:16:23', '2025-10-23 05:16:23', NULL, NULL),
+(2, 'Test', 'User Edited', NULL, 'test@gmail.com', '$2y$10$lM1711u9sB4T1eI0jVIR0OliAINZ4lNQPt7Uxa7.ez3sku9qvmV0a', NULL, NULL, 'active', 1, '2025-10-23 09:44:23', 2, '2025-10-23 09:44:23', '2025-10-23 12:51:02', NULL, NULL),
+(3, 'Student', 'Test', NULL, 'Student@test.com', '$2y$10$DmnXCDsMEOPwEtkZd3JKrO5q/3hLibcBq7yz3sA/zSgFCgDTfKDem', NULL, NULL, 'active', 0, NULL, 4, '2025-10-26 03:51:20', NULL, NULL, NULL),
+(4, 'Parent', 'Test', NULL, 'Parent@gmail.com', '$2y$10$dEo9fS4GradqSB9AHz4M4Okal2L/meSIUi/16tL44Ki5y0rd7Q1Vm', NULL, NULL, 'active', 1, '2025-10-27 08:55:27', 2, '2025-10-27 08:55:27', NULL, NULL, NULL),
+(5, 'Teacher', 'Testt', NULL, 'teacher@gmail.com', '$2y$10$Ekm0TUyx9e22OYjEqKdBNeDIRrIAYpYFHBjHfNFCCH8mafF9qMcOe', NULL, NULL, 'active', 1, '2025-10-27 13:21:31', 2, '2025-10-27 13:21:31', '2025-11-29 02:50:34', NULL, NULL);
 
 CREATE TABLE `user_levels` (
   `user_level_id` bigint(20) UNSIGNED NOT NULL,
@@ -333,6 +335,38 @@ CREATE TABLE `suppliers` (
   UNIQUE KEY `uniq_supplier_name` (`supplier_name`),
   KEY `idx_supplier_status` (`status`),
   KEY `idx_supplier_city` (`city`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `email_verification_tokens` (
+  `token_id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id` bigint(20) UNSIGNED NOT NULL,
+  `token` varchar(255) NOT NULL,
+  `token_hash` varchar(255) NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `expires_at` timestamp NOT NULL,
+  `verified_at` timestamp NULL DEFAULT NULL,
+  `is_used` tinyint(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`token_id`),
+  UNIQUE KEY `unique_token` (`token`),
+  KEY `user_id` (`user_id`),
+  KEY `email` (`email`),
+  KEY `expires_at` (`expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `password_reset_tokens` (
+  `reset_id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id` bigint(20) UNSIGNED NOT NULL,
+  `token` varchar(255) NOT NULL,
+  `token_hash` varchar(255) NOT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `expires_at` timestamp NOT NULL,
+  `used_at` timestamp NULL DEFAULT NULL,
+  `is_used` tinyint(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`reset_id`),
+  UNIQUE KEY `unique_reset_token` (`token`),
+  KEY `user_id` (`user_id`),
+  KEY `expires_at` (`expires_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -462,6 +496,12 @@ ALTER TABLE `product_lines`
 
 ALTER TABLE `users`
   ADD CONSTRAINT `users_user_level_id_foreign` FOREIGN KEY (`user_level_id`) REFERENCES `user_levels` (`user_level_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE `email_verification_tokens`
+  ADD CONSTRAINT `fk_verification_tokens_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
+
+ALTER TABLE `password_reset_tokens`
+  ADD CONSTRAINT `fk_reset_tokens_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
 
 -- Chat Messages Table
 CREATE TABLE `chat_messages` (
