@@ -29,23 +29,33 @@ $user_data = [
 
 // Page title
 $custom_title = 'Dashboard - MinC Project';
+$current_page = 'dashboard';
 
 // === DASHBOARD STATISTICS (Templated - Replace with real queries later) ===
 try {
     // Today's Sales
-    $today_sales = $pdo->query("SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE DATE(order_date) = CURDATE() AND status IN ('completed','shipped')")->fetchColumn();
+    $today_sales = $pdo->query("
+        SELECT COALESCE(SUM(total_amount), 0)
+        FROM orders
+        WHERE DATE(created_at) = CURDATE()
+          AND order_status IN ('confirmed','processing','shipped','delivered')
+    ")->fetchColumn();
 
     // Total Orders Today
-    $today_orders = $pdo->query("SELECT COUNT(*) FROM orders WHERE DATE(order_date) = CURDATE()")->fetchColumn();
+    $today_orders = $pdo->query("SELECT COUNT(*) FROM orders WHERE DATE(created_at) = CURDATE()")->fetchColumn();
 
     // Pending Orders
-    $pending_orders = $pdo->query("SELECT COUNT(*) FROM orders WHERE status = 'pending'")->fetchColumn();
+    $pending_orders = $pdo->query("SELECT COUNT(*) FROM orders WHERE order_status = 'pending'")->fetchColumn();
 
     // Low Stock Products (< 10 units)
     $low_stock = $pdo->query("SELECT COUNT(*) FROM products WHERE stock_quantity < 10 AND status = 'active'")->fetchColumn();
 
     // Total Revenue (All Time)
-    $total_revenue = $pdo->query("SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE status IN ('completed','shipped')")->fetchColumn();
+    $total_revenue = $pdo->query("
+        SELECT COALESCE(SUM(total_amount), 0)
+        FROM orders
+        WHERE order_status IN ('confirmed','processing','shipped','delivered')
+    ")->fetchColumn();
 
     // Total Customers
     $total_customers = $pdo->query("SELECT COUNT(*) FROM customers")->fetchColumn();
@@ -61,8 +71,8 @@ try {
         JOIN product_lines pl ON p.product_line_id = pl.product_line_id
         JOIN categories c ON pl.category_id = c.category_id
         JOIN orders o ON oi.order_id = o.order_id
-        WHERE o.order_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-          AND o.status IN ('completed','shipped')
+        WHERE o.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+          AND o.order_status IN ('confirmed','processing','shipped','delivered')
         GROUP BY c.category_id, c.category_name
         ORDER BY units_sold DESC
         LIMIT 6
@@ -71,40 +81,40 @@ try {
     // Monthly Sales Trend (Last 6 Months)
     $monthly_sales = $pdo->query("
         SELECT 
-            DATE_FORMAT(order_date, '%Y-%m') as month,
-            DATE_FORMAT(order_date, '%M %Y') as month_name,
+            DATE_FORMAT(created_at, '%Y-%m') as month,
+            DATE_FORMAT(created_at, '%M %Y') as month_name,
             COALESCE(SUM(total_amount), 0) as revenue
         FROM orders 
-        WHERE order_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-          AND status IN ('completed','shipped')
-        GROUP BY DATE_FORMAT(order_date, '%Y-%m')
+        WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+          AND order_status IN ('confirmed','processing','shipped','delivered')
+        GROUP BY DATE_FORMAT(created_at, '%Y-%m')
         ORDER BY month ASC
     ")->fetchAll(PDO::FETCH_ASSOC);
 
     // Recent Orders
     $recent_orders = $pdo->query("
-        SELECT o.order_id, o.order_number, o.total_amount, o.status, o.order_date,
+        SELECT o.order_id, o.order_number, o.total_amount, o.order_status, o.created_at,
                CONCAT(c.first_name, ' ', c.last_name) as customer_name
         FROM orders o
         JOIN customers c ON o.customer_id = c.customer_id
-        ORDER BY o.order_date DESC
+        ORDER BY o.created_at DESC
         LIMIT 8
     ")->fetchAll(PDO::FETCH_ASSOC);
 
     // Order Status Distribution
     $status_distribution = $pdo->query("
         SELECT 
-            status,
+            order_status,
             COUNT(*) as count,
             CASE 
-                WHEN status = 'completed' OR status = 'shipped' THEN '#10B981'
-                WHEN status = 'pending' THEN '#F59E0B'
-                WHEN status = 'processing' THEN '#3B82F6'
-                WHEN status = 'cancelled' THEN '#EF4444'
+                WHEN order_status IN ('delivered', 'shipped') THEN '#10B981'
+                WHEN order_status = 'pending' THEN '#F59E0B'
+                WHEN order_status IN ('confirmed', 'processing') THEN '#3B82F6'
+                WHEN order_status = 'cancelled' THEN '#EF4444'
                 ELSE '#6B7280'
             END as color
         FROM orders
-        GROUP BY status
+        GROUP BY order_status
     ")->fetchAll(PDO::FETCH_ASSOC);
 
 } catch (Exception $e) {
@@ -377,10 +387,10 @@ ob_start();
                         <div class="text-right">
                             <p class="font-semibold text-[#08415c]">₱<?= number_format($order['total_amount'], 2) ?></p>
                             <span class="text-xs px-2 py-1 rounded-full 
-                                <?= $order['status'] == 'completed' ? 'bg-green-100 text-green-800' : 
-                                   ($order['status'] == 'pending' ? 'bg-amber-100 text-amber-800' : 
-                                   ($order['status'] == 'cancelled' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800')) ?>">
-                                <?= ucfirst($order['status']) ?>
+                                <?= $order['order_status'] == 'delivered' || $order['order_status'] == 'shipped' ? 'bg-green-100 text-green-800' : 
+                                   ($order['order_status'] == 'pending' ? 'bg-amber-100 text-amber-800' : 
+                                   ($order['order_status'] == 'cancelled' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800')) ?>">
+                                <?= ucfirst($order['order_status']) ?>
                             </span>
                         </div>
                     </div>
@@ -431,7 +441,7 @@ document.addEventListener('DOMContentLoaded', function() {
     new Chart(statusCtx, {
         type: 'doughnut',
         data: {
-            labels: statusData.map(s => s.status.charAt(0).toUpperCase() + s.status.slice(1)),
+            labels: statusData.map(s => s.order_status.charAt(0).toUpperCase() + s.order_status.slice(1)),
             datasets: [{
                 data: statusData.map(s => s.count),
                 backgroundColor: statusData.map(s => s.color),
