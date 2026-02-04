@@ -326,7 +326,7 @@ if ($user_id) {
                                 <label class="block text-gray-700 font-medium mb-2">City/Municipality *</label>
                                 <select id="city"
                                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
-                                    <option value="">Select Municipality/City (Pampanga)</option>
+                                    <option value="">Select Municipality/City</option>
                                     <option value="Angeles City">Angeles City</option>
                                     <option value="Mabalacat City">Mabalacat City</option>
                                     <option value="San Fernando City">San Fernando City</option>
