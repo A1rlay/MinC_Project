@@ -41,3 +41,10 @@ CREATE TABLE `password_reset_tokens` (
     KEY `expires_at` (`expires_at`),
     CONSTRAINT `fk_reset_tokens_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 4. User profile schema updates
+ALTER TABLE `users`
+ADD COLUMN IF NOT EXISTS `address` TEXT NULL AFTER `contact_num`;
+
+ALTER TABLE `users`
+DROP COLUMN IF EXISTS `mname`;

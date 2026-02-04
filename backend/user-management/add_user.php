@@ -37,7 +37,6 @@ try {
     // Get and sanitize input data
     $fname = trim($_POST['fname'] ?? '');
     $lname = trim($_POST['lname'] ?? '');
-    $mname = !empty($_POST['mname']) ? trim($_POST['mname']) : null;
     $email = trim($_POST['email'] ?? '');
     $username = !empty($_POST['username']) ? trim($_POST['username']) : null;
     $contact_num = !empty($_POST['contact_num']) ? trim($_POST['contact_num']) : null;
@@ -76,10 +75,10 @@ try {
     // Insert new user
     $insert_query = "
         INSERT INTO users (
-            fname, mname, lname, email, username, 
+            fname, lname, email, username, 
             contact_num, password, user_level_id, user_status, created_at
         ) VALUES (
-            :fname, :mname, :lname, :email, :username, 
+            :fname, :lname, :email, :username, 
             :contact_num, :password, :user_level_id, 'active', NOW()
         )
     ";
@@ -87,7 +86,6 @@ try {
     $stmt = $pdo->prepare($insert_query);
     $stmt->execute([
         ':fname' => $fname,
-        ':mname' => $mname,
         ':lname' => $lname,
         ':email' => $email,
         ':username' => $username,
@@ -101,7 +99,6 @@ try {
     // Prepare audit trail data
     $new_value = [
         'fname' => $fname,
-        'mname' => $mname,
         'lname' => $lname,
         'email' => $email,
         'username' => $username,

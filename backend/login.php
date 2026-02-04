@@ -83,7 +83,6 @@ try {
         SELECT 
             u.user_id, 
             u.fname, 
-            u.mname, 
             u.lname, 
             u.email, 
             u.password, 
@@ -133,18 +132,6 @@ try {
         exit;
     }
     
-// Verify password
-if (!password_verify($password, $user['password'])) {
-    // Log failed login attempt
-    error_log("Failed login attempt for user ID: " . $user['user_id']);
-    
-    echo json_encode([
-        'success' => false,
-        'message' => 'Invalid email or password'
-    ]);
-    exit;
-}
-
 // MODIFIED: Determine if user is admin or customer
 // IT Personnel (1), Owner (2), Manager (3) -> Admin/Dashboard access
 // Consumer (4) -> Customer/Landing page access
@@ -154,7 +141,6 @@ $isAdmin = in_array($user['user_level_id'], [1, 2, 3]);
 $_SESSION['user_id'] = $user['user_id'];
 $_SESSION['email'] = $user['email'];
 $_SESSION['fname'] = $user['fname'];
-$_SESSION['mname'] = $user['mname'];
 $_SESSION['lname'] = $user['lname'];
 $_SESSION['username'] = $user['username'] ?? $user['fname'];
 $_SESSION['user_level_id'] = $user['user_level_id'];
@@ -163,7 +149,7 @@ $_SESSION['login_time'] = time();
 $_SESSION['is_admin'] = $isAdmin;
 
 // Create full name for display
-$fullName = trim($user['fname'] . ' ' . ($user['mname'] ?? '') . ' ' . $user['lname']);
+$fullName = trim($user['fname'] . ' ' . $user['lname']);
 $_SESSION['full_name'] = $fullName;
 
 // Regenerate session ID for security
@@ -193,9 +179,7 @@ $baseUrl = dirname($_SERVER['PHP_SELF']);
 // Go up two directories from /backend/login.php
 $baseUrl = str_replace('/backend', '', $baseUrl);
 
-$redirectUrl = $isAdmin 
-    ? $baseUrl . '/app/frontend/dashboard.php' 
-    : $baseUrl . '/index.php';
+$redirectUrl = $baseUrl . '/index.php';
 
 // Return success response
 echo json_encode([

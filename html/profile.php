@@ -169,16 +169,6 @@ if (!isset($_SESSION['user_id'])) {
                     </div>
                 </div>
                 
-                <!-- Middle Name -->
-                <div class="mb-6">
-                    <label for="mname" class="block text-sm font-semibold text-gray-700 mb-2">
-                        <i class="fas fa-user mr-2 text-[#08415c]"></i>Middle Name
-                    </label>
-                    <input type="text" id="mname" name="mname"
-                           class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition"
-                           placeholder="Enter middle name">
-                </div>
-                
                 <!-- Email -->
                 <div class="mb-6">
                     <label for="email" class="block text-sm font-semibold text-gray-700 mb-2">
@@ -192,7 +182,7 @@ if (!isset($_SESSION['user_id'])) {
                 </div>
                 
                 <!-- Contact Number -->
-                <div class="mb-8">
+                <div class="mb-6">
                     <label for="contact_num" class="block text-sm font-semibold text-gray-700 mb-2">
                         <i class="fas fa-phone mr-2 text-[#08415c]"></i>Contact Number
                     </label>
@@ -201,6 +191,16 @@ if (!isset($_SESSION['user_id'])) {
                            placeholder="+1 (555) 000-0000">
                 </div>
                 
+                <!-- Delivery Address -->
+                <div class="mb-8">
+                    <label for="address" class="block text-sm font-semibold text-gray-700 mb-2">
+                        <i class="fas fa-location-dot mr-2 text-[#08415c]"></i>Delivery Address
+                    </label>
+                    <textarea id="address" name="address" rows="3"
+                              class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition"
+                              placeholder="Enter delivery address"></textarea>
+                </div>
+
                 <!-- Picture Delete Button -->
                 <div id="pictureBtnContainer" class="mb-8 hidden">
                     <button type="button" id="deletePictureBtn" 
@@ -297,9 +297,9 @@ if (!isset($_SESSION['user_id'])) {
 
                         document.getElementById('fname').value = user.fname;
                         document.getElementById('lname').value = user.lname;
-                        document.getElementById('mname').value = user.mname || '';
                         document.getElementById('email').value = user.email;
                         document.getElementById('contact_num').value = user.contact_num || '';
+                        document.getElementById('address').value = user.address || '';
 
                         if (user.profile_picture_url) {
                             document.getElementById('profilePictureDisplay').src = user.profile_picture_url;
@@ -320,8 +320,8 @@ if (!isset($_SESSION['user_id'])) {
 
             const fname = document.getElementById('fname').value.trim();
             const lname = document.getElementById('lname').value.trim();
-            const mname = document.getElementById('mname').value.trim();
             const contact_num = document.getElementById('contact_num').value.trim();
+            const address = document.getElementById('address').value.trim();
 
             if (!fname || !lname) {
                 showAlert('First name and last name are required', 'error');
@@ -338,8 +338,8 @@ if (!isset($_SESSION['user_id'])) {
                 body: JSON.stringify({
                     fname: fname,
                     lname: lname,
-                    mname: mname || null,
-                    contact_num: contact_num || null
+                    contact_num: contact_num || null,
+                    address: address || null
                 })
             })
             .then(response => response.json())

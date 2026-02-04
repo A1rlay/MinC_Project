@@ -66,9 +66,8 @@ try {
         SELECT 
             u.user_id,
             u.fname,
-            u.mname,
             u.lname,
-            CONCAT(u.fname, ' ', COALESCE(CONCAT(u.mname, ' '), ''), u.lname) as full_name,
+            CONCAT(u.fname, ' ', u.lname) as full_name,
             u.email,
             u.username,
             u.contact_num,
@@ -571,11 +570,6 @@ ob_start();
                 </div>
                 
                 <div class="form-group">
-                    <label for="add_mname" class="form-label">Middle Name</label>
-                    <input type="text" id="add_mname" name="mname" class="form-input">
-                </div>
-                
-                <div class="form-group">
                     <label for="add_email" class="form-label">Email *</label>
                     <input type="email" id="add_email" name="email" class="form-input" required>
                 </div>
@@ -675,11 +669,6 @@ ob_start();
                 <div class="form-group">
                     <label for="edit_lname" class="form-label">Last Name *</label>
                     <input type="text" id="edit_lname" name="lname" class="form-input" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="edit_mname" class="form-label">Middle Name</label>
-                    <input type="text" id="edit_mname" name="mname" class="form-input">
                 </div>
                 
                 <div class="form-group">
@@ -1104,7 +1093,6 @@ function openEditModal(userId) {
                 
                 document.getElementById("edit_user_id").value = user.user_id || "";
                 document.getElementById("edit_fname").value = user.fname || "";
-                document.getElementById("edit_mname").value = user.mname || "";
                 document.getElementById("edit_lname").value = user.lname || "";
                 document.getElementById("edit_email").value = user.email || "";
                 document.getElementById("edit_username").value = user.username || "";

@@ -68,7 +68,10 @@ $html_path = $is_in_html ? '' : 'html/';
                     </div>
                     <div class="mb-6">
                         <label class="block text-gray-700 font-medium mb-2">Password</label>
-                        <input type="password" id="loginPassword" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                        <div class="relative">
+                            <input type="password" id="loginPassword" required class="w-full px-4 py-3 pr-24 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                            <button type="button" id="toggleLoginPassword" onclick="togglePasswordVisibility('loginPassword', 'toggleLoginPassword')" class="absolute inset-y-0 right-0 px-3 text-sm text-gray-600 hover:text-[#08415c]">Show</button>
+                        </div>
                     </div>
                     <button type="submit" class="w-full btn-primary-custom text-white py-3 rounded-lg font-semibold">
                         Login
@@ -95,9 +98,17 @@ $html_path = $is_in_html ? '' : 'html/';
                         <label class="block text-gray-700 font-medium mb-2">Email</label>
                         <input type="email" id="registerEmail" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
                     </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 font-medium mb-2">Delivery Address</label>
+                        <textarea id="registerAddress" required rows="2" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]" placeholder="Where should we deliver your auto parts?"></textarea>
+                    </div>
                     <div class="mb-6">
                         <label class="block text-gray-700 font-medium mb-2">Password</label>
-                        <input type="password" id="registerPassword" required minlength="6" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                        <div class="relative">
+                            <input type="password" id="registerPassword" required minlength="8" class="w-full px-4 py-3 pr-24 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                            <button type="button" id="toggleRegisterPassword" onclick="togglePasswordVisibility('registerPassword', 'toggleRegisterPassword')" class="absolute inset-y-0 right-0 px-3 text-sm text-gray-600 hover:text-[#08415c]">Show</button>
+                        </div>
+                        <p class="mt-2 text-xs text-gray-500">Password must be at least 8 characters long and include a letter, number, and special character.</p>
                     </div>
                     <button type="submit" class="w-full btn-primary-custom text-white py-3 rounded-lg font-semibold">
                         Register
@@ -154,7 +165,7 @@ $html_path = $is_in_html ? '' : 'html/';
 
     // Check session on navbar load
     function checkNavbarSession() {
-        fetch(BASE_PATH + 'backend/auth.php?api=status')
+        fetch(BASE_PATH + 'backend/auth.php?api=status&t=' + Date.now(), { cache: 'no-store' })
             .then(response => response.json())
             .then(data => {
                 if (data.logged_in) {
@@ -239,6 +250,25 @@ $html_path = $is_in_html ? '' : 'html/';
         document.getElementById('loginPassword').value = '';
     }
 
+    function togglePasswordVisibility(inputId, buttonId) {
+        const input = document.getElementById(inputId);
+        const button = document.getElementById(buttonId);
+        if (!input || !button) return;
+
+        const isPassword = input.type === 'password';
+        input.type = isPassword ? 'text' : 'password';
+        button.textContent = isPassword ? 'Hide' : 'Show';
+    }
+
+    function isStrongPassword(password) {
+        if (password.length < 8) return false;
+        if (password === '123456') return false;
+        if (!/[A-Za-z]/.test(password)) return false;
+        if (!/\d/.test(password)) return false;
+        if (!/[^A-Za-z0-9]/.test(password)) return false;
+        return true;
+    }
+
     function showRegister() {
         document.getElementById('loginForm').classList.add('hidden');
         document.getElementById('registerForm').classList.remove('hidden');
@@ -271,19 +301,7 @@ $html_path = $is_in_html ? '' : 'html/';
             
             if (data.success) {
                 closeLoginModal();
-                
-                // Check if user is admin (user_level_id 1, 2, or 3)
-                if (data.user.user_level_id <= 3) {
-                    // Redirect to admin dashboard
-                    window.location.href = BASE_PATH + 'app/frontend/dashboard.php';
-                } else {
-                    // Regular customer - update UI and stay on page
-                    updateNavbarUI(true, data.user.user_level_id);
-                    if (typeof initializeCart === 'function') {
-                        initializeCart();
-                    }
-                    alert('Login successful!');
-                }
+                window.location.href = data.redirect || (BASE_PATH + 'index.php');
             } else {
                 alert('Login failed: ' + data.message);
             }
@@ -299,7 +317,13 @@ $html_path = $is_in_html ? '' : 'html/';
         const fname = document.getElementById('registerFname').value;
         const lname = document.getElementById('registerLname').value;
         const email = document.getElementById('registerEmail').value;
+        const address = document.getElementById('registerAddress').value.trim();
         const password = document.getElementById('registerPassword').value;
+
+        if (!isStrongPassword(password)) {
+            alert('Password must be at least 8 characters long and include a letter, number, and special character.');
+            return;
+        }
 
         try {
             const response = await fetch(BASE_PATH + 'backend/register.php', {
@@ -311,6 +335,7 @@ $html_path = $is_in_html ? '' : 'html/';
                     fname: fname,
                     lname: lname,
                     email: email,
+                    address: address,
                     password: password
                 })
             });
@@ -332,12 +357,11 @@ $html_path = $is_in_html ? '' : 'html/';
 
     function handleLogout() {
         if (confirm('Are you sure you want to logout?')) {
-            fetch(BASE_PATH + 'backend/logout.php')
+            fetch(BASE_PATH + 'backend/logout.php', { cache: 'no-store' })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success || data.message === 'Logged out successfully') {
                         updateNavbarUI(false);
-                        checkNavbarSession();
                         alert('Logged out successfully');
                     }
                 })

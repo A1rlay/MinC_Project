@@ -50,7 +50,7 @@ try {
     }
 
     // Prepare query
-    $query = "SELECT user_id, fname, mname, lname, email, contact_num, profile_picture, user_level_id, user_status, created_at 
+    $query = "SELECT user_id, fname, lname, email, contact_num, address, profile_picture, user_level_id, user_status, created_at 
               FROM users WHERE user_id = :user_id";
     
     $stmt = $pdo->prepare($query);

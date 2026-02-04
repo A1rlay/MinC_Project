@@ -38,7 +38,6 @@ try {
     $user_id = intval($_POST['user_id'] ?? 0);
     $fname = trim($_POST['fname'] ?? '');
     $lname = trim($_POST['lname'] ?? '');
-    $mname = !empty($_POST['mname']) ? trim($_POST['mname']) : null;
     $email = trim($_POST['email'] ?? '');
     $username = !empty($_POST['username']) ? trim($_POST['username']) : null;
     $contact_num = !empty($_POST['contact_num']) ? trim($_POST['contact_num']) : null;
@@ -58,7 +57,7 @@ try {
 
     // Get old user data for audit trail
     $old_data_query = "
-        SELECT fname, mname, lname, email, username, contact_num, user_level_id, user_status
+        SELECT fname, lname, email, username, contact_num, user_level_id, user_status
         FROM users
         WHERE user_id = :user_id
     ";
@@ -89,7 +88,6 @@ try {
     // Build update query
     $update_fields = [
         'fname = :fname',
-        'mname = :mname',
         'lname = :lname',
         'email = :email',
         'username = :username',
@@ -102,7 +100,6 @@ try {
     $params = [
         ':user_id' => $user_id,
         ':fname' => $fname,
-        ':mname' => $mname,
         ':lname' => $lname,
         ':email' => $email,
         ':username' => $username,
@@ -125,7 +122,6 @@ try {
     // Prepare audit trail data
     $old_value = [
         'fname' => $old_data['fname'],
-        'mname' => $old_data['mname'],
         'lname' => $old_data['lname'],
         'email' => $old_data['email'],
         'username' => $old_data['username'],
@@ -136,7 +132,6 @@ try {
 
     $new_value = [
         'fname' => $fname,
-        'mname' => $mname,
         'lname' => $lname,
         'email' => $email,
         'username' => $username,

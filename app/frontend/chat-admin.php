@@ -35,9 +35,8 @@ try {
     $user_query = "
         SELECT 
             u.user_id,
-            CONCAT(u.fname, ' ', COALESCE(CONCAT(u.mname, ' '), ''), u.lname) as full_name,
+            CONCAT(u.fname, ' ', u.lname) as full_name,
             u.fname,
-            u.mname,
             u.lname,
             u.email,
             u.contact_num,
@@ -58,7 +57,6 @@ try {
         $user = [
             'full_name' => trim($user_data['full_name']),
             'first_name' => $user_data['fname'],
-            'middle_name' => $user_data['mname'],
             'last_name' => $user_data['lname'],
             'user_type' => $user_data['user_type'],
             'is_logged_in' => true,

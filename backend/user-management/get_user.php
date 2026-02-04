@@ -62,7 +62,6 @@ try {
         SELECT 
             user_id,
             fname,
-            mname,
             lname,
             email,
             username,

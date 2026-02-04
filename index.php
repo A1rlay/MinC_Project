@@ -371,16 +371,7 @@ document.addEventListener('click', function(event) {
                         confirmButtonColor: '#08415c',
                         timer: 2000
                     }).then(() => {
-                        // Check user level and redirect accordingly
-                        // IT Personnel (1), Owner (2), Manager (3) -> Dashboard
-                        // Consumer (4) -> Stay on landing page with session
-                        if (data.user.user_level_id <= 3) {
-                            window.location.href = data.redirect;
-                        } else {
-                            // Consumer stays on landing page
-                            checkSession(); // Update UI
-                            window.location.reload();
-                        }
+                        window.location.href = data.redirect || 'index.php';
                     });
                 } else {
                     Swal.fire({
@@ -407,7 +398,18 @@ document.addEventListener('click', function(event) {
             const fname = document.getElementById('registerFname').value;
             const lname = document.getElementById('registerLname').value;
             const email = document.getElementById('registerEmail').value;
+            const address = document.getElementById('registerAddress').value.trim();
             const password = document.getElementById('registerPassword').value;
+
+            if (password.length < 8 || password === '123456' || !/[A-Za-z]/.test(password) || !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Weak Password',
+                    text: 'Password must be at least 8 characters long and include a letter, number, and special character.',
+                    confirmButtonColor: '#08415c'
+                });
+                return;
+            }
             
             // Show loading
             Swal.fire({
@@ -428,6 +430,7 @@ document.addEventListener('click', function(event) {
                         fname: fname,
                         lname: lname,
                         email: email,
+                        address: address,
                         password: password
                     })
                 });

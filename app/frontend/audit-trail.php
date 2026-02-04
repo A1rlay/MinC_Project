@@ -60,7 +60,7 @@ try {
             at.user_agent,
             at.system_id,
             at.transaction_id,
-            CONCAT(u.fname, ' ', COALESCE(CONCAT(u.mname, ' '), ''), u.lname) as user_full_name,
+            CONCAT(u.fname, ' ', u.lname) as user_full_name,
             ul.user_type_name
         FROM audit_trail at
         LEFT JOIN users u ON at.user_id = u.user_id
@@ -85,7 +85,7 @@ try {
     $users_query = "
         SELECT DISTINCT 
             u.user_id,
-            CONCAT(u.fname, ' ', COALESCE(CONCAT(u.mname, ' '), ''), u.lname) as full_name
+            CONCAT(u.fname, ' ', u.lname) as full_name
         FROM audit_trail at
         INNER JOIN users u ON at.user_id = u.user_id
         ORDER BY full_name

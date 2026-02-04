@@ -55,8 +55,8 @@ try {
     // Validate required fields
     $fname = isset($input['fname']) ? trim($input['fname']) : null;
     $lname = isset($input['lname']) ? trim($input['lname']) : null;
-    $mname = isset($input['mname']) ? trim($input['mname']) : null;
     $contact_num = isset($input['contact_num']) ? trim($input['contact_num']) : null;
+    $address = isset($input['address']) ? trim($input['address']) : null;
 
     if (!$fname || !$lname) {
         echo json_encode([
@@ -76,7 +76,7 @@ try {
     }
 
     // Get current user data
-    $currentQuery = "SELECT fname, mname, lname, contact_num FROM users WHERE user_id = :user_id";
+    $currentQuery = "SELECT fname, lname, contact_num, address FROM users WHERE user_id = :user_id";
     $currentStmt = $pdo->prepare($currentQuery);
     $currentStmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);
     $currentStmt->execute();
@@ -97,14 +97,14 @@ try {
         ':lname' => $lname
     ];
 
-    if ($mname !== null) {
-        $updateQuery .= ", mname = :mname";
-        $params[':mname'] = $mname;
-    }
-
     if ($contact_num !== null) {
         $updateQuery .= ", contact_num = :contact_num";
         $params[':contact_num'] = $contact_num;
+    }
+
+    if ($address !== null) {
+        $updateQuery .= ", address = :address";
+        $params[':address'] = $address;
     }
 
     $updateQuery .= " WHERE user_id = :user_id";
@@ -116,16 +116,16 @@ try {
     // Log audit trail
     $oldValue = json_encode([
         'fname' => $currentUser['fname'],
-        'mname' => $currentUser['mname'],
         'lname' => $currentUser['lname'],
-        'contact_num' => $currentUser['contact_num']
+        'contact_num' => $currentUser['contact_num'],
+        'address' => $currentUser['address']
     ]);
 
     $newValue = json_encode([
         'fname' => $fname,
-        'mname' => $mname,
         'lname' => $lname,
-        'contact_num' => $contact_num
+        'contact_num' => $contact_num,
+        'address' => $address
     ]);
 
     $auditQuery = "INSERT INTO audit_trail (user_id, session_username, action, entity_type, entity_id, old_value, new_value, change_reason, ip_address, user_agent) 
@@ -146,7 +146,7 @@ try {
     ]);
 
     // Get updated user data
-    $fetchQuery = "SELECT user_id, fname, mname, lname, email, contact_num, profile_picture FROM users WHERE user_id = :user_id";
+    $fetchQuery = "SELECT user_id, fname, lname, email, contact_num, address, profile_picture FROM users WHERE user_id = :user_id";
     $fetchStmt = $pdo->prepare($fetchQuery);
     $fetchStmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);
     $fetchStmt->execute();

@@ -57,10 +57,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $input = json_decode(file_get_contents('php://input'), true);
 
 // Validate input
-if (!isset($input['fname']) || !isset($input['lname']) || !isset($input['email']) || !isset($input['password'])) {
+if (!isset($input['fname']) || !isset($input['lname']) || !isset($input['email']) || !isset($input['password']) || !isset($input['address'])) {
     echo json_encode([
         'success' => false,
-        'message' => 'All fields are required'
+        'message' => 'All fields are required, including address'
     ]);
     exit;
 }
@@ -69,6 +69,7 @@ $fname = trim($input['fname']);
 $lname = trim($input['lname']);
 $email = filter_var($input['email'], FILTER_SANITIZE_EMAIL);
 $password = $input['password'];
+$address = trim((string)($input['address'] ?? ''));
 
 // Validate email format
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -79,11 +80,36 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     exit;
 }
 
-// Validate password length
-if (strlen($password) < 6) {
+if ($address === '') {
     echo json_encode([
         'success' => false,
-        'message' => 'Password must be at least 6 characters long'
+        'message' => 'Delivery address is required'
+    ]);
+    exit;
+}
+
+// Validate password strength
+if (strlen($password) < 8) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Password must be at least 8 characters long'
+    ]);
+    exit;
+}
+
+$weakPasswords = ['123456', 'password', '12345678', 'qwerty', 'admin123'];
+if (in_array(strtolower($password), $weakPasswords, true)) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Please choose a stronger password'
+    ]);
+    exit;
+}
+
+if (!preg_match('/[A-Za-z]/', $password) || !preg_match('/\d/', $password) || !preg_match('/[^A-Za-z0-9]/', $password)) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Password must include a letter, number, and special character'
     ]);
     exit;
 }
@@ -118,14 +144,14 @@ try {
     if ($emailVerificationEnabled) {
         // Email verification is enabled - user is unverified
         $stmt = $pdo->prepare("
-            INSERT INTO users (fname, lname, email, password, user_level_id, user_status, is_email_verified, created_at) 
-            VALUES (:fname, :lname, :email, :password, 4, 'active', 0, NOW())
+            INSERT INTO users (fname, lname, email, password, address, user_level_id, user_status, is_email_verified, created_at) 
+            VALUES (:fname, :lname, :email, :password, :address, 4, 'active', 0, NOW())
         ");
     } else {
         // Fallback: Email verification not set up - user is verified immediately
         $stmt = $pdo->prepare("
-            INSERT INTO users (fname, lname, email, password, user_level_id, user_status, created_at) 
-            VALUES (:fname, :lname, :email, :password, 4, 'active', NOW())
+            INSERT INTO users (fname, lname, email, password, address, user_level_id, user_status, created_at) 
+            VALUES (:fname, :lname, :email, :password, :address, 4, 'active', NOW())
         ");
     }
     
@@ -133,7 +159,8 @@ try {
         ':fname' => $fname,
         ':lname' => $lname,
         ':email' => $email,
-        ':password' => $hashedPassword
+        ':password' => $hashedPassword,
+        ':address' => $address
     ]);
     
     $newUserId = $pdo->lastInsertId();
@@ -194,6 +221,7 @@ try {
             'fname' => $fname,
             'lname' => $lname,
             'email' => $email,
+            'address' => $address,
             'user_level_id' => 4,
             'user_status' => 'active',
             'is_email_verified' => $emailVerificationEnabled ? 0 : 1,
