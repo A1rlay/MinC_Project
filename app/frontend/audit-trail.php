@@ -394,7 +394,7 @@ ob_start();
         <div>
             <label for="search_audit" class="form-label">Search</label>
             <div class="relative">
-                <input type="text" id="search_audit" placeholder="Search entity ID, reason..." 
+                <input type="text" id="search_audit" placeholder="Search ID, user, action, entity, reason..." 
                        class="form-input pl-10">
                 <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
             </div>
@@ -503,6 +503,7 @@ ob_start();
                 <?php else: ?>
                     <?php foreach ($audit_records as $record): ?>
                         <tr class="audit-row" 
+                            data-audit-id="<?php echo (int)$record['audit_trail_id']; ?>"
                             data-user="<?php echo htmlspecialchars($record['user_full_name'] ?? $record['session_username']); ?>"
                             data-action="<?php echo htmlspecialchars($record['action']); ?>"
                             data-entity="<?php echo htmlspecialchars($record['entity_type']); ?>"
@@ -550,6 +551,12 @@ ob_start();
                             </td>
                         </tr>
                     <?php endforeach; ?>
+                    <tr id="no-filter-results-row" style="display:none;">
+                        <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                            <i class="fas fa-search text-4xl mb-4 text-gray-300"></i>
+                            <p>No matching audit records found.</p>
+                        </td>
+                    </tr>
                 <?php endif; ?>
             </tbody>
         </table>
@@ -565,6 +572,7 @@ ob_start();
         <?php else: ?>
             <?php foreach ($audit_records as $record): ?>
                 <div class="bg-white border border-gray-200 rounded-xl p-4 audit-card" 
+                     data-audit-id="<?php echo (int)$record['audit_trail_id']; ?>"
                      data-user="<?php echo htmlspecialchars($record['user_full_name'] ?? $record['session_username']); ?>"
                      data-action="<?php echo htmlspecialchars($record['action']); ?>"
                      data-entity="<?php echo htmlspecialchars($record['entity_type']); ?>"
@@ -610,6 +618,10 @@ ob_start();
                     </div>
                 </div>
             <?php endforeach; ?>
+            <div id="no-filter-results-card" class="hidden text-center py-12 text-gray-500">
+                <i class="fas fa-search text-4xl mb-4 text-gray-300"></i>
+                <p>No matching audit records found.</p>
+            </div>
         <?php endif; ?>
     </div>
 </div>
@@ -720,10 +732,33 @@ const auditData = <?php echo json_encode($audit_records); ?>;
 let filteredData = [...auditData];
 let currentPage = 1;
 let recordsPerPage = 10;
+let rowIndexMap = new Map();
+let cardIndexMap = new Map();
+
+function buildElementIndexes() {
+    rowIndexMap = new Map();
+    cardIndexMap = new Map();
+
+    document.querySelectorAll(".audit-row[data-audit-id]").forEach(row => {
+        rowIndexMap.set(String(row.dataset.auditId), row);
+    });
+    document.querySelectorAll(".audit-card[data-audit-id]").forEach(card => {
+        cardIndexMap.set(String(card.dataset.auditId), card);
+    });
+}
+
+function debounce(fn, wait = 180) {
+    let timer;
+    return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), wait);
+    };
+}
 
 // Initialize filters on page load
 document.addEventListener("DOMContentLoaded", function() {
     console.log("DOM loaded, initializing filters and pagination");
+    buildElementIndexes();
     initializeFilters();
     initializePagination();
     updateDisplay();
@@ -742,15 +777,27 @@ function initializeFilters() {
         const selectedEntity = entityFilter ? entityFilter.value : "";
         
         filteredData = auditData.filter(record => {
-            const user = record.user_full_name || record.session_username || "";
-            const action = record.action || "";
-            const entity = record.entity_type || "";
-            const searchData = (record.entity_id + ' ' + (record.change_reason || '')).toLowerCase();
+            const user = (record.user_full_name || record.session_username || "");
+            const action = (record.action || "");
+            const entity = (record.entity_type || "");
+            const searchData = [
+                record.audit_trail_id,
+                user,
+                record.user_type_name || "",
+                action,
+                entity,
+                record.entity_id || "",
+                record.change_reason || "",
+                record.timestamp || "",
+                record.ip_address || "",
+                record.system_id || "",
+                record.transaction_id || ""
+            ].join(" ").toLowerCase();
 
             const matchesSearch = searchTerm === "" || searchData.includes(searchTerm);
             const matchesUser = selectedUser === "" || user === selectedUser;
-            const matchesAction = selectedAction === "" || action === selectedAction;
-            const matchesEntity = selectedEntity === "" || entity === selectedEntity;
+            const matchesAction = selectedAction === "" || action.toLowerCase() === selectedAction.toLowerCase();
+            const matchesEntity = selectedEntity === "" || entity.toLowerCase() === selectedEntity.toLowerCase();
 
             return matchesSearch && matchesUser && matchesAction && matchesEntity;
         });
@@ -759,7 +806,8 @@ function initializeFilters() {
         updateDisplay();
     }
 
-    if (searchInput) searchInput.addEventListener("input", applyFilters);
+    const debouncedApplyFilters = debounce(applyFilters, 150);
+    if (searchInput) searchInput.addEventListener("input", debouncedApplyFilters);
     if (userFilter) userFilter.addEventListener("change", applyFilters);
     if (actionFilter) actionFilter.addEventListener("change", applyFilters);
     if (entityFilter) entityFilter.addEventListener("change", applyFilters);
@@ -811,35 +859,24 @@ function updateDisplay() {
 }
 
 function displayRecords(startIndex, endIndex) {
-    const auditRows = document.querySelectorAll(".audit-row");
-    const auditCards = document.querySelectorAll(".audit-card");
+    const visibleIds = new Set(filteredData.slice(startIndex, endIndex).map(record => String(record.audit_trail_id)));
 
-    // Hide all rows and cards first
-    auditRows.forEach(row => row.style.display = "none");
-    auditCards.forEach(card => card.style.display = "none");
-
-    // Show only records for current page
-    filteredData.slice(startIndex, endIndex).forEach(record => {
-        // Find matching row and card by audit_trail_id
-        auditRows.forEach(row => {
-            const rowId = row.querySelector('td:first-child .text-sm')?.textContent.replace('#', '');
-            if (rowId == record.audit_trail_id) {
-                row.style.display = "";
-            }
-        });
-
-        auditCards.forEach(card => {
-            const cardId = card.querySelector('h4')?.textContent.match(/#(\d+)/)?.[1];
-            if (cardId == record.audit_trail_id) {
-                card.style.display = "";
-            }
-        });
+    rowIndexMap.forEach((row, id) => {
+        row.style.display = visibleIds.has(id) ? "" : "none";
+    });
+    cardIndexMap.forEach((card, id) => {
+        card.style.display = visibleIds.has(id) ? "" : "none";
     });
 
-    // Show "no records" message if filtered data is empty
-    const noRecordsRow = document.querySelector('.audit-row td[colspan="6"]');
-    if (noRecordsRow) {
-        noRecordsRow.parentElement.style.display = filteredData.length === 0 ? "" : "none";
+    const noResultsRow = document.getElementById("no-filter-results-row");
+    const noResultsCard = document.getElementById("no-filter-results-card");
+    const hasVisible = visibleIds.size > 0;
+
+    if (noResultsRow) {
+        noResultsRow.style.display = hasVisible ? "none" : "";
+    }
+    if (noResultsCard) {
+        noResultsCard.classList.toggle("hidden", hasVisible);
     }
 }
 

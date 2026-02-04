@@ -31,65 +31,76 @@ $user_data = [
 $custom_title = 'Dashboard - MinC Project';
 $current_page = 'dashboard';
 
-// === DASHBOARD STATISTICS (Templated - Replace with real queries later) ===
+// === DASHBOARD STATISTICS ===
+$dashboardCacheKey = 'dashboard_metrics_v2';
+$dashboardCacheTtl = 45; // seconds
+$forceRefresh = isset($_GET['refresh']) && $_GET['refresh'] === '1';
+$cachedDashboard = $_SESSION[$dashboardCacheKey] ?? null;
+$canUseCache = !$forceRefresh
+    && is_array($cachedDashboard)
+    && isset($cachedDashboard['generated_at'])
+    && (time() - (int)$cachedDashboard['generated_at']) < $dashboardCacheTtl;
+
+if ($canUseCache) {
+    $today_sales = (float)($cachedDashboard['today_sales'] ?? 0);
+    $today_orders = (int)($cachedDashboard['today_orders'] ?? 0);
+    $pending_orders = (int)($cachedDashboard['pending_orders'] ?? 0);
+    $low_stock = (int)($cachedDashboard['low_stock'] ?? 0);
+    $total_revenue = (float)($cachedDashboard['total_revenue'] ?? 0);
+    $monthly_sales = $cachedDashboard['monthly_sales'] ?? [];
+    $recent_orders = $cachedDashboard['recent_orders'] ?? [];
+    $status_distribution = $cachedDashboard['status_distribution'] ?? [];
+} else {
 try {
-    // Today's Sales
-    $today_sales = $pdo->query("
-        SELECT COALESCE(SUM(total_amount), 0)
+    // Consolidated order stats in a single query to reduce DB round-trips
+    $order_stats = $pdo->query("
+        SELECT
+            COALESCE(SUM(CASE
+                WHEN created_at >= CURDATE()
+                 AND created_at < (CURDATE() + INTERVAL 1 DAY)
+                 AND order_status IN ('confirmed','processing','shipped','delivered')
+                THEN total_amount ELSE 0 END), 0) AS today_sales,
+            SUM(CASE
+                WHEN created_at >= CURDATE()
+                 AND created_at < (CURDATE() + INTERVAL 1 DAY)
+                THEN 1 ELSE 0 END) AS today_orders,
+            SUM(CASE WHEN order_status = 'pending' THEN 1 ELSE 0 END) AS pending_orders,
+            COALESCE(SUM(CASE
+                WHEN order_status IN ('confirmed','processing','shipped','delivered')
+                THEN total_amount ELSE 0 END), 0) AS total_revenue
         FROM orders
-        WHERE DATE(created_at) = CURDATE()
-          AND order_status IN ('confirmed','processing','shipped','delivered')
-    ")->fetchColumn();
+    ")->fetch(PDO::FETCH_ASSOC) ?: [];
 
-    // Total Orders Today
-    $today_orders = $pdo->query("SELECT COUNT(*) FROM orders WHERE DATE(created_at) = CURDATE()")->fetchColumn();
+    $today_sales = (float)($order_stats['today_sales'] ?? 0);
+    $today_orders = (int)($order_stats['today_orders'] ?? 0);
+    $pending_orders = (int)($order_stats['pending_orders'] ?? 0);
+    $total_revenue = (float)($order_stats['total_revenue'] ?? 0);
 
-    // Pending Orders
-    $pending_orders = $pdo->query("SELECT COUNT(*) FROM orders WHERE order_status = 'pending'")->fetchColumn();
-
-    // Low Stock Products (< 10 units)
+    // Low stock products (< 10 units)
     $low_stock = $pdo->query("SELECT COUNT(*) FROM products WHERE stock_quantity < 10 AND status = 'active'")->fetchColumn();
 
-    // Total Revenue (All Time)
-    $total_revenue = $pdo->query("
-        SELECT COALESCE(SUM(total_amount), 0)
-        FROM orders
-        WHERE order_status IN ('confirmed','processing','shipped','delivered')
-    ")->fetchColumn();
-
-    // Total Customers
-    $total_customers = $pdo->query("SELECT COUNT(*) FROM customers")->fetchColumn();
-
-    // New Customers Today
-    $new_customers_today = $pdo->query("SELECT COUNT(*) FROM customers WHERE DATE(created_at) = CURDATE()")->fetchColumn();
-
-    // Top Selling Categories (Last 30 Days)
-    $top_categories = $pdo->query("
-        SELECT c.category_name, SUM(oi.quantity) as units_sold
-        FROM order_items oi
-        JOIN products p ON oi.product_id = p.product_id
-        JOIN product_lines pl ON p.product_line_id = pl.product_line_id
-        JOIN categories c ON pl.category_id = c.category_id
-        JOIN orders o ON oi.order_id = o.order_id
-        WHERE o.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-          AND o.order_status IN ('confirmed','processing','shipped','delivered')
-        GROUP BY c.category_id, c.category_name
-        ORDER BY units_sold DESC
-        LIMIT 6
-    ")->fetchAll(PDO::FETCH_ASSOC);
-
     // Monthly Sales Trend (Last 6 Months)
-    $monthly_sales = $pdo->query("
+    $monthly_salesRaw = $pdo->query("
         SELECT 
-            DATE_FORMAT(created_at, '%Y-%m') as month,
-            DATE_FORMAT(created_at, '%M %Y') as month_name,
+            YEAR(created_at) as year_num,
+            MONTH(created_at) as month_num,
             COALESCE(SUM(total_amount), 0) as revenue
         FROM orders 
-        WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+        WHERE created_at >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 5 MONTH), '%Y-%m-01')
           AND order_status IN ('confirmed','processing','shipped','delivered')
-        GROUP BY DATE_FORMAT(created_at, '%Y-%m')
-        ORDER BY month ASC
+        GROUP BY YEAR(created_at), MONTH(created_at)
+        ORDER BY YEAR(created_at), MONTH(created_at)
     ")->fetchAll(PDO::FETCH_ASSOC);
+    $monthly_sales = array_map(static function ($row) {
+        $year = (int)$row['year_num'];
+        $month = (int)$row['month_num'];
+        $monthDate = sprintf('%04d-%02d-01', $year, $month);
+        return [
+            'month' => sprintf('%04d-%02d', $year, $month),
+            'month_name' => date('F Y', strtotime($monthDate)),
+            'revenue' => (float)$row['revenue']
+        ];
+    }, $monthly_salesRaw);
 
     // Recent Orders
     $recent_orders = $pdo->query("
@@ -97,6 +108,7 @@ try {
                CONCAT(c.first_name, ' ', c.last_name) as customer_name
         FROM orders o
         JOIN customers c ON o.customer_id = c.customer_id
+        WHERE o.created_at >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)
         ORDER BY o.created_at DESC
         LIMIT 8
     ")->fetchAll(PDO::FETCH_ASSOC);
@@ -114,20 +126,33 @@ try {
                 ELSE '#6B7280'
             END as color
         FROM orders
+        WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
         GROUP BY order_status
     ")->fetchAll(PDO::FETCH_ASSOC);
+
+    $_SESSION[$dashboardCacheKey] = [
+        'generated_at' => time(),
+        'today_sales' => $today_sales,
+        'today_orders' => $today_orders,
+        'pending_orders' => $pending_orders,
+        'low_stock' => $low_stock,
+        'total_revenue' => $total_revenue,
+        'monthly_sales' => $monthly_sales,
+        'recent_orders' => $recent_orders,
+        'status_distribution' => $status_distribution
+    ];
 
 } catch (Exception $e) {
     // Fallback values if queries fail
     $today_sales = $today_orders = $pending_orders = $low_stock = 0;
-    $total_revenue = $total_customers = $new_customers_today = 0;
-    $top_categories = $monthly_sales = $recent_orders = $status_distribution = [];
+    $total_revenue = 0;
+    $monthly_sales = $recent_orders = $status_distribution = [];
     error_log("Dashboard query error: " . $e->getMessage());
+}
 }
 
 // Encode for Chart.js
 $monthly_sales_json = json_encode($monthly_sales);
-$top_categories_json = json_encode($top_categories);
 $status_distribution_json = json_encode($status_distribution);
 
 // Custom styles (retained + auto-parts themed - matching home page)
@@ -408,54 +433,82 @@ ob_start();
 </div>
 
 <!-- Chart.js Scripts -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    if (typeof Chart === 'undefined') {
+        return;
+    }
     Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+    Chart.defaults.animation = false;
 
-    // Sales Trend Line Chart
-    const salesData = <?= $monthly_sales_json ?>;
-    const salesCtx = document.getElementById('salesTrendChart').getContext('2d');
-    new Chart(salesCtx, {
-        type: 'line',
-        data: {
-            labels: salesData.map(d => d.month_name),
-            datasets: [{
-                label: 'Revenue',
-                data: salesData.map(d => d.revenue),
-                borderColor: '#08415c',
-                backgroundColor: 'rgba(8, 65, 92, 0.1)',
-                tension: 0.4,
-                fill: true,
-                pointRadius: 6,
-                pointBackgroundColor: '#08415c',
-                pointBorderColor: '#0a5273'
-            }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-    });
-
-    // Order Status Doughnut Chart
-    const statusData = <?= $status_distribution_json ?>;
-    const statusCtx = document.getElementById('statusChart').getContext('2d');
-    new Chart(statusCtx, {
-        type: 'doughnut',
-        data: {
-            labels: statusData.map(s => s.order_status.charAt(0).toUpperCase() + s.order_status.slice(1)),
-            datasets: [{
-                data: statusData.map(s => s.count),
-                backgroundColor: statusData.map(s => s.color),
-                borderWidth: 3,
-                borderColor: '#fff'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: '65%',
-            plugins: { legend: { position: 'bottom' } }
+    const renderCharts = () => {
+        // Sales Trend Line Chart
+        const salesData = <?= $monthly_sales_json ?>;
+        const salesCanvas = document.getElementById('salesTrendChart');
+        if (salesCanvas) {
+            const salesCtx = salesCanvas.getContext('2d');
+            new Chart(salesCtx, {
+                type: 'line',
+                data: {
+                    labels: salesData.map(d => d.month_name),
+                    datasets: [{
+                        label: 'Revenue',
+                        data: salesData.map(d => d.revenue),
+                        borderColor: '#08415c',
+                        backgroundColor: 'rgba(8, 65, 92, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#08415c',
+                        pointBorderColor: '#0a5273'
+                    }]
+                },
+                options: {
+                    animation: false,
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    parsing: false,
+                    normalized: true,
+                    plugins: { legend: { display: false } }
+                }
+            });
         }
-    });
+
+        // Order Status Doughnut Chart
+        const statusData = <?= $status_distribution_json ?>;
+        const statusCanvas = document.getElementById('statusChart');
+        if (statusCanvas) {
+            const statusCtx = statusCanvas.getContext('2d');
+            new Chart(statusCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: statusData.map(s => s.order_status.charAt(0).toUpperCase() + s.order_status.slice(1)),
+                    datasets: [{
+                        data: statusData.map(s => s.count),
+                        backgroundColor: statusData.map(s => s.color),
+                        borderWidth: 3,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    animation: false,
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    parsing: false,
+                    normalized: true,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
+    };
+
+    if ('requestIdleCallback' in window) {
+        requestIdleCallback(renderCharts, { timeout: 300 });
+    } else {
+        setTimeout(renderCharts, 0);
+    }
 });
 </script>
 
