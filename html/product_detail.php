@@ -683,107 +683,15 @@ session_start();
 
     // Handle login
     async function handleLogin(e) {
-        e.preventDefault();
-        const email = document.getElementById('loginEmail').value;
-        const password = document.getElementById('loginPassword').value;
-        
-        Swal.fire({
-            title: 'Logging in...',
-            allowOutsideClick: false,
-            didOpen: () => { Swal.showLoading(); }
-        });
-        
-        try {
-            const response = await fetch('../backend/login.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Login Successful!',
-                    text: `Welcome back, ${data.user.name}!`,
-                    confirmButtonColor: '#08415c',
-                    timer: 2000
-                }).then(() => {
-                    if (data.user.user_level_id <= 3) {
-                        window.location.href = data.redirect;
-                    } else {
-                        closeLoginModal();
-                        checkSession();
-                        initializeCart();
-                    }
-                });
-            } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Login Failed',
-                    text: data.message,
-                    confirmButtonColor: '#08415c'
-                });
-            }
-        } catch (error) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'An error occurred during login.',
-                confirmButtonColor: '#08415c'
-            });
+        if (typeof window.globalHandleLogin === 'function') {
+            return window.globalHandleLogin(e);
         }
     }
 
     // Handle register
     async function handleRegister(e) {
-        e.preventDefault();
-        const fname = document.getElementById('registerFname').value;
-        const lname = document.getElementById('registerLname').value;
-        const email = document.getElementById('registerEmail').value;
-        const password = document.getElementById('registerPassword').value;
-        
-        Swal.fire({
-            title: 'Creating account...',
-            allowOutsideClick: false,
-            didOpen: () => { Swal.showLoading(); }
-        });
-        
-        try {
-            const response = await fetch('../backend/register.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fname, lname, email, password })
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Registration Successful!',
-                    text: 'Your account has been created. Please login.',
-                    confirmButtonColor: '#08415c'
-                }).then(() => {
-                    showLogin();
-                    document.getElementById('loginEmail').value = email;
-                });
-            } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Registration Failed',
-                    text: data.message,
-                    confirmButtonColor: '#08415c'
-                });
-            }
-        } catch (error) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'An error occurred during registration.',
-                confirmButtonColor: '#08415c'
-            });
+        if (typeof window.globalHandleRegister === 'function') {
+            return window.globalHandleRegister(e);
         }
     }
 

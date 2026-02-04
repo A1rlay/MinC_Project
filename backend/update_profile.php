@@ -58,6 +58,18 @@ try {
     $contact_num = isset($input['contact_num']) ? trim($input['contact_num']) : null;
     $address = isset($input['address']) ? trim($input['address']) : null;
 
+    $normalizeName = function ($value) {
+        $value = preg_replace('/\s+/', ' ', trim((string)$value));
+        return ucwords(strtolower($value), " -'");
+    };
+
+    if ($fname !== null) {
+        $fname = $normalizeName($fname);
+    }
+    if ($lname !== null) {
+        $lname = $normalizeName($lname);
+    }
+
     if (!$fname || !$lname) {
         echo json_encode([
             'success' => false, 

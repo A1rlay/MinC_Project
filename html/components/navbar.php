@@ -77,6 +77,9 @@ $html_path = $is_in_html ? '' : 'html/';
                         Login
                     </button>
                 </form>
+                <p class="text-center mt-3">
+                    <button type="button" onclick="showForgotPassword()" class="text-sm text-[#08415c] font-semibold hover:text-[#0a5273]">Forgot password?</button>
+                </p>
                 <p class="text-center mt-6 text-gray-600">
                     Don't have an account? 
                     <button type="button" onclick="showRegister()" class="text-[#08415c] font-semibold hover:text-[#0a5273]">Register</button>
@@ -85,6 +88,7 @@ $html_path = $is_in_html ? '' : 'html/';
             
             <div id="registerForm" class="hidden">
                 <h2 class="text-3xl font-bold mb-6 text-[#08415c]">Create Account</h2>
+
                 <form id="registerFormElement" onsubmit="handleRegister(event)">
                     <div class="mb-4">
                         <label class="block text-gray-700 font-medium mb-2">First Name</label>
@@ -98,27 +102,77 @@ $html_path = $is_in_html ? '' : 'html/';
                         <label class="block text-gray-700 font-medium mb-2">Email</label>
                         <input type="email" id="registerEmail" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
                     </div>
-                    <div class="mb-4">
+                    <div class="mb-6">
                         <label class="block text-gray-700 font-medium mb-2">Delivery Address</label>
                         <textarea id="registerAddress" required rows="2" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]" placeholder="Where should we deliver your auto parts?"></textarea>
                     </div>
-                    <div class="mb-6">
-                        <label class="block text-gray-700 font-medium mb-2">Password</label>
-                        <div class="relative">
-                            <input type="password" id="registerPassword" required minlength="8" class="w-full px-4 py-3 pr-24 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
-                            <button type="button" id="toggleRegisterPassword" onclick="togglePasswordVisibility('registerPassword', 'toggleRegisterPassword')" class="absolute inset-y-0 right-0 px-3 text-sm text-gray-600 hover:text-[#08415c]">Show</button>
-                        </div>
-                        <p class="mt-2 text-xs text-gray-500">Password must be at least 8 characters long and include a letter, number, and special character.</p>
-                    </div>
                     <button type="submit" class="w-full btn-primary-custom text-white py-3 rounded-lg font-semibold">
-                        Register
+                        Continue
                     </button>
                 </form>
+
+                <div id="otpStep" class="hidden mt-6">
+                    <h3 class="text-xl font-bold text-[#08415c] mb-2">Enter Verification Code</h3>
+                    <p class="text-sm text-gray-600 mb-4">Enter the 6-digit OTP sent to your email.</p>
+                    <form id="otpFormElement" onsubmit="handleVerifyOtp(event)">
+                        <div class="mb-3">
+                            <input type="text" id="otpCode" maxlength="6" inputmode="numeric" pattern="\d{6}" placeholder="000000" class="w-full tracking-[0.4em] text-center text-xl px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                        </div>
+                        <button type="submit" class="w-full btn-primary-custom text-white py-3 rounded-lg font-semibold">
+                            Verify OTP
+                        </button>
+                    </form>
+                    <button type="button" onclick="handleResendOtp()" class="w-full mt-3 text-[#08415c] font-semibold hover:text-[#0a5273]">
+                        Resend code
+                    </button>
+                </div>
+
+                <div id="passwordStep" class="hidden mt-6">
+                    <h3 class="text-xl font-bold text-[#08415c] mb-2">Create Password</h3>
+                    <p class="text-sm text-gray-600 mb-4">Set your account password after OTP verification.</p>
+                    <form id="passwordFormElement" onsubmit="handleSetPassword(event)">
+                        <div class="mb-2">
+                            <label class="block text-gray-700 font-medium mb-2">Password</label>
+                            <div class="relative">
+                                <input type="password" id="registerPassword" required minlength="8" class="w-full px-4 py-3 pr-24 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                                <button type="button" id="toggleRegisterPassword" onclick="togglePasswordVisibility('registerPassword', 'toggleRegisterPassword')" class="absolute inset-y-0 right-0 px-3 text-sm text-gray-600 hover:text-[#08415c]">Show</button>
+                            </div>
+                            <p class="mt-2 text-xs text-gray-500">Password must be at least 8 characters long and include a letter, number, and special character.</p>
+                        </div>
+                        <button type="submit" class="w-full btn-primary-custom text-white py-3 rounded-lg font-semibold mt-2">
+                            Submit
+                        </button>
+                    </form>
+                </div>
+
                 <p class="text-center mt-6 text-gray-600">
-                    Already have an account? 
+                    Already have an account?
                     <button type="button" onclick="showLogin()" class="text-[#08415c] font-semibold hover:text-[#0a5273]">Login</button>
                 </p>
             </div>
+        </div>
+    </div>
+
+    <!-- Forgot Password Modal -->
+    <div id="forgotPasswordModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 relative">
+            <button onclick="closeForgotPasswordModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-2xl"></i>
+            </button>
+            <h2 class="text-3xl font-bold mb-3 text-[#08415c]">Forgot Password</h2>
+            <p class="text-sm text-gray-600 mb-5">Enter your email and we will send a recovery link.</p>
+            <form id="forgotPasswordFormElement" onsubmit="handleForgotPassword(event)">
+                <div class="mb-5">
+                    <label class="block text-gray-700 font-medium mb-2">Email</label>
+                    <input type="email" id="forgotEmail" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                </div>
+                <button type="submit" class="w-full btn-primary-custom text-white py-3 rounded-lg font-semibold">
+                    Send Recovery Link
+                </button>
+            </form>
+            <p class="text-center mt-6 text-gray-600">
+                <button type="button" onclick="backToLoginFromForgot()" class="text-[#08415c] font-semibold hover:text-[#0a5273]">Back to Login</button>
+            </p>
         </div>
     </div>
 </nav>
@@ -240,7 +294,10 @@ $html_path = $is_in_html ? '' : 'html/';
     function openLoginModal() {
         const modal = document.getElementById('loginModal');
         if (modal) modal.classList.remove('hidden');
+        showLogin();
     }
+
+    let pendingRegistrationEmail = '';
 
     function closeLoginModal() {
         const modal = document.getElementById('loginModal');
@@ -248,6 +305,20 @@ $html_path = $is_in_html ? '' : 'html/';
         // Clear form fields
         document.getElementById('loginEmail').value = '';
         document.getElementById('loginPassword').value = '';
+        resetRegistrationFlow();
+        document.getElementById('loginForm').classList.remove('hidden');
+    }
+
+    function openForgotPasswordModal() {
+        const modal = document.getElementById('forgotPasswordModal');
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeForgotPasswordModal() {
+        const modal = document.getElementById('forgotPasswordModal');
+        if (modal) modal.classList.add('hidden');
+        const forgotEmailInput = document.getElementById('forgotEmail');
+        if (forgotEmailInput) forgotEmailInput.value = '';
     }
 
     function togglePasswordVisibility(inputId, buttonId) {
@@ -272,11 +343,48 @@ $html_path = $is_in_html ? '' : 'html/';
     function showRegister() {
         document.getElementById('loginForm').classList.add('hidden');
         document.getElementById('registerForm').classList.remove('hidden');
+        resetRegistrationFlow();
     }
 
     function showLogin() {
         document.getElementById('registerForm').classList.add('hidden');
         document.getElementById('loginForm').classList.remove('hidden');
+        resetRegistrationFlow();
+    }
+
+    function showForgotPassword() {
+        closeLoginModal();
+        openForgotPasswordModal();
+    }
+
+    function backToLoginFromForgot() {
+        const forgotEmail = document.getElementById('forgotEmail').value;
+        closeForgotPasswordModal();
+        openLoginModal();
+        if (forgotEmail) {
+            document.getElementById('loginEmail').value = forgotEmail;
+        }
+    }
+
+    function resetRegistrationFlow() {
+        pendingRegistrationEmail = '';
+        const registerForm = document.getElementById('registerFormElement');
+        const otpStep = document.getElementById('otpStep');
+        const passwordStep = document.getElementById('passwordStep');
+        const otpCode = document.getElementById('otpCode');
+        const registerPassword = document.getElementById('registerPassword');
+        const registerFields = ['registerFname', 'registerLname', 'registerEmail', 'registerAddress'];
+
+        if (registerForm) registerForm.classList.remove('hidden');
+        if (otpStep) otpStep.classList.add('hidden');
+        if (passwordStep) passwordStep.classList.add('hidden');
+        if (otpCode) otpCode.value = '';
+        if (registerPassword) registerPassword.value = '';
+
+        registerFields.forEach((id) => {
+            const field = document.getElementById(id);
+            if (field) field.disabled = false;
+        });
     }
 
     async function handleLogin(e) {
@@ -317,11 +425,11 @@ $html_path = $is_in_html ? '' : 'html/';
         const fname = document.getElementById('registerFname').value;
         const lname = document.getElementById('registerLname').value;
         const email = document.getElementById('registerEmail').value;
-        const address = document.getElementById('registerAddress').value.trim();
-        const password = document.getElementById('registerPassword').value;
+        const addressInput = document.getElementById('registerAddress');
+        const address = addressInput ? addressInput.value.trim() : '';
 
-        if (!isStrongPassword(password)) {
-            alert('Password must be at least 8 characters long and include a letter, number, and special character.');
+        if (!address) {
+            alert('Delivery address is required.');
             return;
         }
 
@@ -335,23 +443,148 @@ $html_path = $is_in_html ? '' : 'html/';
                     fname: fname,
                     lname: lname,
                     email: email,
-                    address: address,
-                    password: password
+                    address: address
                 })
             });
             
             const data = await response.json();
             
             if (data.success) {
-                alert('Registration successful! Please login with your account.');
-                showLogin();
-                document.getElementById('loginEmail').value = email;
+                pendingRegistrationEmail = email;
+                document.getElementById('registerFormElement').classList.add('hidden');
+                document.getElementById('otpStep').classList.remove('hidden');
+                document.getElementById('passwordStep').classList.add('hidden');
+                document.getElementById('otpCode').focus();
+                alert(data.message || 'OTP sent to your email.');
             } else {
                 alert('Registration failed: ' + data.message);
             }
         } catch (error) {
             console.error('Register error:', error);
             alert('An error occurred during registration');
+        }
+    }
+
+    async function handleForgotPassword(e) {
+        e.preventDefault();
+        const email = document.getElementById('forgotEmail').value;
+
+        try {
+            const response = await fetch(BASE_PATH + 'backend/request_password_reset.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email })
+            });
+
+            const data = await response.json();
+            alert(data.message || 'If this email exists, a recovery link has been sent.');
+            closeForgotPasswordModal();
+            openLoginModal();
+            document.getElementById('loginEmail').value = email;
+        } catch (error) {
+            console.error('Forgot password error:', error);
+            alert('An error occurred while requesting password reset.');
+        }
+    }
+
+    async function handleVerifyOtp(e) {
+        e.preventDefault();
+
+        const email = pendingRegistrationEmail || document.getElementById('registerEmail').value;
+        const otp = (document.getElementById('otpCode').value || '').trim();
+
+        if (!/^\d{6}$/.test(otp)) {
+            alert('Please enter a valid 6-digit OTP.');
+            return;
+        }
+
+        try {
+            const response = await fetch(BASE_PATH + 'backend/verify_registration_otp.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, otp })
+            });
+
+            const data = await response.json();
+            if (!data.success) {
+                alert(data.message || 'OTP verification failed.');
+                return;
+            }
+
+            document.getElementById('otpStep').classList.add('hidden');
+            document.getElementById('passwordStep').classList.remove('hidden');
+            document.getElementById('registerPassword').focus();
+        } catch (error) {
+            console.error('OTP verification error:', error);
+            alert('An error occurred while verifying OTP.');
+        }
+    }
+
+    async function handleResendOtp() {
+        const email = pendingRegistrationEmail || document.getElementById('registerEmail').value;
+        if (!email) {
+            alert('Please enter your email first.');
+            return;
+        }
+
+        try {
+            const response = await fetch(BASE_PATH + 'backend/resend_verification_email.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email })
+            });
+
+            const data = await response.json();
+            if (!data.success) {
+                alert(data.message || 'Failed to resend OTP.');
+                return;
+            }
+
+            alert(data.message || 'OTP resent successfully.');
+        } catch (error) {
+            console.error('Resend OTP error:', error);
+            alert('An error occurred while resending OTP.');
+        }
+    }
+
+    async function handleSetPassword(e) {
+        e.preventDefault();
+
+        const email = pendingRegistrationEmail || document.getElementById('registerEmail').value;
+        const password = document.getElementById('registerPassword').value;
+
+        if (!isStrongPassword(password)) {
+            alert('Password must be at least 8 characters long and include a letter, number, and special character.');
+            return;
+        }
+
+        try {
+            const response = await fetch(BASE_PATH + 'backend/complete_registration.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await response.json();
+            if (!data.success) {
+                alert(data.message || 'Failed to set password.');
+                return;
+            }
+
+            alert(data.message || 'Registration complete. You can now login.');
+            showLogin();
+            document.getElementById('loginEmail').value = email;
+        } catch (error) {
+            console.error('Set password error:', error);
+            alert('An error occurred while setting password.');
         }
     }
 
@@ -429,6 +662,8 @@ $html_path = $is_in_html ? '' : 'html/';
     }
 
     window.globalHandleLogout = handleLogout;
+    window.globalHandleRegister = handleRegister;
+    window.globalHandleLogin = handleLogin;
 
     // Check session when navbar loads
     document.addEventListener('DOMContentLoaded', checkNavbarSession);

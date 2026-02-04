@@ -57,6 +57,21 @@ class EmailService {
         
         return $this->send($to, $subject, $body);
     }
+
+    /**
+     * Send OTP verification email for registration flow.
+     *
+     * @param string $to
+     * @param string $name
+     * @param string $otpCode
+     * @param int $expiryMinutes
+     * @return bool
+     */
+    public function sendOtpVerificationEmail($to, $name, $otpCode, $expiryMinutes = 10) {
+        $subject = "Your MinC verification code";
+        $body = $this->getOtpVerificationTemplate($name, $otpCode, $expiryMinutes);
+        return $this->send($to, $subject, $body);
+    }
     
     /**
      * Send welcome email after verification
@@ -343,6 +358,52 @@ class EmailService {
                 <div class='footer'>
                     <p>&copy; " . date('Y') . " MinC - Automotive Parts. All rights reserved.</p>
                     <p>This is an automated message, please do not reply to this email.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        ";
+    }
+
+    /**
+     * Get OTP verification template.
+     *
+     * @param string $name
+     * @param string $otpCode
+     * @param int $expiryMinutes
+     * @return string
+     */
+    private function getOtpVerificationTemplate($name, $otpCode, $expiryMinutes) {
+        return "
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset='UTF-8'>
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background-color: #08415c; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+                .content { background-color: #f9f9f9; padding: 20px; border: 1px solid #ddd; }
+                .otp-box { background-color: #ffffff; border: 1px solid #d1d5db; border-radius: 8px; text-align: center; font-size: 28px; letter-spacing: 10px; font-weight: 700; color: #08415c; padding: 14px; margin: 20px 0; }
+                .footer { background-color: #333; color: white; text-align: center; padding: 10px; font-size: 12px; border-radius: 0 0 5px 5px; }
+            </style>
+        </head>
+        <body>
+            <div class='container'>
+                <div class='header'>
+                    <h2>Email Verification Code</h2>
+                    <p>MinC - Automotive Parts</p>
+                </div>
+                <div class='content'>
+                    <p>Hello <strong>" . htmlspecialchars($name) . "</strong>,</p>
+                    <p>Use this 6-digit code to continue your registration:</p>
+                    <div class='otp-box'>" . htmlspecialchars($otpCode) . "</div>
+                    <p>This code will expire in <strong>" . (int)$expiryMinutes . " minutes</strong>.</p>
+                    <p>If you did not request this code, you can ignore this email.</p>
+                    <p>Best regards,<br><strong>MinC Team</strong></p>
+                </div>
+                <div class='footer'>
+                    <p>&copy; " . date('Y') . " MinC - Automotive Parts. All rights reserved.</p>
                 </div>
             </div>
         </body>

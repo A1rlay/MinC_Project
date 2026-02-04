@@ -39,15 +39,16 @@ try {
     }
 
     // Get user ID from session
-    $user_id = $_SESSION['user_id'] ?? 0;
-
-    if (!$user_id) {
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
         echo json_encode([
-            'success' => false, 
-            'message' => 'User ID not found in session'
+            'success' => false,
+            'message' => 'Session expired. Please login again.'
         ]);
         exit;
     }
+
+    $user_id = (int)$_SESSION['user_id'];
 
     // Prepare query
     $query = "SELECT user_id, fname, lname, email, contact_num, address, profile_picture, user_level_id, user_status, created_at 

@@ -38,10 +38,7 @@
             <div class="col-span-1">
                 <h4 class="text-white font-semibold mb-4">Follow Us</h4>
                 <div class="flex space-x-4">
-                    <a href="#" class="hover:text-white transition"><i class="fab fa-facebook-f"></i></a>
-                    <a href="#" class="hover:text-white transition"><i class="fab fa-twitter"></i></a>
-                    <a href="#" class="hover:text-white transition"><i class="fab fa-instagram"></i></a>
-                    <a href="#" class="hover:text-white transition"><i class="fab fa-linkedin-in"></i></a>
+                    <a href="https://www.facebook.com/ritzmoncar.autoparts?rdid=GbXdvmSnoK5FnqUs&share_url=https%3A%2F%2Fwww.facebook.com%2Fshare%2F1AR2ZrWwrF#" target="_blank" rel="noopener noreferrer" class="hover:text-white transition"><i class="fab fa-facebook-f"></i></a>
                 </div>
             </div>
         </div>
@@ -49,7 +46,7 @@
         <!-- Divider -->
         <div class="border-t border-gray-700 mt-8 pt-8">
             <div class="flex justify-between items-center flex-col md:flex-row space-y-4 md:space-y-0">
-                <p class="text-sm">&copy; 2024 MinC Computer Parts. All rights reserved.</p>
+                <p class="text-sm">&copy; 2025-2026 MinC Computer Parts. All rights reserved.</p>
                 <div class="flex space-x-6 text-sm">
                     <a href="#" class="hover:text-white transition">Privacy Policy</a>
                     <a href="#" class="hover:text-white transition">Terms of Service</a>

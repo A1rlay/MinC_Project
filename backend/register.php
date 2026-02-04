@@ -2,7 +2,7 @@
 /**
  * Registration Backend
  * Path: C:\xampp\htdocs\MinC_Project\backend\register.php
- * Handles customer registration (Consumer level)
+ * Starts customer registration with email OTP flow.
  */
 
 session_start();
@@ -57,10 +57,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $input = json_decode(file_get_contents('php://input'), true);
 
 // Validate input
-if (!isset($input['fname']) || !isset($input['lname']) || !isset($input['email']) || !isset($input['password']) || !isset($input['address'])) {
+if (!isset($input['fname']) || !isset($input['lname']) || !isset($input['email']) || !isset($input['address'])) {
     echo json_encode([
         'success' => false,
-        'message' => 'All fields are required, including address'
+        'message' => 'First name, last name, email, and address are required'
     ]);
     exit;
 }
@@ -68,7 +68,6 @@ if (!isset($input['fname']) || !isset($input['lname']) || !isset($input['email']
 $fname = trim($input['fname']);
 $lname = trim($input['lname']);
 $email = filter_var($input['email'], FILTER_SANITIZE_EMAIL);
-$password = $input['password'];
 $address = trim((string)($input['address'] ?? ''));
 
 // Validate email format
@@ -76,6 +75,14 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     echo json_encode([
         'success' => false,
         'message' => 'Invalid email format'
+    ]);
+    exit;
+}
+
+if ($fname === '' || $lname === '') {
+    echo json_encode([
+        'success' => false,
+        'message' => 'First name and last name are required'
     ]);
     exit;
 }
@@ -88,132 +95,161 @@ if ($address === '') {
     exit;
 }
 
-// Validate password strength
-if (strlen($password) < 8) {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Password must be at least 8 characters long'
-    ]);
-    exit;
-}
-
-$weakPasswords = ['123456', 'password', '12345678', 'qwerty', 'admin123'];
-if (in_array(strtolower($password), $weakPasswords, true)) {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Please choose a stronger password'
-    ]);
-    exit;
-}
-
-if (!preg_match('/[A-Za-z]/', $password) || !preg_match('/\d/', $password) || !preg_match('/[^A-Za-z0-9]/', $password)) {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Password must include a letter, number, and special character'
-    ]);
-    exit;
-}
-
 try {
-    // Check if email already exists
-    $stmt = $pdo->prepare("SELECT user_id FROM users WHERE email = :email LIMIT 1");
-    $stmt->execute([':email' => $email]);
-    
-    if ($stmt->fetch()) {
+    // Email verification table must exist for OTP flow
+    $checkTableStmt = $pdo->query("SHOW TABLES LIKE 'email_verification_tokens'");
+    $emailVerificationEnabled = $checkTableStmt->rowCount() > 0;
+
+    if (!$emailVerificationEnabled) {
         echo json_encode([
             'success' => false,
-            'message' => 'Email already registered'
+            'message' => 'Email verification is not configured. Please run SETUP_DATABASE.sql first.'
         ]);
         exit;
     }
-    
-    // Hash password
-    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-    
-    // Check if email verification system is set up (email_verification_tokens table exists)
-    $checkTableStmt = $pdo->query("SHOW TABLES LIKE 'email_verification_tokens'");
-    $emailVerificationEnabled = $checkTableStmt->rowCount() > 0;
-    
-    if ($emailVerificationEnabled) {
-        // Load email service and token generator
-        require_once __DIR__ . '/../library/EmailService.php';
-        require_once __DIR__ . '/../library/TokenGenerator.php';
+
+    $checkColumnStmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'is_email_verified'");
+    if ($checkColumnStmt->rowCount() === 0) {
+        echo json_encode([
+            'success' => false,
+            'message' => "Database is missing 'is_email_verified' column. Please run SETUP_DATABASE.sql first."
+        ]);
+        exit;
     }
-    
-    // Insert new user as Consumer (user_level_id = 4)
-    if ($emailVerificationEnabled) {
-        // Email verification is enabled - user is unverified
-        $stmt = $pdo->prepare("
-            INSERT INTO users (fname, lname, email, password, address, user_level_id, user_status, is_email_verified, created_at) 
-            VALUES (:fname, :lname, :email, :password, :address, 4, 'active', 0, NOW())
-        ");
-    } else {
-        // Fallback: Email verification not set up - user is verified immediately
-        $stmt = $pdo->prepare("
-            INSERT INTO users (fname, lname, email, password, address, user_level_id, user_status, created_at) 
-            VALUES (:fname, :lname, :email, :password, :address, 4, 'active', NOW())
-        ");
+
+    $userIdColumnStmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'user_id'");
+    $userIdColumn = $userIdColumnStmt->fetch(PDO::FETCH_ASSOC);
+    if (!$userIdColumn || stripos((string)($userIdColumn['Extra'] ?? ''), 'auto_increment') === false) {
+        echo json_encode([
+            'success' => false,
+            'message' => "Database schema issue: users.user_id must be AUTO_INCREMENT. Please run SETUP_DATABASE.sql."
+        ]);
+        exit;
     }
-    
-    $stmt->execute([
-        ':fname' => $fname,
-        ':lname' => $lname,
-        ':email' => $email,
-        ':password' => $hashedPassword,
-        ':address' => $address
-    ]);
-    
-    $newUserId = $pdo->lastInsertId();
-    $emailSent = false;
-    
-    // If email verification is enabled, generate and send verification token
-    if ($emailVerificationEnabled) {
-        try {
-            // Generate verification token
-            $token = TokenGenerator::generateToken(32);
-            $tokenHash = TokenGenerator::hashToken($token);
-            $expiresAt = date('Y-m-d H:i:s', time() + (24 * 60 * 60)); // 24 hours
-            
-            // Store verification token in database
-            $tokenStmt = $pdo->prepare("
-                INSERT INTO email_verification_tokens (user_id, token, token_hash, email, expires_at) 
-                VALUES (:user_id, :token, :token_hash, :email, :expires_at)
+
+    $tokenIdColumnStmt = $pdo->query("SHOW COLUMNS FROM email_verification_tokens LIKE 'token_id'");
+    $tokenIdColumn = $tokenIdColumnStmt->fetch(PDO::FETCH_ASSOC);
+    if (!$tokenIdColumn || stripos((string)($tokenIdColumn['Extra'] ?? ''), 'auto_increment') === false) {
+        echo json_encode([
+            'success' => false,
+            'message' => "Database schema issue: email_verification_tokens.token_id must be AUTO_INCREMENT. Please run SETUP_DATABASE.sql."
+        ]);
+        exit;
+    }
+
+    require_once __DIR__ . '/../library/EmailService.php';
+    require_once __DIR__ . '/../library/TokenGenerator.php';
+
+    // Check if email already exists
+    $stmt = $pdo->prepare("SELECT user_id, user_level_id, is_email_verified FROM users WHERE email = :email LIMIT 1");
+    $stmt->execute([':email' => $email]);
+    $existingUser = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    $newUserId = null;
+    $isExistingPending = false;
+
+    if ($existingUser) {
+        // Allow continuation only for pending customer registration
+        if ((int)$existingUser['user_level_id'] === 4 && (int)$existingUser['is_email_verified'] === 0) {
+            $isExistingPending = true;
+            $newUserId = (int)$existingUser['user_id'];
+
+            $updatePendingStmt = $pdo->prepare("
+                UPDATE users 
+                SET fname = :fname, lname = :lname, address = :address, user_status = 'inactive', updated_at = NOW()
+                WHERE user_id = :user_id
             ");
-            
-            $tokenStmt->execute([
-                ':user_id' => $newUserId,
-                ':token' => $token,
-                ':token_hash' => $tokenHash,
-                ':email' => $email,
-                ':expires_at' => $expiresAt
+            $updatePendingStmt->execute([
+                ':fname' => $fname,
+                ':lname' => $lname,
+                ':address' => $address,
+                ':user_id' => $newUserId
             ]);
-            
-            // Build verification link
-            $baseUrl = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'];
-            $verificationLink = $baseUrl . '/backend/verify_email.php?token=' . urlencode($token);
-            
-            // Send verification email
-            $emailService = new EmailService();
-            $emailSent = $emailService->sendVerificationEmail(
-                $email,
-                $fname . ' ' . $lname,
-                $verificationLink,
-                $token
-            );
-        } catch (Exception $e) {
-            // Log email/token error but don't fail registration
-            error_log("Email verification token/send error: " . $e->getMessage());
-            $emailSent = false;
+        } else {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Email already registered'
+            ]);
+            exit;
+        }
+    } else {
+        // Create pending account with temporary random password
+        $temporaryPassword = password_hash(TokenGenerator::generateToken(24), PASSWORD_DEFAULT);
+
+        $insertStmt = $pdo->prepare("
+            INSERT INTO users (fname, lname, email, password, address, user_level_id, user_status, is_email_verified, created_at, updated_at) 
+            VALUES (:fname, :lname, :email, :password, :address, 4, 'inactive', 0, NOW(), NOW())
+        ");
+
+        $insertStmt->execute([
+            ':fname' => $fname,
+            ':lname' => $lname,
+            ':email' => $email,
+            ':password' => $temporaryPassword,
+            ':address' => $address
+        ]);
+
+        $newUserId = (int)$pdo->lastInsertId();
+        if ($newUserId <= 0) {
+            $lookupStmt = $pdo->prepare("SELECT user_id FROM users WHERE email = :email ORDER BY user_id DESC LIMIT 1");
+            $lookupStmt->execute([':email' => $email]);
+            $newUserId = (int)($lookupStmt->fetchColumn() ?: 0);
         }
     }
-    
-    
-    // Log registration in audit trail
+
+    if ($newUserId <= 0) {
+        throw new Exception('User ID generation failed. users.user_id may not be AUTO_INCREMENT.');
+    }
+
+    // Invalidate previous active OTP codes for this user
+    $invalidateStmt = $pdo->prepare("
+        UPDATE email_verification_tokens 
+        SET expires_at = NOW(), is_used = 1, verified_at = NOW()
+        WHERE user_id = :user_id 
+          AND is_used = 0
+          AND expires_at > NOW()
+    ");
+    $invalidateStmt->execute([':user_id' => $newUserId]);
+
+    // Generate OTP (6 digits), valid for 10 minutes
+    $otpCode = TokenGenerator::generateVerificationCode();
+    // Keep OTP user-friendly (6 digits) but store a unique token string to satisfy DB uniqueness.
+    $tokenStorage = $otpCode . '-' . substr(TokenGenerator::generateToken(8), 0, 16);
+    $tokenHash = TokenGenerator::hashToken($otpCode);
+    $expiresAt = date('Y-m-d H:i:s', time() + (10 * 60));
+
+    $tokenStmt = $pdo->prepare("
+        INSERT INTO email_verification_tokens (user_id, token, token_hash, email, expires_at) 
+        VALUES (:user_id, :token, :token_hash, :email, :expires_at)
+    ");
+
+    $tokenStmt->execute([
+        ':user_id' => $newUserId,
+        ':token' => $tokenStorage,
+        ':token_hash' => $tokenHash,
+        ':email' => $email,
+        ':expires_at' => $expiresAt
+    ]);
+
+    // Send OTP email
+    $emailService = new EmailService();
+    $emailSent = $emailService->sendOtpVerificationEmail(
+        $email,
+        trim($fname . ' ' . $lname),
+        $otpCode,
+        10
+    );
+
+    // Keep pending registration context in session for smooth password step
+    $_SESSION['registration_pending_email'] = $email;
+    $_SESSION['registration_pending_user_id'] = $newUserId;
+
+    // Log registration start in audit trail
     logAuditTrail(
         $pdo,
         $newUserId,
         $fname,
-        'create',
+        $isExistingPending ? 'registration_otp_resent' : 'registration_started',
         'user',
         $newUserId,
         null,
@@ -222,41 +258,40 @@ try {
             'lname' => $lname,
             'email' => $email,
             'address' => $address,
-            'user_level_id' => 4,
-            'user_status' => 'active',
-            'is_email_verified' => $emailVerificationEnabled ? 0 : 1,
-            'email_verification_enabled' => $emailVerificationEnabled,
-            'email_sent' => $emailSent
+            'otp_sent' => $emailSent
         ],
-        'Customer self-registration' . ($emailVerificationEnabled ? ' with email verification' : '')
+        $isExistingPending ? 'Pending registration continued and OTP resent' : 'Customer registration started with OTP verification'
     );
-    
-    // Return success response
-    if ($emailVerificationEnabled) {
-        $message = $emailSent 
-            ? 'Registration successful! Please check your email to verify your account.'
-            : 'Registration successful! A verification email will be sent shortly.';
-        $emailVerified = false;
-    } else {
-        $message = 'Registration successful! You can now login.';
-        $emailVerified = true;
-    }
-    
+
     echo json_encode([
         'success' => true,
-        'message' => $message,
+        'message' => $emailSent
+            ? 'Verification code sent. Please check your email.'
+            : 'Account created, but OTP email could not be sent right now. Please try resend.',
+        'email' => $email,
         'user_id' => $newUserId,
-        'email_verified' => $emailVerified,
-        'email_verification_enabled' => $emailVerificationEnabled,
-        'email_sent' => $emailSent
+        'email_sent' => $emailSent,
+        'otp_expires_in_seconds' => 600
     ]);
-    
 } catch (PDOException $e) {
     error_log("Registration error: " . $e->getMessage());
-    
+
+    if (($_SERVER['REMOTE_ADDR'] ?? '') === '127.0.0.1' || ($_SERVER['REMOTE_ADDR'] ?? '') === '::1') {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Registration database error: ' . $e->getMessage()
+        ]);
+    } else {
+        echo json_encode([
+            'success' => false,
+            'message' => 'An error occurred during registration. Please try again later.'
+        ]);
+    }
+} catch (Exception $e) {
+    error_log("Registration error: " . $e->getMessage());
     echo json_encode([
         'success' => false,
-        'message' => 'An error occurred during registration. Please try again later.'
+        'message' => $e->getMessage()
     ]);
 }
 

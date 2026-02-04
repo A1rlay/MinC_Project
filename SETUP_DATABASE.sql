@@ -48,3 +48,15 @@ ADD COLUMN IF NOT EXISTS `address` TEXT NULL AFTER `contact_num`;
 
 ALTER TABLE `users`
 DROP COLUMN IF EXISTS `mname`;
+
+-- 5. Ensure users primary key auto-increments correctly
+ALTER TABLE `users`
+MODIFY `user_id` BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+-- 6. Ensure OTP token primary key auto-increments correctly
+ALTER TABLE `email_verification_tokens`
+MODIFY `token_id` BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+-- 7. Ensure audit trail primary key auto-increments correctly
+ALTER TABLE `audit_trail`
+MODIFY `audit_trail_id` BIGINT(20) NOT NULL AUTO_INCREMENT;

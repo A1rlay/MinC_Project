@@ -28,7 +28,7 @@ function validateSession($redirect = true, $admin_only = false) {
     global $timeout_duration;
     
     // Check if user is logged in
-    if (!isset($_SESSION['user_id']) || !isset($_SESSION['email'])) {
+    if (!isset($_SESSION['user_id'])) {
         if ($redirect) {
             header('Location: ../../index.php?error=unauthorized');
             exit;

@@ -193,21 +193,15 @@
                 <div>
                     <h4 class="text-lg font-bold mb-4">Follow Us</h4>
                     <div class="flex space-x-4">
-                        <a href="#" class="bg-[#0a5273] w-10 h-10 rounded-full flex items-center justify-center hover:bg-white hover:text-[#08415c] transition">
+                        <a href="https://www.facebook.com/ritzmoncar.autoparts?rdid=GbXdvmSnoK5FnqUs&share_url=https%3A%2F%2Fwww.facebook.com%2Fshare%2F1AR2ZrWwrF#" target="_blank" rel="noopener noreferrer" class="bg-[#0a5273] w-10 h-10 rounded-full flex items-center justify-center hover:bg-white hover:text-[#08415c] transition">
                             <i class="fab fa-facebook-f"></i>
-                        </a>
-                        <a href="#" class="bg-[#0a5273] w-10 h-10 rounded-full flex items-center justify-center hover:bg-white hover:text-[#08415c] transition">
-                            <i class="fab fa-twitter"></i>
-                        </a>
-                        <a href="#" class="bg-[#0a5273] w-10 h-10 rounded-full flex items-center justify-center hover:bg-white hover:text-[#08415c] transition">
-                            <i class="fab fa-instagram"></i>
                         </a>
                     </div>
                 </div>
             </div>
             
             <div class="border-t border-blue-900 mt-12 pt-8 text-center text-blue-200">
-                <p>&copy; 2025 MinC. All rights reserved.</p>
+                <p>&copy; 2025-2026 MinC Computer Parts. All rights reserved.</p>
             </div>
         </div>
     </footer>
@@ -327,143 +321,24 @@ document.addEventListener('click', function(event) {
         function showRegister() {
             document.getElementById('loginForm').classList.add('hidden');
             document.getElementById('registerForm').classList.remove('hidden');
+            if (typeof resetRegistrationFlow === 'function') resetRegistrationFlow();
         }
         
         function showLogin() {
             document.getElementById('registerForm').classList.add('hidden');
             document.getElementById('loginForm').classList.remove('hidden');
+            if (typeof resetRegistrationFlow === 'function') resetRegistrationFlow();
         }
         
         async function handleLogin(e) {
-            e.preventDefault();
-            
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            
-            // Show loading
-            Swal.fire({
-                title: 'Logging in...',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-            
-            try {
-                const response = await fetch('backend/login.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        email: email,
-                        password: password
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Login Successful!',
-                        text: `Welcome back, ${data.user.name}!`,
-                        confirmButtonColor: '#08415c',
-                        timer: 2000
-                    }).then(() => {
-                        window.location.href = data.redirect || 'index.php';
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Login Failed',
-                        text: data.message,
-                        confirmButtonColor: '#08415c'
-                    });
-                }
-            } catch (error) {
-                console.error('Login error:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'An error occurred during login. Please try again.',
-                    confirmButtonColor: '#08415c'
-                });
+            if (typeof window.globalHandleLogin === 'function') {
+                return window.globalHandleLogin(e);
             }
         }
         
         async function handleRegister(e) {
-            e.preventDefault();
-            
-            const fname = document.getElementById('registerFname').value;
-            const lname = document.getElementById('registerLname').value;
-            const email = document.getElementById('registerEmail').value;
-            const address = document.getElementById('registerAddress').value.trim();
-            const password = document.getElementById('registerPassword').value;
-
-            if (password.length < 8 || password === '123456' || !/[A-Za-z]/.test(password) || !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Weak Password',
-                    text: 'Password must be at least 8 characters long and include a letter, number, and special character.',
-                    confirmButtonColor: '#08415c'
-                });
-                return;
-            }
-            
-            // Show loading
-            Swal.fire({
-                title: 'Creating account...',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-            
-            try {
-                const response = await fetch('backend/register.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        fname: fname,
-                        lname: lname,
-                        email: email,
-                        address: address,
-                        password: password
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Registration Successful!',
-                        text: 'Your account has been created. Please login.',
-                        confirmButtonColor: '#08415c'
-                    }).then(() => {
-                        showLogin();
-                        // Pre-fill email in login form
-                        document.getElementById('loginEmail').value = email;
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Registration Failed',
-                        text: data.message,
-                        confirmButtonColor: '#08415c'
-                    });
-                }
-            } catch (error) {
-                console.error('Registration error:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'An error occurred during registration. Please try again.',
-                    confirmButtonColor: '#08415c'
-                });
+            if (typeof window.globalHandleRegister === 'function') {
+                return window.globalHandleRegister(e);
             }
         }
         

@@ -115,7 +115,7 @@ try {
     if ($user['user_status'] !== 'active') {
         echo json_encode([
             'success' => false,
-            'message' => 'Your account has been deactivated. Please contact administrator.'
+            'message' => 'Account is not active yet. Please complete OTP verification and password setup first.'
         ]);
         exit;
     }

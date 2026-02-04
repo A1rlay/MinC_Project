@@ -201,6 +201,63 @@ if (!isset($_SESSION['user_id'])) {
                               placeholder="Enter delivery address"></textarea>
                 </div>
 
+                <!-- Security: Change Password -->
+                <div class="mb-8 border-2 border-gray-100 rounded-xl p-6 bg-gray-50">
+                    <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                        <i class="fas fa-lock text-[#08415c] mr-2"></i>Change Password
+                    </h3>
+                    <div id="changePasswordForm" class="grid md:grid-cols-2 gap-4">
+                        <div class="md:col-span-2">
+                            <label for="current_password" class="block text-sm font-semibold text-gray-700 mb-2">Current Password *</label>
+                            <div class="relative">
+                                <input type="password" id="current_password"
+                                       class="w-full px-4 py-3 pr-24 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition"
+                                       placeholder="Enter your current password">
+                                <button type="button" onclick="toggleFieldVisibility('current_password', this)" class="absolute inset-y-0 right-0 px-3 text-sm text-gray-600 hover:text-[#08415c]">Show</button>
+                            </div>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label for="new_password" class="block text-sm font-semibold text-gray-700 mb-2">New Password *</label>
+                            <div class="relative">
+                                <input type="password" id="new_password"
+                                       class="w-full px-4 py-3 pr-24 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition"
+                                       placeholder="Enter your new password">
+                                <button type="button" onclick="toggleFieldVisibility('new_password', this)" class="absolute inset-y-0 right-0 px-3 text-sm text-gray-600 hover:text-[#08415c]">Show</button>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">Password must be at least 8 characters and include a letter, number, and special character.</p>
+                        </div>
+                        <div class="md:col-span-2">
+                            <button type="button" id="changePasswordBtn" class="btn-primary-custom text-white font-semibold py-3 px-4 rounded-lg w-full md:w-auto">
+                                <i class="fas fa-key mr-2"></i>Update Password
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Security: Deactivate Account -->
+                <div class="mb-8 border-2 border-red-200 rounded-xl p-6 bg-red-50">
+                    <h3 class="text-xl font-bold text-red-700 mb-2 flex items-center">
+                        <i class="fas fa-user-slash mr-2"></i>Deactivate Account
+                    </h3>
+                    <p class="text-sm text-red-700 mb-4">This will deactivate your account and log you out immediately.</p>
+                    <div id="deactivateAccountForm" class="grid md:grid-cols-2 gap-4">
+                        <div class="md:col-span-2">
+                            <label for="deactivate_password" class="block text-sm font-semibold text-red-700 mb-2">Confirm with your password *</label>
+                            <div class="relative">
+                                <input type="password" id="deactivate_password"
+                                       class="w-full px-4 py-3 pr-24 border-2 border-red-200 rounded-lg focus:outline-none focus:border-red-500 transition"
+                                       placeholder="Enter your password">
+                                <button type="button" onclick="toggleFieldVisibility('deactivate_password', this)" class="absolute inset-y-0 right-0 px-3 text-sm text-red-600 hover:text-red-700">Show</button>
+                            </div>
+                        </div>
+                        <div class="md:col-span-2">
+                            <button type="button" id="deactivateAccountBtn" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-4 rounded-lg w-full md:w-auto transition">
+                                <i class="fas fa-trash-alt mr-2"></i>Deactivate My Account
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Picture Delete Button -->
                 <div id="pictureBtnContainer" class="mb-8 hidden">
                     <button type="button" id="deletePictureBtn" 
@@ -248,7 +305,33 @@ if (!isset($_SESSION['user_id'])) {
             document.getElementById('profileForm').addEventListener('submit', handleProfileUpdate);
             document.getElementById('profilePictureInput').addEventListener('change', handleProfilePictureUpload);
             document.getElementById('deletePictureBtn').addEventListener('click', handleDeletePicture);
+            document.getElementById('changePasswordBtn').addEventListener('click', handleChangePassword);
+            document.getElementById('deactivateAccountBtn').addEventListener('click', handleDeactivateAccount);
+            document.getElementById('fname').addEventListener('blur', function() { capitalizeNameInput(this); });
+            document.getElementById('lname').addEventListener('blur', function() { capitalizeNameInput(this); });
         });
+
+        function toTitleCaseName(value) {
+            return value
+                .toLowerCase()
+                .replace(/(^|[\s'-])([a-z])/g, function(match, separator, char) {
+                    return separator + char.toUpperCase();
+                });
+        }
+
+        function capitalizeNameInput(inputEl) {
+            if (!inputEl) return;
+            const cleaned = (inputEl.value || '').trim().replace(/\s+/g, ' ');
+            inputEl.value = cleaned ? toTitleCaseName(cleaned) : '';
+        }
+
+        function toggleFieldVisibility(inputId, buttonEl) {
+            const input = document.getElementById(inputId);
+            if (!input || !buttonEl) return;
+            const isPassword = input.type === 'password';
+            input.type = isPassword ? 'text' : 'password';
+            buttonEl.textContent = isPassword ? 'Hide' : 'Show';
+        }
 
         function showAlert(message, type = 'info') {
             const alertBox = document.getElementById('alertBox');
@@ -303,6 +386,11 @@ if (!isset($_SESSION['user_id'])) {
                             document.getElementById('pictureBtnContainer').classList.remove('hidden');
                         }
                     } else {
+                        const message = (data.message || '').toLowerCase();
+                        if (message.includes('session') || message.includes('login') || message.includes('unauthorized')) {
+                            window.location.href = '/pages/MinC_Project/index.php';
+                            return;
+                        }
                         showAlert('Error loading profile: ' + (data.message || 'Unknown error'), 'error');
                     }
                 })
@@ -314,6 +402,9 @@ if (!isset($_SESSION['user_id'])) {
 
         function handleProfileUpdate(e) {
             e.preventDefault();
+
+            capitalizeNameInput(document.getElementById('fname'));
+            capitalizeNameInput(document.getElementById('lname'));
 
             const fname = document.getElementById('fname').value.trim();
             const lname = document.getElementById('lname').value.trim();
@@ -354,6 +445,88 @@ if (!isset($_SESSION['user_id'])) {
                 document.getElementById('loading').classList.add('hidden');
                 console.error('Error:', error);
                 showAlert('Failed to update profile', 'error');
+            });
+        }
+
+        function isStrongPassword(password) {
+            if (password.length < 8) return false;
+            if (password === '123456') return false;
+            if (!/[A-Za-z]/.test(password)) return false;
+            if (!/\d/.test(password)) return false;
+            if (!/[^A-Za-z0-9]/.test(password)) return false;
+            return true;
+        }
+
+        function handleChangePassword() {
+            const currentPassword = document.getElementById('current_password').value;
+            const newPassword = document.getElementById('new_password').value;
+
+            if (!currentPassword || !newPassword) {
+                showAlert('Current and new password are required.', 'error');
+                return;
+            }
+
+            if (!isStrongPassword(newPassword)) {
+                showAlert('New password must be at least 8 characters and include a letter, number, and special character.', 'error');
+                return;
+            }
+
+            fetch('/pages/MinC_Project/backend/change_password_profile.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    current_password: currentPassword,
+                    new_password: newPassword
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert(data.message || 'Password changed successfully', 'success');
+                    document.getElementById('current_password').value = '';
+                    document.getElementById('new_password').value = '';
+                } else {
+                    showAlert('Error: ' + (data.message || 'Unable to change password'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Failed to change password', 'error');
+            });
+        }
+
+        function handleDeactivateAccount() {
+            const password = document.getElementById('deactivate_password').value;
+            if (!password) {
+                showAlert('Password is required to deactivate your account.', 'error');
+                return;
+            }
+            const confirmed = confirm('Are you sure you want to deactivate your account? You will be logged out.');
+            if (!confirmed) return;
+
+            fetch('/pages/MinC_Project/backend/deactivate_account.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ password: password })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert(data.message || 'Account deactivated', 'success');
+                    setTimeout(() => {
+                        window.location.href = data.redirect || '/pages/MinC_Project/index.php';
+                    }, 800);
+                } else {
+                    showAlert('Error: ' + (data.message || 'Unable to deactivate account'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Failed to deactivate account', 'error');
             });
         }
 

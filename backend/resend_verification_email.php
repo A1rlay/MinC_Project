@@ -3,7 +3,7 @@
  * Resend Verification Email Endpoint
  * Path: backend/resend_verification_email.php
  * 
- * Allows users to request a new verification email if the first one expires
+ * Allows users to request a new OTP verification code for registration.
  */
 
 header('Content-Type: application/json');
@@ -50,7 +50,7 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
 try {
     // Find user by email
     $stmt = $pdo->prepare("
-        SELECT user_id, fname, lname, is_email_verified 
+        SELECT user_id, fname, lname, is_email_verified, user_level_id
         FROM users 
         WHERE email = :email 
         LIMIT 1
@@ -69,12 +69,12 @@ try {
         exit;
     }
     
-    // Check if email is already verified
-    if ($user['is_email_verified'] == 1) {
+    // Only pending consumer registration is allowed
+    if ((int)$user['user_level_id'] !== 4 || (int)$user['is_email_verified'] === 1) {
         http_response_code(400);
         echo json_encode([
             'success' => false,
-            'message' => 'This email address is already verified. You can login to your account.'
+            'message' => 'This account is already verified. You can login to your account.'
         ]);
         exit;
     }
@@ -93,15 +93,15 @@ try {
     $recentToken->execute([':user_id' => $user['user_id']]);
     $existingToken = $recentToken->fetch(PDO::FETCH_ASSOC);
     
-    // If a valid token exists and was created less than 5 minutes ago, don't send new one
+    // If a valid token exists and was created less than 60 seconds ago, don't send new one
     if ($existingToken) {
         $timeSinceCreation = time() - strtotime($existingToken['created_at']);
-        if ($timeSinceCreation < 300) { // 5 minutes
+        if ($timeSinceCreation < 60) {
             http_response_code(429);
             echo json_encode([
                 'success' => false,
-                'message' => 'Please wait before requesting a new verification email. A verification email was recently sent.',
-                'retryAfter' => 300 - $timeSinceCreation
+                'message' => 'Please wait before requesting a new OTP.',
+                'retryAfter' => 60 - $timeSinceCreation
             ]);
             exit;
         }
@@ -119,9 +119,10 @@ try {
     $invalidateStmt->execute([':user_id' => $user['user_id']]);
     
     // Generate new verification token
-    $token = TokenGenerator::generateToken(32);
+    $token = TokenGenerator::generateVerificationCode();
+    $tokenStorage = $token . '-' . substr(TokenGenerator::generateToken(8), 0, 16);
     $tokenHash = TokenGenerator::hashToken($token);
-    $expiresAt = date('Y-m-d H:i:s', time() + (24 * 60 * 60)); // 24 hours
+    $expiresAt = date('Y-m-d H:i:s', time() + (10 * 60)); // 10 minutes
     
     // Store new verification token
     $tokenStmt = $pdo->prepare("
@@ -131,23 +132,19 @@ try {
     
     $tokenStmt->execute([
         ':user_id' => $user['user_id'],
-        ':token' => $token,
+        ':token' => $tokenStorage,
         ':token_hash' => $tokenHash,
         ':email' => $email,
         ':expires_at' => $expiresAt
     ]);
     
-    // Build verification link
-    $baseUrl = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'];
-    $verificationLink = $baseUrl . '/backend/verify_email.php?token=' . urlencode($token);
-    
-    // Send verification email
+    // Send OTP email
     $emailService = new EmailService();
-    $emailSent = $emailService->sendVerificationEmail(
+    $emailSent = $emailService->sendOtpVerificationEmail(
         $email,
         $user['fname'] . ' ' . $user['lname'],
-        $verificationLink,
-        $token
+        $token,
+        10
     );
     
     // Log to audit trail
@@ -161,12 +158,12 @@ try {
     $auditStmt->execute([
         ':user_id' => $user['user_id'],
         ':session_username' => $user['fname'] . ' ' . $user['lname'],
-        ':action' => 'resend_verification_email',
+        ':action' => 'resend_registration_otp',
         ':entity_type' => 'user',
         ':entity_id' => $user['user_id'],
         ':old_value' => null,
         ':new_value' => json_encode(['email' => $email, 'email_sent' => $emailSent]),
-        ':change_reason' => 'User requested verification email resend',
+        ':change_reason' => 'User requested OTP resend',
         ':ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
         ':user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? null,
         ':system_id' => 'minc_system'
@@ -176,9 +173,10 @@ try {
     echo json_encode([
         'success' => true,
         'message' => $emailSent 
-            ? 'Verification email has been sent to ' . htmlspecialchars($email) . '. Please check your inbox.'
-            : 'If an account with this email exists, a verification email will be sent shortly.',
-        'email_sent' => $emailSent
+            ? 'A new OTP has been sent. Please check your email.'
+            : 'OTP could not be sent right now. Please try again.',
+        'email_sent' => $emailSent,
+        'otp_expires_in_seconds' => 600
     ]);
     
 } catch (PDOException $e) {
