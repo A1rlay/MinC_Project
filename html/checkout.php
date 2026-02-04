@@ -323,7 +323,7 @@ if ($user_id) {
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-gray-700 font-medium mb-2">City/Municipality *</label>
+                                <label class="block text-gray-700 font-medium mb-2">Municipality *</label>
                                 <select id="city"
                                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
                                     <option value="">Select Municipality</option>
