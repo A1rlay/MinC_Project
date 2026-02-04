@@ -379,7 +379,7 @@ if ($user_id) {
                                    maxlength="4"
                                    pattern="^\d{4}$"
                                    oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
-                                   placeholder="2000 to 2100"
+                                   placeholder="eg. 2019"
                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
                         </div>
 
