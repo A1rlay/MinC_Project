@@ -223,6 +223,8 @@ session_start();
     </div>
 
 <script>
+    const IS_ROLE1_ADMIN = <?php echo (isset($_SESSION['user_level_id']) && (int)$_SESSION['user_level_id'] === 1) ? 'true' : 'false'; ?>;
+
     // Global variables
     let currentProduct = null;
     let quantity = 1;
@@ -305,6 +307,17 @@ session_start();
         const imagePath = product.product_image 
             ? `../Assets/images/products/${product.product_image}` 
             : '../Assets/images/website-images/placeholder.svg';
+        const adminImageUploadControls = IS_ROLE1_ADMIN
+            ? `
+                <div class="mt-6 border-t pt-4">
+                    <input type="file" id="adminProductImageInput" accept=".jpg,.jpeg,.png,.webp,.gif" class="hidden" onchange="handleProductImageChange(event)">
+                    <button type="button" onclick="openAdminImagePicker()" class="w-full bg-[#08415c] hover:bg-[#0a5273] text-white py-3 rounded-lg font-semibold transition">
+                        <i class="fas fa-upload mr-2"></i>Upload New Product Image
+                    </button>
+                    <p class="text-xs text-gray-500 mt-2">Allowed: JPG, PNG, WEBP, GIF (max 2MB)</p>
+                </div>
+            `
+            : '';
 
         const stockBadge = product.stock_quantity > 0 
             ? `<span class="text-green-600 font-semibold"><i class="fas fa-check-circle mr-1"></i>In Stock (${product.stock_quantity} available)</span>`
@@ -315,9 +328,11 @@ session_start();
             <!-- Product Image -->
             <div class="bg-white rounded-2xl shadow-lg p-8">
                 <img src="${imagePath}" 
+                     id="product-main-image"
                      alt="${escapeHtml(product.product_name)}" 
                      class="w-full main-image rounded-lg"
                      onerror="this.src='../Assets/images/website-images/placeholder.svg'">
+                ${adminImageUploadControls}
             </div>
 
             <!-- Product Info -->
@@ -403,6 +418,79 @@ session_start();
                 </div>
             </div>
         `;
+    }
+
+    function openAdminImagePicker() {
+        if (!IS_ROLE1_ADMIN) return;
+        const input = document.getElementById('adminProductImageInput');
+        if (input) {
+            input.click();
+        }
+    }
+
+    async function handleProductImageChange(event) {
+        if (!IS_ROLE1_ADMIN || !currentProduct) return;
+
+        const fileInput = event.target;
+        const file = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+        if (!file) return;
+
+        if (file.size > 2097152) {
+            Swal.fire({
+                icon: 'error',
+                title: 'File Too Large',
+                text: 'Please upload an image up to 2MB only.',
+                confirmButtonColor: '#08415c'
+            });
+            fileInput.value = '';
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('product_id', currentProduct.product_id);
+        formData.append('product_image', file);
+
+        Swal.fire({
+            title: 'Uploading image...',
+            text: 'Please wait while we update the product image.',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        try {
+            const response = await fetch('../backend/products/upload_product_image.php', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (!data.success) {
+                throw new Error(data.message || 'Failed to upload product image.');
+            }
+
+            currentProduct.product_image = data.product_image || currentProduct.product_image;
+            const mainImage = document.getElementById('product-main-image');
+            if (mainImage && data.image_url) {
+                mainImage.src = `${data.image_url}?t=${Date.now()}`;
+            }
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Image Updated',
+                text: 'The product image was updated successfully.',
+                confirmButtonColor: '#08415c'
+            });
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Upload Failed',
+                text: error.message || 'Could not upload the image.',
+                confirmButtonColor: '#08415c'
+            });
+        } finally {
+            fileInput.value = '';
+        }
     }
 
     // Display related products
