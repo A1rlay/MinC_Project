@@ -109,11 +109,29 @@ $formatConversationTime = static function ($timestamp) {
 };
 
 $normalizeMessageBody = static function ($content) {
-    $content = html_entity_decode((string)$content, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $content = (string)$content;
+    for ($i = 0; $i < 2; $i++) {
+        $decoded = html_entity_decode($content, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        if ($decoded === $content) {
+            break;
+        }
+        $content = $decoded;
+    }
+
+    $content = str_replace(["\xC2\xA0", '&nbsp;'], ' ', $content);
     $content = str_replace(["\r\n", "\r"], "\n", $content);
-    $content = preg_replace('/[ \t]+\n/', "\n", $content);
-    $content = preg_replace("/\n{3,}/", "\n\n", $content);
-    return trim((string)$content);
+    $content = preg_replace('/[ \t\f\v]+/u', ' ', $content);
+
+    $lines = array_map(static function ($line) {
+        return trim((string)$line);
+    }, explode("\n", $content));
+
+    $lines = array_values(array_filter($lines, static function ($line) {
+        return $line !== '';
+    }));
+
+    $content = implode("\n", $lines);
+    return trim($content);
 };
 
 $current_session = isset($_GET['session_id']) && trim((string)$_GET['session_id']) !== ''
@@ -202,26 +220,38 @@ try {
 
 $additional_styles = <<<CSS
 .messages-shell {
-    min-height: calc(100vh - 180px);
+    height: calc(100vh - 150px);
+    min-height: 700px;
+    display: flex;
 }
 
 .messages-card {
     border: 1px solid rgba(15, 23, 42, 0.08);
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 .messages-grid {
     display: grid;
     grid-template-columns: 340px minmax(0, 1fr);
-    min-height: 620px;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
 }
 
 .conversation-pane {
     border-right: 1px solid #e5e7eb;
     background: #fff;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 .conversation-scroll {
-    max-height: calc(100vh - 320px);
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
 }
 
@@ -284,6 +314,7 @@ $additional_styles = <<<CSS
 
 .chat-pane {
     background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    min-height: 0;
 }
 
 .chat-header {
@@ -292,9 +323,10 @@ $additional_styles = <<<CSS
 }
 
 .chat-stream {
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
-    padding: 18px;
-    max-height: calc(100vh - 420px);
+    padding: 18px 18px 12px;
 }
 
 .chat-stream::-webkit-scrollbar,
@@ -366,7 +398,7 @@ $additional_styles = <<<CSS
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
     word-break: break-word;
     white-space: pre-wrap;
-    text-align: left;
+    text-align: left !important;
 }
 
 .chat-bubble.customer {
@@ -401,7 +433,8 @@ $additional_styles = <<<CSS
 .chat-input-wrap {
     border-top: 1px solid #e5e7eb;
     background: #fff;
-    padding: 12px 16px;
+    padding: 10px 16px;
+    margin: 0;
 }
 
 .chat-input-area {
@@ -428,6 +461,11 @@ $additional_styles = <<<CSS
 }
 
 @media (max-width: 1024px) {
+    .messages-shell {
+        height: auto;
+        min-height: calc(100vh - 130px);
+    }
+
     .messages-grid {
         grid-template-columns: 1fr;
     }
@@ -438,11 +476,12 @@ $additional_styles = <<<CSS
     }
 
     .conversation-scroll {
-        max-height: 320px;
+        max-height: 300px;
+        flex: initial;
     }
 
     .chat-stream {
-        max-height: 58vh;
+        max-height: 56vh;
     }
 
     .chat-stack {
@@ -520,7 +559,7 @@ ob_start();
                 </div>
             </aside>
 
-            <section class="chat-pane flex flex-col min-h-[620px]">
+            <section class="chat-pane flex flex-col">
                 <?php if (!$current_session): ?>
                     <div class="flex-1 flex items-center justify-center px-6">
                         <div class="text-center text-gray-500">
@@ -631,10 +670,18 @@ const messageText = document.getElementById('messageText');
 const messagesContainer = document.getElementById('messages');
 
 function normalizeMessageBody(text) {
-    return String(text || '')
+    const decoded = document.createElement('textarea');
+    decoded.innerHTML = String(text || '');
+    const normalized = decoded.value
+        .replace(/\u00A0/g, ' ')
         .replace(/\r\n?/g, '\n')
-        .replace(/[ \t]+\n/g, '\n')
-        .replace(/\n{3,}/g, '\n\n')
+        .replace(/[ \t\f\v]+/g, ' ');
+
+    return normalized
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+        .join('\n')
         .trim();
 }
 

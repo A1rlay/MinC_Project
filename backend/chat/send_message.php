@@ -9,11 +9,28 @@ require_once '../../database/connect_database.php';
 
 try {
     $normalizeMessageBody = static function ($message) {
-        $message = html_entity_decode((string)$message, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $message = (string)$message;
+        for ($i = 0; $i < 2; $i++) {
+            $decoded = html_entity_decode($message, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            if ($decoded === $message) {
+                break;
+            }
+            $message = $decoded;
+        }
+
+        $message = str_replace(["\xC2\xA0", '&nbsp;'], ' ', $message);
         $message = str_replace(["\r\n", "\r"], "\n", $message);
-        $message = preg_replace('/[ \t]+\n/', "\n", $message);
-        $message = preg_replace("/\n{3,}/", "\n\n", $message);
-        return trim((string)$message);
+        $message = preg_replace('/[ \t\f\v]+/u', ' ', $message);
+
+        $lines = array_map(static function ($line) {
+            return trim((string)$line);
+        }, explode("\n", $message));
+
+        $lines = array_values(array_filter($lines, static function ($line) {
+            return $line !== '';
+        }));
+
+        return trim(implode("\n", $lines));
     };
 
     // Get the request method

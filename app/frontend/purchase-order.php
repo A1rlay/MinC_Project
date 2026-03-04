@@ -278,8 +278,8 @@ ob_start();
 </div>
 
 <!-- Create PO Modal -->
-<div id="createPOModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-    <div class="bg-white rounded-xl p-6 max-w-lg w-full mx-4 max-h-96 overflow-y-auto">
+<div id="createPOModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+    <div class="bg-white rounded-xl p-6 w-[96vw] max-w-3xl max-h-[88vh] overflow-y-auto shadow-2xl">
         <h3 class="text-lg font-bold text-[#08415c] mb-4">Create Purchase Order</h3>
         <form id="createPOForm" class="space-y-4" action="../../backend/purchase-order/create_purchase_order.php" method="POST">
             <div>
