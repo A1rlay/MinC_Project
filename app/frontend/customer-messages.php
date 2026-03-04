@@ -304,19 +304,7 @@ $additional_styles = <<<CSS
     display: flex;
     gap: 10px;
     margin-bottom: 14px;
-}
-
-.chat-row.outgoing {
-    justify-content: flex-end;
-}
-
-.chat-row.outgoing .chat-avatar {
-    order: 2;
-}
-
-.chat-row.outgoing .chat-stack {
-    order: 1;
-    align-items: flex-end;
+    justify-content: flex-start;
 }
 
 .chat-avatar {
@@ -345,13 +333,15 @@ $additional_styles = <<<CSS
     display: flex;
     flex-direction: column;
     max-width: min(74%, 720px);
+    align-items: flex-start;
 }
 
 .chat-meta {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     margin-bottom: 4px;
+    flex-wrap: wrap;
 }
 
 .chat-name {
@@ -368,6 +358,9 @@ $additional_styles = <<<CSS
 .chat-time {
     font-size: 0.72rem;
     color: #64748b;
+    margin-top: 4px;
+    margin-left: 4px;
+    display: inline-block;
 }
 
 .chat-bubble {
@@ -376,6 +369,7 @@ $additional_styles = <<<CSS
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
     word-break: break-word;
     white-space: pre-wrap;
+    text-align: left;
 }
 
 .chat-bubble.customer {
@@ -582,11 +576,11 @@ ob_start();
                                             <?php if (!$isAdminMessage && $msgEmailRaw !== ''): ?>
                                                 <span class="chat-email"><?php echo htmlspecialchars($msgEmailRaw); ?></span>
                                             <?php endif; ?>
-                                            <span class="chat-time"><?php echo date('g:i A', strtotime((string)$msg['created_at'])); ?></span>
                                         </div>
                                         <div class="chat-bubble <?php echo $isAdminMessage ? 'agent' : 'customer'; ?>">
                                             <?php echo nl2br(htmlspecialchars($messageBody)); ?>
                                         </div>
+                                        <span class="chat-time"><?php echo date('g:i A', strtotime((string)$msg['created_at'])); ?></span>
                                     </div>
                                 </article>
                             <?php endforeach; ?>
@@ -652,9 +646,9 @@ function appendAgentMessage(message) {
         <div class="chat-stack">
             <div class="chat-meta">
                 <span class="chat-name">MinC Support</span>
-                <span class="chat-time">${timeText}</span>
             </div>
             <div class="chat-bubble agent"></div>
+            <span class="chat-time">${timeText}</span>
         </div>
     `;
 
