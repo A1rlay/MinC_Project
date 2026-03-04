@@ -151,6 +151,7 @@ if (!isset($_SESSION['user_id'])) {
                             <i class="fas fa-user mr-2 text-[#08415c]"></i>First Name *
                         </label>
                         <input type="text" id="fname" name="fname" required
+                               minlength="2" maxlength="50"
                                class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition"
                                placeholder="Enter first name">
                     </div>
@@ -161,6 +162,7 @@ if (!isset($_SESSION['user_id'])) {
                             <i class="fas fa-user mr-2 text-[#08415c]"></i>Last Name *
                         </label>
                         <input type="text" id="lname" name="lname" required
+                               minlength="2" maxlength="50"
                                class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition"
                                placeholder="Enter last name">
                     </div>
@@ -184,18 +186,82 @@ if (!isset($_SESSION['user_id'])) {
                         <i class="fas fa-phone mr-2 text-[#08415c]"></i>Contact Number
                     </label>
                     <input type="tel" id="contact_num" name="contact_num"
+                           minlength="11" maxlength="13"
                            class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition"
-                           placeholder="+1 (555) 000-0000">
+                           placeholder="09XXXXXXXXX or +63XXXXXXXXXX">
                 </div>
                 
                 <!-- Delivery Address -->
                 <div class="mb-8">
-                    <label for="address" class="block text-sm font-semibold text-gray-700 mb-2">
-                        <i class="fas fa-location-dot mr-2 text-[#08415c]"></i>Delivery Address
-                    </label>
-                    <textarea id="address" name="address" rows="3"
-                              class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition"
-                              placeholder="Enter delivery address"></textarea>
+                    <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                        <i class="fas fa-truck-fast text-[#08415c] mr-2"></i>Shipping Address
+                    </h3>
+                    <p class="text-sm text-gray-600 mb-4">This saved delivery info can be reused in checkout.</p>
+                    <div class="mb-4">
+                        <label for="address" class="block text-sm font-semibold text-gray-700 mb-2">Complete Address</label>
+                        <textarea id="address" name="address" rows="3"
+                                  minlength="10" maxlength="255"
+                                  class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition"
+                                  placeholder="House/Unit No., Street Name"></textarea>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="barangay" class="block text-sm font-semibold text-gray-700 mb-2">Barangay</label>
+                            <select id="barangay" name="barangay" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition">
+                                <option value="">Select Barangay</option>
+                                <option value="Agapito del Rosario">Agapito del Rosario</option>
+                                <option value="Amsic">Amsic</option>
+                                <option value="Balibago">Balibago</option>
+                                <option value="Capaya">Capaya</option>
+                                <option value="Claro M. Recto">Claro M. Recto</option>
+                                <option value="Cuayan">Cuayan</option>
+                                <option value="Lourdes North-West">Lourdes North-West</option>
+                                <option value="Lourdes Sur (South)">Lourdes Sur (South)</option>
+                                <option value="Lourdes Sur-East">Lourdes Sur-East</option>
+                                <option value="Malabanas">Malabanas</option>
+                                <option value="Margot">Margot</option>
+                                <option value="Mining">Mining</option>
+                                <option value="Ninoy Aquino">Ninoy Aquino</option>
+                                <option value="Pampang">Pampang</option>
+                                <option value="Pandan">Pandan</option>
+                                <option value="Pulungbulu">Pulungbulu</option>
+                                <option value="Pulung Cacutud">Pulung Cacutud</option>
+                                <option value="Pulung Maragul">Pulung Maragul</option>
+                                <option value="Pulungbato">Pulungbato</option>
+                                <option value="Salapungan">Salapungan</option>
+                                <option value="San Jose">San Jose</option>
+                                <option value="San Nicolas">San Nicolas</option>
+                                <option value="Santa Teresita">Santa Teresita</option>
+                                <option value="Santa Trinidad">Santa Trinidad</option>
+                                <option value="Santo Cristo">Santo Cristo</option>
+                                <option value="Santo Domingo">Santo Domingo</option>
+                                <option value="Sapangbato">Sapangbato</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="city" class="block text-sm font-semibold text-gray-700 mb-2">City</label>
+                            <select id="city" name="city" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition">
+                                <option value="">Select City</option>
+                                <option value="Angeles City">Angeles City</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="province" class="block text-sm font-semibold text-gray-700 mb-2">Province</label>
+                            <select id="province" name="province" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition">
+                                <option value="">Select Province</option>
+                                <option value="Pampanga">Pampanga</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <label for="postal_code" class="block text-sm font-semibold text-gray-700 mb-2">Postal Code</label>
+                        <input type="text" id="postal_code" name="postal_code"
+                               inputmode="numeric" maxlength="4"
+                               pattern="^\d{4}$"
+                               oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
+                               class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition"
+                               placeholder="eg. 2019">
+                    </div>
                 </div>
 
                 <!-- Security: Change Password -->
@@ -295,6 +361,15 @@ if (!isset($_SESSION['user_id'])) {
                 return window.globalHandleLogout();
             }
         }
+
+        const PROFILE_RULES = {
+            firstName: { min: 2, max: 50 },
+            lastName: { min: 2, max: 50 },
+            address: { min: 10, max: 255 },
+            barangay: { min: 2, max: 120 },
+            city: { min: 2, max: 100 },
+            province: { min: 2, max: 100 }
+        };
         
         // Load profile data on page load
         document.addEventListener('DOMContentLoaded', function() {
@@ -320,6 +395,18 @@ if (!isset($_SESSION['user_id'])) {
             if (!inputEl) return;
             const cleaned = (inputEl.value || '').trim().replace(/\s+/g, ' ');
             inputEl.value = cleaned ? toTitleCaseName(cleaned) : '';
+        }
+
+        function isWithinLength(value, min, max) {
+            const length = (value || '').length;
+            return length >= min && length <= max;
+        }
+
+        function validatePostalCode(value) {
+            if (!value) return true;
+            if (!/^\d{4}$/.test(value)) return false;
+            const numeric = Number(value);
+            return numeric >= 2000 && numeric <= 2100;
         }
 
         function toggleFieldVisibility(inputId, buttonEl) {
@@ -380,6 +467,10 @@ if (!isset($_SESSION['user_id'])) {
                         document.getElementById('email').value = user.email;
                         document.getElementById('contact_num').value = user.contact_num || '';
                         document.getElementById('address').value = user.address || '';
+                        document.getElementById('barangay').value = user.barangay || '';
+                        document.getElementById('city').value = user.city || '';
+                        document.getElementById('province').value = user.province || '';
+                        document.getElementById('postal_code').value = user.postal_code || '';
 
                         if (user.profile_picture_url) {
                             document.getElementById('profilePictureDisplay').src = user.profile_picture_url;
@@ -410,9 +501,23 @@ if (!isset($_SESSION['user_id'])) {
             const lname = document.getElementById('lname').value.trim();
             const contact_num = document.getElementById('contact_num').value.trim();
             const address = document.getElementById('address').value.trim();
+            const barangay = document.getElementById('barangay').value.trim();
+            const city = document.getElementById('city').value.trim();
+            const province = document.getElementById('province').value.trim();
+            const postal_code = document.getElementById('postal_code').value.trim();
 
             if (!fname || !lname) {
                 showAlert('First name and last name are required', 'error');
+                return;
+            }
+
+            if (!isWithinLength(fname, PROFILE_RULES.firstName.min, PROFILE_RULES.firstName.max)) {
+                showAlert('First name must be between 2 and 50 characters', 'error');
+                return;
+            }
+
+            if (!isWithinLength(lname, PROFILE_RULES.lastName.min, PROFILE_RULES.lastName.max)) {
+                showAlert('Last name must be between 2 and 50 characters', 'error');
                 return;
             }
 
@@ -420,6 +525,39 @@ if (!isset($_SESSION['user_id'])) {
             const validContact = cleanedContact === '' || /^(09\d{9}|(\+?63)\d{10})$/.test(cleanedContact);
             if (!validContact) {
                 showAlert('Contact number must be 09XXXXXXXXX or +63XXXXXXXXXX', 'error');
+                return;
+            }
+
+            const anyDeliveryField = Boolean(address || barangay || city || province || postal_code);
+            if (anyDeliveryField) {
+                if (!address || !barangay || !city || !province) {
+                    showAlert('Complete address, barangay, city, and province are required when saving delivery information', 'error');
+                    return;
+                }
+
+                if (!isWithinLength(address, PROFILE_RULES.address.min, PROFILE_RULES.address.max)) {
+                    showAlert('Complete address must be between 10 and 255 characters', 'error');
+                    return;
+                }
+
+                if (!isWithinLength(barangay, PROFILE_RULES.barangay.min, PROFILE_RULES.barangay.max)) {
+                    showAlert('Barangay must be between 2 and 120 characters', 'error');
+                    return;
+                }
+
+                if (!isWithinLength(city, PROFILE_RULES.city.min, PROFILE_RULES.city.max)) {
+                    showAlert('City must be between 2 and 100 characters', 'error');
+                    return;
+                }
+
+                if (!isWithinLength(province, PROFILE_RULES.province.min, PROFILE_RULES.province.max)) {
+                    showAlert('Province must be between 2 and 100 characters', 'error');
+                    return;
+                }
+            }
+
+            if (!validatePostalCode(postal_code)) {
+                showAlert('Postal code must be a 4-digit value between 2000 and 2100', 'error');
                 return;
             }
 
@@ -434,7 +572,11 @@ if (!isset($_SESSION['user_id'])) {
                     fname: fname,
                     lname: lname,
                     contact_num: contact_num || null,
-                    address: address || null
+                    address: address || null,
+                    barangay: barangay || null,
+                    city: city || null,
+                    province: province || null,
+                    postal_code: postal_code || null
                 })
             })
             .then(response => response.json())

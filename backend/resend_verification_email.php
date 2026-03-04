@@ -147,27 +147,31 @@ try {
         10
     );
     
-    // Log to audit trail
-    $auditStmt = $pdo->prepare("
-        INSERT INTO audit_trail 
-        (user_id, session_username, action, entity_type, entity_id, old_value, new_value, change_reason, ip_address, user_agent, system_id) 
-        VALUES 
-        (:user_id, :session_username, :action, :entity_type, :entity_id, :old_value, :new_value, :change_reason, :ip_address, :user_agent, :system_id)
-    ");
-    
-    $auditStmt->execute([
-        ':user_id' => $user['user_id'],
-        ':session_username' => $user['fname'] . ' ' . $user['lname'],
-        ':action' => 'resend_registration_otp',
-        ':entity_type' => 'user',
-        ':entity_id' => $user['user_id'],
-        ':old_value' => null,
-        ':new_value' => json_encode(['email' => $email, 'email_sent' => $emailSent]),
-        ':change_reason' => 'User requested OTP resend',
-        ':ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
-        ':user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? null,
-        ':system_id' => 'minc_system'
-    ]);
+    // Log to audit trail (non-blocking)
+    try {
+        $auditStmt = $pdo->prepare("
+            INSERT INTO audit_trail 
+            (user_id, session_username, action, entity_type, entity_id, old_value, new_value, change_reason, ip_address, user_agent, system_id) 
+            VALUES 
+            (:user_id, :session_username, :action, :entity_type, :entity_id, :old_value, :new_value, :change_reason, :ip_address, :user_agent, :system_id)
+        ");
+        
+        $auditStmt->execute([
+            ':user_id' => $user['user_id'],
+            ':session_username' => $user['fname'] . ' ' . $user['lname'],
+            ':action' => 'resend_registration_otp',
+            ':entity_type' => 'user',
+            ':entity_id' => $user['user_id'],
+            ':old_value' => null,
+            ':new_value' => json_encode(['email' => $email, 'email_sent' => $emailSent]),
+            ':change_reason' => 'User requested OTP resend',
+            ':ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
+            ':user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? null,
+            ':system_id' => 'minc_system'
+        ]);
+    } catch (Throwable $auditError) {
+        error_log("Resend verification audit log error: " . $auditError->getMessage());
+    }
     
     http_response_code(200);
     echo json_encode([
@@ -179,7 +183,7 @@ try {
         'otp_expires_in_seconds' => 600
     ]);
     
-} catch (PDOException $e) {
+} catch (Throwable $e) {
     error_log("Resend verification email error: " . $e->getMessage());
     
     http_response_code(500);

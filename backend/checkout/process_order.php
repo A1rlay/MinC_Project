@@ -73,6 +73,16 @@ foreach ($requiredCustomer as $field) {
 
 $customer['first_name'] = normalizeName($customer['first_name']);
 $customer['last_name'] = normalizeName($customer['last_name']);
+$customer['first_name'] = preg_replace('/\s+/', ' ', trim((string)$customer['first_name']));
+$customer['last_name'] = preg_replace('/\s+/', ' ', trim((string)$customer['last_name']));
+if (mb_strlen($customer['first_name']) < 2 || mb_strlen($customer['first_name']) > 50) {
+    echo json_encode(['success' => false, 'message' => 'First name must be between 2 and 50 characters']);
+    exit;
+}
+if (mb_strlen($customer['last_name']) < 2 || mb_strlen($customer['last_name']) > 50) {
+    echo json_encode(['success' => false, 'message' => 'Last name must be between 2 and 50 characters']);
+    exit;
+}
 $normalizedPhone = normalizePhilippineMobile($customer['phone']);
 if ($normalizedPhone === null) {
     echo json_encode(['success' => false, 'message' => 'Invalid phone number format. Use 09XXXXXXXXX or +63XXXXXXXXXX']);
@@ -110,6 +120,26 @@ if ($delivery_method === 'shipping') {
     $shipping['province'] = trim((string)$shipping['province']);
     $shipping['barangay'] = trim((string)$shipping['barangay']);
     $shipping['postal_code'] = trim((string)($shipping['postal_code'] ?? ''));
+
+    if (mb_strlen($shipping['address']) < 10 || mb_strlen($shipping['address']) > 255) {
+        echo json_encode(['success' => false, 'message' => 'Complete address must be between 10 and 255 characters']);
+        exit;
+    }
+
+    if (mb_strlen($shipping['barangay']) < 2 || mb_strlen($shipping['barangay']) > 120) {
+        echo json_encode(['success' => false, 'message' => 'Barangay must be between 2 and 120 characters']);
+        exit;
+    }
+
+    if (mb_strlen($shipping['city']) < 2 || mb_strlen($shipping['city']) > 100) {
+        echo json_encode(['success' => false, 'message' => 'City must be between 2 and 100 characters']);
+        exit;
+    }
+
+    if (mb_strlen($shipping['province']) < 2 || mb_strlen($shipping['province']) > 100) {
+        echo json_encode(['success' => false, 'message' => 'Province must be between 2 and 100 characters']);
+        exit;
+    }
 
     if ($shipping['postal_code'] !== '') {
         $postalCodeInt = (int)$shipping['postal_code'];
@@ -158,6 +188,12 @@ if ($is_guest_checkout) {
         echo json_encode(['success' => false, 'message' => 'Guest checkout only supports COD payment.']);
         exit;
     }
+}
+
+$notesValue = trim((string)($data['notes'] ?? ''));
+if ($notesValue !== '' && mb_strlen($notesValue) > 500) {
+    echo json_encode(['success' => false, 'message' => 'Delivery notes can be up to 500 characters only']);
+    exit;
 }
 
 try {
@@ -373,7 +409,7 @@ try {
             notes
         ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 'pending', ?, ?, ?, ?, ?)
     ");
-    $notes = $data['notes'] ?? null;
+    $notes = $notesValue !== '' ? $notesValue : null;
     if ($delivery_method === 'pickup') {
         $pickup_date = $data['pickup_date'] ?? null;
         $pickup_time = $data['pickup_time'] ?? null;

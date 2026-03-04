@@ -12,7 +12,7 @@ define('MAIL_DRIVER', 'smtp'); // Using Mailtrap for email testing
 
 // SMTP Configuration
 define('SMTP_HOST', 'sandbox.smtp.mailtrap.io');
-define('SMTP_PORT', 2525);
+define('SMTP_PORT', 587);
 define('SMTP_USERNAME', '64575e73c6d443');
 define('SMTP_PASSWORD', '267427c7fe0ec4');
 define('SMTP_ENCRYPTION', 'tls'); // Mailtrap uses TLS

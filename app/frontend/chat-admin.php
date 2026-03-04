@@ -1,7 +1,7 @@
 <?php
 /**
  * Admin Chat Panel - Customer Messages
- * Allows owner/admin (level 1 or 5) to view and respond to customer inquiries
+ * Allows employee accounts to view and respond to customer inquiries
  */
 
 // Start session
@@ -25,6 +25,8 @@ $current_page = 'chat-admin';
 $user = [
     'full_name' => 'Guest User',
     'user_type' => 'User',
+    'user_type_status' => null,
+    'user_type_slug' => null,
     'is_logged_in' => false,
     'user_id' => null,
     'email' => null,
@@ -41,6 +43,7 @@ try {
             u.email,
             u.contact_num,
             ul.user_type_name as user_type,
+            ul.user_type_status,
             u.user_status,
             u.user_level_id
         FROM users u
@@ -59,6 +62,8 @@ try {
             'first_name' => $user_data['fname'],
             'last_name' => $user_data['lname'],
             'user_type' => $user_data['user_type'],
+            'user_type_status' => $user_data['user_type_status'] ?? null,
+            'user_type_slug' => strtolower(trim((string)($user_data['user_type'] ?? ''))),
             'is_logged_in' => true,
             'user_id' => $user_data['user_id'],
             'email' => $user_data['email'],
@@ -71,8 +76,12 @@ try {
     error_log("Error fetching user data in chat-admin.php: " . $e->getMessage());
 }
 
-// Check authorization - IT staff (1), owner (2), manager (3)
-if (!isset($user['user_level_id']) || !in_array((int)$user['user_level_id'], [1, 2, 3], true)) {
+// Check authorization - employee role only
+$employeeRoleNames = ['employee', 'employees', 'manager'];
+$isEmployeeRole = isset($user['user_type_slug']) && in_array($user['user_type_slug'], $employeeRoleNames, true);
+$isRoleActive = isset($user['user_type_status']) && strtolower((string)$user['user_type_status']) === 'active';
+
+if (!$isEmployeeRole || !$isRoleActive) {
     header('Location: ../../index.php?error=unauthorized');
     exit;
 }

@@ -107,6 +107,21 @@ function isManager() {
 }
 
 /**
+ * Check if user is Employee-only role.
+ * This excludes IT/admin and owner-level accounts.
+ */
+function isEmployee() {
+    if (isset($_SESSION['user_type_name'])) {
+        $type = strtolower(trim((string)$_SESSION['user_type_name']));
+        if (in_array($type, ['employee', 'employees', 'manager'], true)) {
+            return true;
+        }
+    }
+
+    return isset($_SESSION['user_level_id']) && (int)$_SESSION['user_level_id'] === 3;
+}
+
+/**
  * Check if user is Customer (user_level_id = 4)
  */
 function isConsumer() {

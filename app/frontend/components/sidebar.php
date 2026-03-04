@@ -237,7 +237,7 @@ if (!isset($config) || !isset($user)) {
         <!-- Customer Service Section -->
         <div class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 mt-6 sidebar-heading transition-all duration-300">Customer Service</div>
         <ul class="space-y-1 px-2">
-            <?php if (isITStaff() || isOwner()): ?>
+            <?php if (isEmployee()): ?>
             <li>
                 <a href="chat-admin.php" class="nav-link group flex items-center px-3 py-2.5 text-gray-700 hover:bg-gray-200 hover:text-[#08415c] transition-all duration-200 rounded-lg <?php echo $current_page === 'chat-admin' ? 'active-link text-[#08415c] bg-gray-200' : ''; ?>">
                     <span class="inline-flex justify-center items-center w-8 h-8 rounded-lg bg-gray-200 group-hover:bg-gray-300 nav-icon transition-all duration-300 group-hover:text-[#08415c]">

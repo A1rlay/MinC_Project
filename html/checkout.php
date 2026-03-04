@@ -88,11 +88,50 @@ if (!$buy_now_item) {
 
 // Get user data if logged in
 $user_data = null;
+$saved_shipping_info = null;
 if ($user_id) {
-    $stmt = mysqli_prepare($connection, "SELECT fname, lname, email, contact_num FROM users WHERE user_id = ?");
+    $availableUserColumns = [];
+    $columnsResult = mysqli_query($connection, "SHOW COLUMNS FROM users");
+    if ($columnsResult) {
+        while ($column = mysqli_fetch_assoc($columnsResult)) {
+            if (!empty($column['Field'])) {
+                $availableUserColumns[] = $column['Field'];
+            }
+        }
+    }
+
+    $shippingSelectParts = [
+        in_array('address', $availableUserColumns, true) ? "address" : "NULL AS address",
+        in_array('barangay', $availableUserColumns, true) ? "barangay" : "NULL AS barangay",
+        in_array('city', $availableUserColumns, true) ? "city" : "NULL AS city",
+        in_array('province', $availableUserColumns, true) ? "province" : "NULL AS province",
+        in_array('postal_code', $availableUserColumns, true) ? "postal_code" : "NULL AS postal_code"
+    ];
+
+    $userQuery = "SELECT fname, lname, email, contact_num, " . implode(", ", $shippingSelectParts) . " FROM users WHERE user_id = ?";
+    $stmt = mysqli_prepare($connection, $userQuery);
     mysqli_stmt_bind_param($stmt, "i", $user_id);
     mysqli_stmt_execute($stmt);
     $user_data = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt));
+
+    if ($user_data) {
+        $saved_shipping_info = [
+            'address' => trim((string)($user_data['address'] ?? '')),
+            'barangay' => trim((string)($user_data['barangay'] ?? '')),
+            'city' => trim((string)($user_data['city'] ?? '')),
+            'province' => trim((string)($user_data['province'] ?? '')),
+            'postal_code' => trim((string)($user_data['postal_code'] ?? ''))
+        ];
+    }
+}
+
+$has_saved_shipping_info = false;
+if (is_array($saved_shipping_info)) {
+    $has_saved_shipping_info =
+        $saved_shipping_info['address'] !== '' &&
+        $saved_shipping_info['barangay'] !== '' &&
+        $saved_shipping_info['city'] !== '' &&
+        $saved_shipping_info['province'] !== '';
 }
 ?>
 <!DOCTYPE html>
@@ -295,12 +334,14 @@ if ($user_id) {
                             <div>
                                 <label class="block text-gray-700 font-medium mb-2">First Name *</label>
                                 <input type="text" id="firstName" required 
+                                       minlength="2" maxlength="50"
                                        value="<?php echo $user_data ? htmlspecialchars($user_data['fname']) : ''; ?>"
                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
                             </div>
                             <div>
                                 <label class="block text-gray-700 font-medium mb-2">Last Name *</label>
                                 <input type="text" id="lastName" required 
+                                       minlength="2" maxlength="50"
                                        value="<?php echo $user_data ? htmlspecialchars($user_data['lname']) : ''; ?>"
                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
                             </div>
@@ -318,6 +359,7 @@ if ($user_id) {
                         <div class="mt-4">
                             <label class="block text-gray-700 font-medium mb-2">Phone Number *</label>
                             <input type="tel" id="phone" required 
+                                   minlength="11" maxlength="13"
                                    value="<?php echo $user_data && $user_data['contact_num'] ? htmlspecialchars($user_data['contact_num']) : ''; ?>"
                                    placeholder="09XX XXX XXXX"
                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
@@ -364,78 +406,111 @@ if ($user_id) {
 
                         <div id="shippingFields" class="block">
                             <h3 class="text-xl font-semibold text-gray-800 mb-4 mt-6">Shipping Address</h3>
-                            <div class="mb-4">
-                            <label class="block text-gray-700 font-medium mb-2">Complete Address *</label>
-                            <textarea id="address" rows="3"
-                                      placeholder="House/Unit No., Street Name"
-                                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]"></textarea>
-                        </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                <label class="block text-gray-700 font-medium mb-2">Barangay *</label>
-                                <select id="barangay"
-                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
-                                    <option value="">Select Barangay</option>
-                                    <option value="Agapito del Rosario">Agapito del Rosario</option>
-                                    <option value="Amsic">Amsic</option>
-                                    <option value="Balibago">Balibago</option>
-                                    <option value="Capaya">Capaya</option>
-                                    <option value="Claro M. Recto">Claro M. Recto</option>
-                                    <option value="Cuayan">Cuayan</option>
-                                    <option value="Lourdes North-West">Lourdes North-West</option>
-                                    <option value="Lourdes Sur (South)">Lourdes Sur (South)</option>
-                                    <option value="Lourdes Sur-East">Lourdes Sur-East</option>
-                                    <option value="Malabanas">Malaba&ntilde;as</option>
-                                    <option value="Margot">Margot</option>
-                                    <option value="Mining">Mining</option>
-                                    <option value="Ninoy Aquino">Ninoy Aquino</option>
-                                    <option value="Pampang">Pampang</option>
-                                    <option value="Pandan">Pandan</option>
-                                    <option value="Pulungbulu">Pulungbulu</option>
-                                    <option value="Pulung Cacutud">Pulung Cacutud</option>
-                                    <option value="Pulung Maragul">Pulung Maragul</option>
-                                    <option value="Pulungbato">Pulungbato</option>
-                                    <option value="Salapungan">Salapungan</option>
-                                    <option value="San Jose">San Jose</option>
-                                    <option value="San Nicolas">San Nicolas</option>
-                                    <option value="Santa Teresita">Santa Teresita</option>
-                                    <option value="Santa Trinidad">Santa Trinidad</option>
-                                    <option value="Santo Cristo">Santo Cristo</option>
-                                    <option value="Santo Domingo">Santo Domingo</option>
-                                    <option value="Sapangbato">Sapangbato</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-gray-700 font-medium mb-2">City *</label>
-                                <select id="city"
-                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
-                                    <option value="Angeles City">Angeles City</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-gray-700 font-medium mb-2">Province *</label>
-                                <select id="province" 
-                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
-                                    <option value="Pampanga">Pampanga</option>
-                                </select>
-                            </div>
-                        </div>
+                            <?php if ($user_id): ?>
+                            <div id="shippingAddressChooser" class="mb-4 space-y-3">
+                                <label id="savedAddressOptionLabel" class="block p-4 border border-gray-300 rounded-lg cursor-pointer hover:border-[#08415c] transition">
+                                    <input type="radio" name="shippingInfoMode" value="saved" class="mr-2"
+                                           <?php echo $has_saved_shipping_info ? 'checked' : 'disabled'; ?>>
+                                    <span class="font-semibold text-gray-800">Use my current delivery information</span>
+                                </label>
 
-                        <div class="mt-4">
-                            <label class="block text-gray-700 font-medium mb-2">Postal Code</label>
-                            <input type="text" id="postalCode"
-                                   inputmode="numeric"
-                                   maxlength="4"
-                                   pattern="^\d{4}$"
-                                   oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
-                                   placeholder="eg. 2019"
-                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
-                        </div>
+                                <div id="savedAddressCard" class="<?php echo $has_saved_shipping_info ? '' : 'hidden'; ?> p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p class="font-semibold text-gray-900"><?php echo htmlspecialchars(($user_data['fname'] ?? '') . ' ' . ($user_data['lname'] ?? '')); ?></p>
+                                            <p class="text-gray-700"><?php echo htmlspecialchars($saved_shipping_info['address'] ?? ''); ?></p>
+                                            <p class="text-gray-700"><?php echo htmlspecialchars($saved_shipping_info['barangay'] ?? ''); ?>, <?php echo htmlspecialchars($saved_shipping_info['city'] ?? ''); ?></p>
+                                            <p class="text-gray-700"><?php echo htmlspecialchars($saved_shipping_info['province'] ?? ''); ?><?php echo !empty($saved_shipping_info['postal_code']) ? ', ' . htmlspecialchars($saved_shipping_info['postal_code']) : ''; ?></p>
+                                        </div>
+                                        <button type="button" id="changeShippingInfoBtn" class="text-[#08415c] text-sm font-semibold hover:underline">Change</button>
+                                    </div>
+                                </div>
+
+                                <label class="block p-4 border border-gray-300 rounded-lg cursor-pointer hover:border-[#08415c] transition">
+                                    <input type="radio" name="shippingInfoMode" value="new" class="mr-2"
+                                           <?php echo !$has_saved_shipping_info ? 'checked' : ''; ?>>
+                                    <span class="font-semibold text-gray-800">Add a new delivery address</span>
+                                </label>
+                            </div>
+                            <?php endif; ?>
+
+                            <div id="manualShippingFields" class="<?php echo ($user_id && $has_saved_shipping_info) ? 'hidden' : ''; ?>">
+                                <div class="mb-4">
+                                    <label class="block text-gray-700 font-medium mb-2">Complete Address *</label>
+                                    <textarea id="address" rows="3"
+                                              minlength="10" maxlength="255"
+                                              placeholder="House/Unit No., Street Name"
+                                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]"></textarea>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label class="block text-gray-700 font-medium mb-2">Barangay *</label>
+                                        <select id="barangay"
+                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                                            <option value="">Select Barangay</option>
+                                            <option value="Agapito del Rosario">Agapito del Rosario</option>
+                                            <option value="Amsic">Amsic</option>
+                                            <option value="Balibago">Balibago</option>
+                                            <option value="Capaya">Capaya</option>
+                                            <option value="Claro M. Recto">Claro M. Recto</option>
+                                            <option value="Cuayan">Cuayan</option>
+                                            <option value="Lourdes North-West">Lourdes North-West</option>
+                                            <option value="Lourdes Sur (South)">Lourdes Sur (South)</option>
+                                            <option value="Lourdes Sur-East">Lourdes Sur-East</option>
+                                            <option value="Malabanas">Malaba&ntilde;as</option>
+                                            <option value="Margot">Margot</option>
+                                            <option value="Mining">Mining</option>
+                                            <option value="Ninoy Aquino">Ninoy Aquino</option>
+                                            <option value="Pampang">Pampang</option>
+                                            <option value="Pandan">Pandan</option>
+                                            <option value="Pulungbulu">Pulungbulu</option>
+                                            <option value="Pulung Cacutud">Pulung Cacutud</option>
+                                            <option value="Pulung Maragul">Pulung Maragul</option>
+                                            <option value="Pulungbato">Pulungbato</option>
+                                            <option value="Salapungan">Salapungan</option>
+                                            <option value="San Jose">San Jose</option>
+                                            <option value="San Nicolas">San Nicolas</option>
+                                            <option value="Santa Teresita">Santa Teresita</option>
+                                            <option value="Santa Trinidad">Santa Trinidad</option>
+                                            <option value="Santo Cristo">Santo Cristo</option>
+                                            <option value="Santo Domingo">Santo Domingo</option>
+                                            <option value="Sapangbato">Sapangbato</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-gray-700 font-medium mb-2">City *</label>
+                                        <select id="city"
+                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                                            <option value="Angeles City">Angeles City</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-gray-700 font-medium mb-2">Province *</label>
+                                        <select id="province" 
+                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                                            <option value="Pampanga">Pampanga</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4">
+                                    <label class="block text-gray-700 font-medium mb-2">Postal Code</label>
+                                    <input type="text" id="postalCode"
+                                           inputmode="numeric"
+                                           maxlength="4"
+                                           pattern="^\d{4}$"
+                                           oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
+                                           placeholder="eg. 2019"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                                </div>
+                            </div>
 
                             <div class="mt-6">
                                 <label class="block text-gray-700 font-medium mb-2">Delivery Notes (Optional)</label>
                                 <textarea id="notes" rows="2"
+                                          maxlength="500"
                                           placeholder="Special instructions for delivery..."
                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]"></textarea>
                             </div>
@@ -606,6 +681,8 @@ if ($user_id) {
         const IS_GUEST_CHECKOUT = <?php echo $user_id ? 'false' : 'true'; ?>;
         const IS_BUY_NOW_CHECKOUT = <?php echo $buy_now_item ? 'true' : 'false'; ?>;
         const BUY_NOW_ITEM = <?php echo $buy_now_item ? json_encode($buy_now_item, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : 'null'; ?>;
+        const SAVED_SHIPPING = <?php echo $saved_shipping_info ? json_encode($saved_shipping_info, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : 'null'; ?>;
+        const HAS_SAVED_SHIPPING = <?php echo $has_saved_shipping_info ? 'true' : 'false'; ?>;
         const ANGELES_CITY_BARANGAYS = [
             'Agapito del Rosario', 'Amsic', 'Balibago', 'Capaya', 'Claro M. Recto', 'Cuayan',
             'Lourdes North-West', 'Lourdes Sur (South)', 'Lourdes Sur-East', 'Malabanas',
@@ -614,6 +691,15 @@ if ($user_id) {
             'San Nicolas', 'Santa Teresita', 'Santa Trinidad', 'Santo Cristo', 'Santo Domingo',
             'Sapangbato'
         ];
+        const FIELD_LIMITS = {
+            firstName: { min: 2, max: 50 },
+            lastName: { min: 2, max: 50 },
+            address: { min: 10, max: 255 },
+            barangay: { min: 2, max: 120 },
+            city: { min: 2, max: 100 },
+            province: { min: 2, max: 100 },
+            notesMax: 500
+        };
         let currentStep = 1;
 
         // Format currency
@@ -635,6 +721,90 @@ if ($user_id) {
                 "'": '&#039;'
             };
             return text.toString().replace(/[&<>"']/g, m => map[m]);
+        }
+
+        function hasSavedShippingData() {
+            return !IS_GUEST_CHECKOUT && HAS_SAVED_SHIPPING && SAVED_SHIPPING;
+        }
+
+        function getSelectedShippingMode() {
+            if (IS_GUEST_CHECKOUT) return 'new';
+            const selected = document.querySelector('input[name="shippingInfoMode"]:checked');
+            return selected ? selected.value : (hasSavedShippingData() ? 'saved' : 'new');
+        }
+
+        function isWithinLength(value, min, max) {
+            const len = (value || '').length;
+            return len >= min && len <= max;
+        }
+
+        function validatePostalCode(value) {
+            if (!value) return true;
+            if (!/^\d{4}$/.test(value)) return false;
+            const numeric = Number(value);
+            return numeric >= 2000 && numeric <= 2100;
+        }
+
+        function getShippingDataFromForm() {
+            return {
+                address: document.getElementById('address').value.trim(),
+                barangay: document.getElementById('barangay').value.trim(),
+                city: document.getElementById('city').value.trim(),
+                province: document.getElementById('province').value.trim(),
+                postal_code: document.getElementById('postalCode').value.trim()
+            };
+        }
+
+        function getSelectedShippingData() {
+            if (hasSavedShippingData() && getSelectedShippingMode() === 'saved') {
+                return {
+                    address: (SAVED_SHIPPING.address || '').trim(),
+                    barangay: (SAVED_SHIPPING.barangay || '').trim(),
+                    city: (SAVED_SHIPPING.city || '').trim(),
+                    province: (SAVED_SHIPPING.province || '').trim(),
+                    postal_code: (SAVED_SHIPPING.postal_code || '').trim()
+                };
+            }
+            return getShippingDataFromForm();
+        }
+
+        function applyShippingInfoMode() {
+            const manualFields = document.getElementById('manualShippingFields');
+            const savedCard = document.getElementById('savedAddressCard');
+            const useSaved = hasSavedShippingData() && getSelectedShippingMode() === 'saved';
+
+            if (manualFields) {
+                manualFields.classList.toggle('hidden', useSaved);
+            }
+            if (savedCard) {
+                savedCard.classList.toggle('hidden', !useSaved);
+            }
+        }
+
+        function initializeShippingAddressChooser() {
+            if (IS_GUEST_CHECKOUT) return;
+
+            const modeInputs = document.querySelectorAll('input[name="shippingInfoMode"]');
+            modeInputs.forEach((input) => {
+                input.addEventListener('change', applyShippingInfoMode);
+            });
+
+            const changeBtn = document.getElementById('changeShippingInfoBtn');
+            if (changeBtn) {
+                changeBtn.addEventListener('click', function() {
+                    const newModeRadio = document.querySelector('input[name="shippingInfoMode"][value="new"]');
+                    if (newModeRadio) {
+                        newModeRadio.checked = true;
+                        applyShippingInfoMode();
+                        const addressField = document.getElementById('address');
+                        if (addressField) {
+                            addressField.focus();
+                        }
+                    }
+                });
+            }
+
+            applyShippingInfoMode();
         }
 
         // Load cart data
@@ -722,6 +892,26 @@ if ($user_id) {
                     return;
                 }
 
+                if (!isWithinLength(firstName, FIELD_LIMITS.firstName.min, FIELD_LIMITS.firstName.max)) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Invalid First Name',
+                        text: 'First name must be between 2 and 50 characters.',
+                        confirmButtonColor: '#08415c'
+                    });
+                    return;
+                }
+
+                if (!isWithinLength(lastName, FIELD_LIMITS.lastName.min, FIELD_LIMITS.lastName.max)) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Invalid Last Name',
+                        text: 'Last name must be between 2 and 50 characters.',
+                        confirmButtonColor: '#08415c'
+                    });
+                    return;
+                }
+
                 // Validate email
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                 if (!emailRegex.test(email)) {
@@ -762,16 +952,68 @@ if ($user_id) {
                 }
                 
                 if (deliveryMethod === 'shipping') {
-                    const address = document.getElementById('address').value.trim();
-                    const city = document.getElementById('city').value.trim();
-                    const province = document.getElementById('province').value;
-                    const barangay = document.getElementById('barangay').value.trim();
+                    const shippingData = getSelectedShippingData();
+                    const address = shippingData.address;
+                    const city = shippingData.city;
+                    const province = shippingData.province;
+                    const barangay = shippingData.barangay;
+                    const postalCode = shippingData.postal_code;
 
                     if (!address || !city || !province || !barangay) {
                         Swal.fire({
                             icon: 'error',
                             title: 'Missing Information',
                             text: 'Please fill in all required shipping fields',
+                            confirmButtonColor: '#08415c'
+                        });
+                        return;
+                    }
+
+                    if (!isWithinLength(address, FIELD_LIMITS.address.min, FIELD_LIMITS.address.max)) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Invalid Address',
+                            text: 'Complete address must be between 10 and 255 characters.',
+                            confirmButtonColor: '#08415c'
+                        });
+                        return;
+                    }
+
+                    if (!isWithinLength(barangay, FIELD_LIMITS.barangay.min, FIELD_LIMITS.barangay.max)) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Invalid Barangay',
+                            text: 'Barangay must be between 2 and 120 characters.',
+                            confirmButtonColor: '#08415c'
+                        });
+                        return;
+                    }
+
+                    if (!isWithinLength(city, FIELD_LIMITS.city.min, FIELD_LIMITS.city.max)) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Invalid City',
+                            text: 'City must be between 2 and 100 characters.',
+                            confirmButtonColor: '#08415c'
+                        });
+                        return;
+                    }
+
+                    if (!isWithinLength(province, FIELD_LIMITS.province.min, FIELD_LIMITS.province.max)) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Invalid Province',
+                            text: 'Province must be between 2 and 100 characters.',
+                            confirmButtonColor: '#08415c'
+                        });
+                        return;
+                    }
+
+                    if (!validatePostalCode(postalCode)) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Invalid Postal Code',
+                            text: 'Postal code must be a 4-digit value between 2000 and 2100.',
                             confirmButtonColor: '#08415c'
                         });
                         return;
@@ -844,16 +1086,12 @@ if ($user_id) {
             if (method === 'pickup') {
                 shippingFields.classList.add('hidden');
                 pickupFields.classList.remove('hidden');
-                // Clear shipping validation
-                document.getElementById('address').value = '';
-                document.getElementById('city').value = '';
-                document.getElementById('province').value = '';
-                document.getElementById('barangay').value = '';
             } else {
                 shippingFields.classList.remove('hidden');
                 pickupFields.classList.add('hidden');
                 document.getElementById('city').value = 'Angeles City';
                 document.getElementById('province').value = 'Pampanga';
+                applyShippingInfoMode();
                 // Clear pickup validation
                 document.getElementById('pickupDate').value = '';
                 document.getElementById('pickupTime').value = '';
@@ -925,11 +1163,12 @@ if ($user_id) {
             }
 
             if (deliveryMethod === 'shipping') {
-                const address = document.getElementById('address').value.trim();
-                const city = document.getElementById('city').value.trim();
-                const province = document.getElementById('province').value;
-                const barangay = document.getElementById('barangay').value.trim();
-                const postalCode = document.getElementById('postalCode').value.trim();
+                const shippingData = getSelectedShippingData();
+                const address = shippingData.address;
+                const city = shippingData.city;
+                const province = shippingData.province;
+                const barangay = shippingData.barangay;
+                const postalCode = shippingData.postal_code;
                 const notes = document.getElementById('notes').value.trim();
 
                 if (!address || !barangay || !city || !province) {
@@ -937,6 +1176,46 @@ if ($user_id) {
                         icon: 'error',
                         title: 'Missing Information',
                         text: 'Please fill in all required shipping fields',
+                        confirmButtonColor: '#08415c'
+                    });
+                    return;
+                }
+
+                if (!isWithinLength(address, FIELD_LIMITS.address.min, FIELD_LIMITS.address.max)) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Invalid Address',
+                        text: 'Complete address must be between 10 and 255 characters.',
+                        confirmButtonColor: '#08415c'
+                    });
+                    return;
+                }
+
+                if (!isWithinLength(barangay, FIELD_LIMITS.barangay.min, FIELD_LIMITS.barangay.max)) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Invalid Barangay',
+                        text: 'Barangay must be between 2 and 120 characters.',
+                        confirmButtonColor: '#08415c'
+                    });
+                    return;
+                }
+
+                if (!isWithinLength(city, FIELD_LIMITS.city.min, FIELD_LIMITS.city.max)) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Invalid City',
+                        text: 'City must be between 2 and 100 characters.',
+                        confirmButtonColor: '#08415c'
+                    });
+                    return;
+                }
+
+                if (!isWithinLength(province, FIELD_LIMITS.province.min, FIELD_LIMITS.province.max)) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Invalid Province',
+                        text: 'Province must be between 2 and 100 characters.',
                         confirmButtonColor: '#08415c'
                     });
                     return;
@@ -952,18 +1231,24 @@ if ($user_id) {
                     return;
                 }
 
-                if (postalCode) {
-                    const postalCodeNum = Number(postalCode);
-                    const postalCodeValid = /^\d{4}$/.test(postalCode) && postalCodeNum >= 2000 && postalCodeNum <= 2100;
-                    if (!postalCodeValid) {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Invalid Postal Code',
-                            text: 'Postal code must be between 2000 and 2100.',
-                            confirmButtonColor: '#08415c'
-                        });
-                        return;
-                    }
+                if (!validatePostalCode(postalCode)) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Invalid Postal Code',
+                        text: 'Postal code must be a 4-digit value between 2000 and 2100.',
+                        confirmButtonColor: '#08415c'
+                    });
+                    return;
+                }
+
+                if (notes.length > FIELD_LIMITS.notesMax) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Notes Too Long',
+                        text: 'Delivery notes can be up to 500 characters only.',
+                        confirmButtonColor: '#08415c'
+                    });
+                    return;
                 }
 
                 orderDetails += `<p class="mb-2"><strong>Address:</strong> ${address}, ${barangay}, ${city}, ${province}</p>`;
@@ -1156,6 +1441,14 @@ if ($user_id) {
 
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', () => {
+        if (hasSavedShippingData()) {
+            document.getElementById('address').value = SAVED_SHIPPING.address || '';
+            document.getElementById('barangay').value = SAVED_SHIPPING.barangay || '';
+            document.getElementById('city').value = SAVED_SHIPPING.city || 'Angeles City';
+            document.getElementById('province').value = SAVED_SHIPPING.province || 'Pampanga';
+            document.getElementById('postalCode').value = SAVED_SHIPPING.postal_code || '';
+        }
+        initializeShippingAddressChooser();
         loadCart();
         applyGuestCheckoutRestrictions();
     });

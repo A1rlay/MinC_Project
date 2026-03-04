@@ -671,7 +671,12 @@ $html_path = $is_in_html ? '' : 'html/';
                 document.getElementById('otpStep').classList.remove('hidden');
                 document.getElementById('passwordStep').classList.add('hidden');
                 document.getElementById('otpCode').focus();
-                showAlertModal(data.message || 'OTP sent to your email.', 'success', 'OTP Sent');
+                const emailSent = data.email_sent !== false;
+                showAlertModal(
+                    data.message || (emailSent ? 'OTP sent to your email.' : 'OTP could not be sent. Please try resend.'),
+                    emailSent ? 'success' : 'warning',
+                    emailSent ? 'OTP Sent' : 'OTP Not Sent'
+                );
             } else {
                 showAlertModal('Registration failed: ' + data.message, 'error', 'Registration Failed');
             }
@@ -762,7 +767,12 @@ $html_path = $is_in_html ? '' : 'html/';
                 return;
             }
 
-            showAlertModal(data.message || 'OTP resent successfully.', 'success', 'OTP Resent');
+            const emailSent = data.email_sent !== false;
+            showAlertModal(
+                data.message || (emailSent ? 'OTP resent successfully.' : 'OTP could not be sent right now.'),
+                emailSent ? 'success' : 'warning',
+                emailSent ? 'OTP Resent' : 'OTP Not Sent'
+            );
         } catch (error) {
             console.error('Resend OTP error:', error);
             showAlertModal('An error occurred while resending OTP.', 'error', 'Resend Error');

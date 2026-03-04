@@ -828,6 +828,43 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
             const overlay = document.getElementById('sidebar-overlay');
             const userMenuButton = document.getElementById('user-menu-button');
             const userMenu = document.getElementById('user-menu');
+            const dashboardScrollKey = 'mincDashboardScrollY';
+
+            const persistDashboardScroll = () => {
+                const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+                sessionStorage.setItem(dashboardScrollKey, String(scrollY));
+            };
+
+            const restoreDashboardScroll = () => {
+                const savedScroll = sessionStorage.getItem(dashboardScrollKey);
+                if (savedScroll === null) {
+                    return;
+                }
+
+                const targetY = parseInt(savedScroll, 10);
+                sessionStorage.removeItem(dashboardScrollKey);
+
+                if (Number.isNaN(targetY) || targetY < 0) {
+                    return;
+                }
+
+                // Retry a few frames so scroll restoration still works when long content renders late.
+                let attempts = 0;
+                const maxAttempts = 8;
+                const tryRestore = () => {
+                    window.scrollTo(0, targetY);
+                    attempts += 1;
+
+                    const currentY = window.scrollY || document.documentElement.scrollTop || 0;
+                    if (Math.abs(currentY - targetY) > 2 && attempts < maxAttempts) {
+                        requestAnimationFrame(tryRestore);
+                    }
+                };
+
+                requestAnimationFrame(tryRestore);
+            };
+
+            restoreDashboardScroll();
             
             // Enhanced User Menu Toggle
             if (userMenuButton && userMenu) {
@@ -928,7 +965,12 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
             // Close sidebar on mobile when clicking a link
             const navLinks = sidebar.querySelectorAll('.nav-link');
             navLinks.forEach(link => {
-                link.addEventListener('click', function() {
+                link.addEventListener('click', function(event) {
+                    const isPrimaryClick = event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
+                    if (isPrimaryClick) {
+                        persistDashboardScroll();
+                    }
+
                     if (window.innerWidth < 1024) {
                         sidebar.classList.add('-translate-x-full');
                         overlay.classList.add('opacity-0', 'pointer-events-none');
