@@ -1,7 +1,7 @@
 <?php
 session_start();
 if (!isset($_SESSION['user_id'])) {
-    header('Location: /pages/MinC_Project/index.php');
+    header('Location: ../index.php');
     exit;
 }
 ?>
@@ -145,4 +145,3 @@ if (!isset($_SESSION['user_id'])) {
     </script>
 </body>
 </html>
-

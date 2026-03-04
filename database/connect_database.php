@@ -6,10 +6,10 @@
  */
 
 // Database configuration
-define('DB_HOST', 'localhost');        // Database host
-define('DB_USERNAME', 'root');         // Database username
-define('DB_PASSWORD', '');             // Database password
-define('DB_NAME', 'minc');        // Database name
+define('DB_HOST', 'sql107.infinityfree.com'); // Database host
+define('DB_USERNAME', 'if0_41305536');        // Database username
+define('DB_PASSWORD', 'MinuteCar2026');       // Database password
+define('DB_NAME', 'if0_41305536_minc');       // Database name
 
 // Create connection using MySQLi (procedural)
 $connection = mysqli_connect(DB_HOST, DB_USERNAME, DB_PASSWORD, DB_NAME);

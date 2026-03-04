@@ -2,38 +2,88 @@
 session_start();
 require_once '../database/connect_database.php';
 
-// Check if cart has items
+// Buy Now mode (checkout only one selected product)
+$is_buy_now = isset($_GET['buy_now']) && $_GET['buy_now'] === '1';
+$buy_now_item = null;
+
+if ($is_buy_now) {
+    $buy_now_product_id = isset($_GET['product_id']) ? (int)$_GET['product_id'] : 0;
+    $buy_now_quantity = isset($_GET['quantity']) ? (int)$_GET['quantity'] : 1;
+    if ($buy_now_quantity < 1) {
+        $buy_now_quantity = 1;
+    }
+
+    if ($buy_now_product_id > 0) {
+        $stmt = mysqli_prepare($connection, "
+            SELECT 
+                p.product_id,
+                p.product_name,
+                p.product_code,
+                p.product_image,
+                p.price,
+                p.stock_quantity,
+                p.stock_status,
+                pl.product_line_name
+            FROM products p
+            LEFT JOIN product_lines pl ON p.product_line_id = pl.product_line_id
+            WHERE p.product_id = ? AND p.status = 'active'
+            LIMIT 1
+        ");
+        mysqli_stmt_bind_param($stmt, "i", $buy_now_product_id);
+        mysqli_stmt_execute($stmt);
+        $buy_now_product = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt));
+
+        if ($buy_now_product && (int)$buy_now_product['stock_quantity'] >= $buy_now_quantity && $buy_now_quantity > 0) {
+            $buy_now_item = [
+                'product_id' => (int)$buy_now_product['product_id'],
+                'product_name' => $buy_now_product['product_name'],
+                'product_code' => $buy_now_product['product_code'],
+                'product_image' => $buy_now_product['product_image'],
+                'product_line_name' => $buy_now_product['product_line_name'] ?? '',
+                'price' => (float)$buy_now_product['price'],
+                'quantity' => $buy_now_quantity,
+                'item_total' => (float)$buy_now_product['price'] * $buy_now_quantity,
+                'stock_quantity' => (int)$buy_now_product['stock_quantity'],
+                'stock_status' => $buy_now_product['stock_status']
+            ];
+        }
+    }
+}
+
+// Check if cart has items (skip cart requirement for valid buy-now checkout)
 $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 $session_id = session_id();
 
-// Get cart
-if ($user_id) {
-    $stmt = mysqli_prepare($connection, "SELECT cart_id FROM cart WHERE user_id = ?");
-    mysqli_stmt_bind_param($stmt, "i", $user_id);
-} else {
-    $stmt = mysqli_prepare($connection, "SELECT cart_id FROM cart WHERE session_id = ?");
-    mysqli_stmt_bind_param($stmt, "s", $session_id);
-}
+if (!$buy_now_item) {
+    // Get cart
+    if ($user_id) {
+        $stmt = mysqli_prepare($connection, "SELECT cart_id FROM cart WHERE user_id = ?");
+        mysqli_stmt_bind_param($stmt, "i", $user_id);
+    } else {
+        $stmt = mysqli_prepare($connection, "SELECT cart_id FROM cart WHERE session_id = ?");
+        mysqli_stmt_bind_param($stmt, "s", $session_id);
+    }
 
-mysqli_stmt_execute($stmt);
-$result = mysqli_stmt_get_result($stmt);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
 
-if (mysqli_num_rows($result) === 0) {
-    header('Location: user-cart.php');
-    exit;
-}
+    if (mysqli_num_rows($result) === 0) {
+        header('Location: user-cart.php');
+        exit;
+    }
 
-$cart_id = mysqli_fetch_assoc($result)['cart_id'];
+    $cart_id = mysqli_fetch_assoc($result)['cart_id'];
 
-// Get cart items count
-$stmt = mysqli_prepare($connection, "SELECT COUNT(*) as count FROM cart_items WHERE cart_id = ?");
-mysqli_stmt_bind_param($stmt, "i", $cart_id);
-mysqli_stmt_execute($stmt);
-$count = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt))['count'];
+    // Get cart items count
+    $stmt = mysqli_prepare($connection, "SELECT COUNT(*) as count FROM cart_items WHERE cart_id = ?");
+    mysqli_stmt_bind_param($stmt, "i", $cart_id);
+    mysqli_stmt_execute($stmt);
+    $count = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt))['count'];
 
-if ($count === 0) {
-    header('Location: user-cart.php');
-    exit;
+    if ($count === 0) {
+        header('Location: user-cart.php');
+        exit;
+    }
 }
 
 // Get user data if logged in
@@ -554,6 +604,8 @@ if ($user_id) {
         const SHIPPING_FEE = 150;
         const FREE_SHIPPING_THRESHOLD = 1000;
         const IS_GUEST_CHECKOUT = <?php echo $user_id ? 'false' : 'true'; ?>;
+        const IS_BUY_NOW_CHECKOUT = <?php echo $buy_now_item ? 'true' : 'false'; ?>;
+        const BUY_NOW_ITEM = <?php echo $buy_now_item ? json_encode($buy_now_item, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : 'null'; ?>;
         const ANGELES_CITY_BARANGAYS = [
             'Agapito del Rosario', 'Amsic', 'Balibago', 'Capaya', 'Claro M. Recto', 'Cuayan',
             'Lourdes North-West', 'Lourdes Sur (South)', 'Lourdes Sur-East', 'Malabanas',
@@ -587,6 +639,13 @@ if ($user_id) {
 
         // Load cart data
         async function loadCart() {
+            if (IS_BUY_NOW_CHECKOUT && BUY_NOW_ITEM) {
+                cartItems = [BUY_NOW_ITEM];
+                subtotal = parseFloat(BUY_NOW_ITEM.item_total || 0);
+                displayOrderSummary();
+                return;
+            }
+
             try {
                 const response = await fetch('../backend/cart/cart_get.php');
                 const data = await response.json();
@@ -857,6 +916,13 @@ if ($user_id) {
                 delivery_method: deliveryMethod,
                 payment_method: paymentMethod
             };
+
+            if (IS_BUY_NOW_CHECKOUT && BUY_NOW_ITEM) {
+                orderData.buy_now = {
+                    product_id: parseInt(BUY_NOW_ITEM.product_id, 10),
+                    quantity: parseInt(BUY_NOW_ITEM.quantity, 10)
+                };
+            }
 
             if (deliveryMethod === 'shipping') {
                 const address = document.getElementById('address').value.trim();

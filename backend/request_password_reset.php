@@ -56,7 +56,8 @@ try {
 
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    $resetLink = $scheme . '://' . $host . '/pages/MinC_Project/html/reset_password.php?token=' . urlencode($token);
+    $projectBase = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/backend/request_password_reset.php', 2)), '/');
+    $resetLink = $scheme . '://' . $host . rtrim($projectBase, '/') . '/html/reset_password.php?token=' . urlencode($token);
 
     $emailService = new EmailService();
     $emailService->sendPasswordResetEmail(
@@ -77,4 +78,3 @@ try {
         'message' => 'An error occurred while requesting password reset.'
     ]);
 }
-

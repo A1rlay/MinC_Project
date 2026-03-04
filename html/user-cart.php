@@ -452,25 +452,38 @@ session_start();
             const data = await response.json();
 
             if (data.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Removed',
-                    text: 'Item removed from cart',
-                    timer: 1500,
-                    showConfirmButton: false
-                });
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('Item removed from cart', 'success', { timer: 1800 });
+                } else {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Item removed from cart',
+                        toast: true,
+                        position: 'top',
+                        showConfirmButton: false,
+                        timer: 1800,
+                        timerProgressBar: true
+                    });
+                }
                 loadCart();
             } else {
                 throw new Error(data.message);
             }
         } catch (error) {
             console.error('Error removing item:', error);
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'Failed to remove item',
-                confirmButtonColor: '#08415c'
-            });
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast('Failed to remove item', 'error');
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Failed to remove item',
+                    toast: true,
+                    position: 'top',
+                    showConfirmButton: false,
+                    timer: 2600,
+                    timerProgressBar: true
+                });
+            }
         }
     }
 
@@ -490,31 +503,55 @@ session_start();
     }
 
     // Proceed to checkout
-    function proceedToCheckout() {
-        if (cartItems.length === 0) {
+    async function proceedToCheckout() {
+        try {
+            // Revalidate cart state so checkout is based on fresh server data.
+            const response = await fetch('../backend/cart/cart_get.php', { cache: 'no-store' });
+            const data = await response.json();
+            const latestItems = data.success && Array.isArray(data.cart_items) ? data.cart_items : cartItems;
+
+            if (!latestItems || latestItems.length === 0) {
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('Please add items to cart before checkout', 'warning');
+                } else {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Empty Cart',
+                        text: 'Please add items to cart before checkout',
+                        confirmButtonColor: '#08415c'
+                    });
+                }
+                return;
+            }
+
+            const outOfStockItems = latestItems.filter(item =>
+                item.stock_status === 'out_of_stock' || Number(item.stock_quantity) <= 0
+            );
+
+            if (outOfStockItems.length > 0) {
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('Please remove out of stock items before checkout', 'warning');
+                } else {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Out of Stock Items',
+                        text: 'Please remove out of stock items before checkout',
+                        confirmButtonColor: '#08415c'
+                    });
+                }
+                return;
+            }
+
+            window.location.href = 'checkout.php';
+        } catch (error) {
+            console.error('Checkout validation failed:', error);
             Swal.fire({
-                icon: 'warning',
-                title: 'Empty Cart',
-                text: 'Please add items to cart before checkout',
+                icon: 'error',
+                title: 'Checkout Error',
+                text: 'Unable to continue checkout right now. Please try again.',
                 confirmButtonColor: '#08415c'
             });
-            return;
         }
-
-        // Check for out of stock items
-        const outOfStockItems = cartItems.filter(item => item.stock_status === 'out_of_stock');
-        if (outOfStockItems.length > 0) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Out of Stock Items',
-                text: 'Please remove out of stock items before checkout',
-                confirmButtonColor: '#08415c'
-            });
-            return;
-        }
-
-        // Redirect to checkout page
-        window.location.href = 'checkout.php';
     }
 
     // Loader functions
@@ -589,6 +626,7 @@ session_start();
     // Update UI for logged in user
     function updateUIForLoggedInUser(user) {
         const userSection = document.getElementById('userSection');
+        if (!userSection) return;
         userSection.innerHTML = `
             <div class="relative">
                 <button id="userMenuButton" onclick="toggleUserMenu()" class="flex items-center space-x-2 text-gray-700 hover:text-[#08415c] transition">

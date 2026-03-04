@@ -86,7 +86,7 @@
                 </div>
                 
                 <div class="hidden md:block relative z-10">
-                    <img src="Assets/images/website-images/slider-1.webp" alt="Auto Parts" class="w-full rounded-2xl shadow-2xl transform hover:scale-105 transition duration-300" onerror="this.src='https://via.placeholder.com/600x400?text=Auto+Parts'">
+                    <img src="Assets/images/website-images/slider-1.webp" alt="Auto Parts" class="w-full rounded-2xl shadow-2xl transform hover:scale-105 transition duration-300" onerror="this.onerror=null;this.src='Assets/images/website-images/placeholder.svg';">
                 </div>
             </div>
         </div>
@@ -138,7 +138,7 @@
                 </div>
                 
                 <div class="hidden md:block">
-                    <img src="Assets/images/website-images/about.png" alt="About MinC" class="w-full rounded-2xl shadow-xl transform hover:scale-105 transition duration-300" onerror="this.src='https://via.placeholder.com/600x400?text=About+MinC'">
+                    <img src="Assets/images/website-images/about.png" alt="About MinC" class="w-full rounded-2xl shadow-xl transform hover:scale-105 transition duration-300" onerror="this.onerror=null;this.src='Assets/images/website-images/placeholder.svg';">
                 </div>
             </div>
         </div>
@@ -167,8 +167,8 @@
     <?php include 'html/components/footer.php'; ?>
     
     <script>
-        // Check session on page load
-window.onload = function() {
+        // Run homepage initialization once
+function initializePage() {
     checkSession();
     loadCategories();
     initializeCart();
@@ -199,7 +199,7 @@ window.onload = function() {
             confirmButtonColor: '#08415c'
         });
     }
-};
+}
         
         function checkSession() {
             fetch('backend/auth.php?api=status')
@@ -370,15 +370,15 @@ function renderCategories(categories) {
         if (category.product_lines && category.product_lines.length > 0) {
             category.product_lines.forEach(productLine => {
                 const imagePath = productLine.product_line_image 
-                    ? `assets/images/product-lines/${productLine.product_line_image}` 
-                    : 'assets/images/website-images/placeholder.jpg';
+                    ? `Assets/images/product-lines/${productLine.product_line_image}` 
+                    : 'Assets/images/website-images/placeholder.svg';
                 
                 html += `
                     <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover">
                         <img src="${imagePath}" 
                              alt="${escapeHtml(productLine.product_line_name)}" 
                              class="w-full h-48 object-cover"
-                             onerror="this.src='assets/images/website-images/placeholder.jpg'">
+                             onerror="this.onerror=null;this.src='Assets/images/website-images/placeholder.svg';">
                         <div class="p-6">
                             <h4 class="text-xl font-bold mb-2 text-[#08415c]">${escapeHtml(productLine.product_line_name)}</h4>
                             <p class="text-gray-600 mb-4">${escapeHtml(productLine.product_line_description || 'Quality products for your vehicle')}</p>
@@ -440,9 +440,8 @@ function escapeHtml(text) {
     return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-// Load categories when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    loadCategories();
+    initializePage();
 });
     </script>
     

@@ -167,48 +167,86 @@ try {
     // Get user ID if logged in
     $user_id = $user_id ?: null;
     $session_id = session_id();
-    
-    // Get cart
-    if ($user_id) {
-        $stmt = $pdo->prepare("SELECT cart_id FROM cart WHERE user_id = ?");
-        $stmt->execute([$user_id]);
+    $is_buy_now_checkout = isset($data['buy_now']) && is_array($data['buy_now']);
+    $cart_id = null;
+    $checkout_items = [];
+
+    if ($is_buy_now_checkout) {
+        $buy_now_product_id = isset($data['buy_now']['product_id']) ? (int)$data['buy_now']['product_id'] : 0;
+        $buy_now_quantity = isset($data['buy_now']['quantity']) ? (int)$data['buy_now']['quantity'] : 0;
+
+        if ($buy_now_product_id <= 0 || $buy_now_quantity <= 0) {
+            throw new Exception('Invalid buy now request.');
+        }
+
+        $stmt = $pdo->prepare("
+            SELECT product_id, product_name, product_code, price, stock_quantity
+            FROM products
+            WHERE product_id = ? AND status = 'active'
+            LIMIT 1
+        ");
+        $stmt->execute([$buy_now_product_id]);
+        $product = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$product) {
+            throw new Exception('Product not found or unavailable.');
+        }
+
+        if ($buy_now_quantity > (int)$product['stock_quantity']) {
+            throw new Exception("Insufficient stock for product: {$product['product_name']}");
+        }
+
+        $checkout_items[] = [
+            'product_id' => (int)$product['product_id'],
+            'product_name' => $product['product_name'],
+            'product_code' => $product['product_code'],
+            'price' => (float)$product['price'],
+            'quantity' => $buy_now_quantity,
+            'stock_quantity' => (int)$product['stock_quantity']
+        ];
     } else {
-        $stmt = $pdo->prepare("SELECT cart_id FROM cart WHERE session_id = ?");
-        $stmt->execute([$session_id]);
-    }
-    
-    $cart = $stmt->fetch();
-    if (!$cart) {
-        throw new Exception('Cart not found');
-    }
-    
-    $cart_id = $cart['cart_id'];
-    
-    // Get cart items
-    $stmt = $pdo->prepare("
-        SELECT ci.*, p.product_name, p.product_code, p.stock_quantity
-        FROM cart_items ci
-        JOIN products p ON ci.product_id = p.product_id
-        WHERE ci.cart_id = ?
-    ");
-    $stmt->execute([$cart_id]);
-    $cart_items = $stmt->fetchAll();
-    
-    if (empty($cart_items)) {
-        throw new Exception('Cart is empty');
-    }
-    
-    // Check stock availability
-    foreach ($cart_items as $item) {
-        if ($item['quantity'] > $item['stock_quantity']) {
-            throw new Exception("Insufficient stock for product: {$item['product_name']}");
+        // Get cart
+        if ($user_id) {
+            $stmt = $pdo->prepare("SELECT cart_id FROM cart WHERE user_id = ?");
+            $stmt->execute([$user_id]);
+        } else {
+            $stmt = $pdo->prepare("SELECT cart_id FROM cart WHERE session_id = ?");
+            $stmt->execute([$session_id]);
+        }
+        
+        $cart = $stmt->fetch();
+        if (!$cart) {
+            throw new Exception('Cart not found');
+        }
+        
+        $cart_id = $cart['cart_id'];
+        
+        // Get cart items
+        $stmt = $pdo->prepare("
+            SELECT ci.*, p.product_name, p.product_code, p.stock_quantity
+            FROM cart_items ci
+            JOIN products p ON ci.product_id = p.product_id
+            WHERE ci.cart_id = ?
+        ");
+        $stmt->execute([$cart_id]);
+        $checkout_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        if (empty($checkout_items)) {
+            throw new Exception('Cart is empty');
+        }
+        
+        // Check stock availability
+        foreach ($checkout_items as $item) {
+            if ($item['quantity'] > $item['stock_quantity']) {
+                throw new Exception("Insufficient stock for product: {$item['product_name']}");
+            }
         }
     }
-    
+
     // Calculate totals
     $subtotal = 0;
-    foreach ($cart_items as $item) {
-        $subtotal += $item['price'] * $item['quantity'];
+    foreach ($checkout_items as $item) {
+        $subtotal += ((float)$item['price']) * ((int)$item['quantity']);
     }
     
     $FREE_SHIPPING_THRESHOLD = 1000;
@@ -373,11 +411,17 @@ try {
     
     $updateStock = $pdo->prepare("
         UPDATE products 
-        SET stock_quantity = stock_quantity - ? 
+        SET 
+            stock_quantity = stock_quantity - ?,
+            stock_status = CASE
+                WHEN (stock_quantity - ?) <= 0 THEN 'out_of_stock'
+                WHEN (stock_quantity - ?) <= min_stock_level THEN 'low_stock'
+                ELSE 'in_stock'
+            END
         WHERE product_id = ?
     ");
     
-    foreach ($cart_items as $item) {
+    foreach ($checkout_items as $item) {
         $item_subtotal = $item['price'] * $item['quantity'];
         
         $stmt->execute([
@@ -393,16 +437,20 @@ try {
         // Update product stock
         $updateStock->execute([
             $item['quantity'],
+            $item['quantity'],
+            $item['quantity'],
             $item['product_id']
         ]);
     }
     
-    // Clear cart
-    $stmt = $pdo->prepare("DELETE FROM cart_items WHERE cart_id = ?");
-    $stmt->execute([$cart_id]);
-    
-    $stmt = $pdo->prepare("DELETE FROM cart WHERE cart_id = ?");
-    $stmt->execute([$cart_id]);
+    if (!$is_buy_now_checkout && $cart_id !== null) {
+        // Clear cart for regular checkout flow only
+        $stmt = $pdo->prepare("DELETE FROM cart_items WHERE cart_id = ?");
+        $stmt->execute([$cart_id]);
+        
+        $stmt = $pdo->prepare("DELETE FROM cart WHERE cart_id = ?");
+        $stmt->execute([$cart_id]);
+    }
     
     // Log audit trail if user is logged in
     if ($user_id) {
@@ -421,7 +469,7 @@ try {
             'order_number' => $order_number,
             'total_amount' => $total_amount,
             'payment_method' => $payment_method,
-            'items_count' => count($cart_items)
+            'items_count' => count($checkout_items)
         ]);
         
         $stmt->execute([

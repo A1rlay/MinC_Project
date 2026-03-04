@@ -470,7 +470,7 @@ ob_start();
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <?php if ($category['category_image']): ?>
-                                    <img src="../../assets/images/categories/<?php echo htmlspecialchars($category['category_image']); ?>" 
+                                    <img src="../../Assets/images/categories/<?php echo htmlspecialchars($category['category_image']); ?>" 
                                          alt="<?php echo htmlspecialchars($category['category_name']); ?>" 
                                          class="category-image-preview">
                                 <?php else: ?>
@@ -527,7 +527,7 @@ ob_start();
                     <div class="flex items-start justify-between mb-3">
                         <div class="flex items-center">
                             <?php if ($category['category_image']): ?>
-                                <img src="../../assets/images/categories/<?php echo htmlspecialchars($category['category_image']); ?>" 
+                                <img src="../../Assets/images/categories/<?php echo htmlspecialchars($category['category_image']); ?>" 
                                      alt="<?php echo htmlspecialchars($category['category_name']); ?>" 
                                      class="category-image-preview mr-3">
                             <?php else: ?>
@@ -1006,7 +1006,7 @@ function openEditModal(categoryId) {
                 const currentImageContainer = document.getElementById("edit_current_image_container");
                 if (category.category_image) {
                     currentImageContainer.innerHTML = `
-                        <img src="../../assets/images/categories/${category.category_image}" 
+                        <img src="../../Assets/images/categories/${category.category_image}" 
                              alt="${category.category_name}" 
                              class="category-image-preview">
                     `;

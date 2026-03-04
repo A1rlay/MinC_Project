@@ -27,7 +27,7 @@ async function getProducts() {
     let id = params.id; // main category id 
     let cid = params.c_id // sub-category id
     // fetch the data from local json file
-    const response = await fetch("../assets/JSON/decent-parts.json");
+    const response = await fetch("../Assets/JSON/decent-parts.json");
     //convert the response to JSON format
     const categories = await response.json();
 

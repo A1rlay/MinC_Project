@@ -47,7 +47,7 @@ if (isset($_GET['id'])) {
         
         // Delete category image if exists
         if ($category_data['category_image']) {
-            $image_path = '../../assets/images/categories/' . $category_data['category_image'];
+            $image_path = '../../Assets/images/categories/' . $category_data['category_image'];
             if (file_exists($image_path)) {
                 unlink($image_path);
             }

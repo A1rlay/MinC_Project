@@ -956,23 +956,6 @@ switch ($notification['type']) {
     </div>
 </div>
 
-<!-- Success/Error Toast -->
-<div id="toast" class="fixed top-4 right-4 transform translate-x-full transition-transform duration-300 z-50">
-    <div class="bg-white border border-gray-200 rounded-xl shadow-lg p-4 max-w-sm">
-        <div class="flex items-center">
-            <div id="toastIcon" class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mr-3">
-                <!-- Icon will be inserted here -->
-            </div>
-            <div>
-                <p id="toastMessage" class="text-sm font-medium text-gray-800"></p>
-            </div>
-            <button onclick="hideToast()" class="ml-4 text-gray-400 hover:text-gray-600">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    </div>
-</div>
-
 <!-- JavaScript for Notification Management -->
 <script>
 // Show loading overlay
@@ -987,30 +970,33 @@ function hideLoading() {
 
 // Show toast notification
 function showToast(message, type = 'success') {
-    const toast = document.getElementById('toast');
-    const icon = document.getElementById('toastIcon');
-    const messageEl = document.getElementById('toastMessage');
-    
-    messageEl.textContent = message;
-    
-    if (type === 'success') {
-        icon.innerHTML = '<i class="fas fa-check text-white"></i>';
-        icon.className = 'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mr-3 bg-green-500';
-    } else {
-        icon.innerHTML = '<i class="fas fa-exclamation-triangle text-white"></i>';
-        icon.className = 'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mr-3 bg-red-500';
+    const normalizedType = String(type || 'info').toLowerCase();
+    const icon = normalizedType === 'error' ? 'error' : normalizedType;
+
+    if (typeof window.showAppToast === 'function') {
+        window.showAppToast(message, icon, { timer: 3800 });
+        return;
     }
-    
-    toast.classList.remove('translate-x-full');
-    
-    setTimeout(() => {
-        hideToast();
-    }, 5000);
+
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            toast: true,
+            position: 'top',
+            icon,
+            title: String(message || ''),
+            showConfirmButton: false,
+            timer: 3800,
+            timerProgressBar: true
+        });
+        return;
+    }
+
+    alert(String(message || ''));
 }
 
 // Hide toast notification
 function hideToast() {
-    document.getElementById('toast').classList.add('translate-x-full');
+    return;
 }
 
 // AJAX helper function

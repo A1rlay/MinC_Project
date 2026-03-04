@@ -1035,23 +1035,25 @@ function exportOrders() {
 
 // Helper function to show notifications
 function showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.className = `fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg ${
-        type === 'success' ? 'bg-green-600' : 
-        type === 'error' ? 'bg-red-600' : 
-        'bg-blue-600'
-    } text-white animate-fadeIn`;
-    notification.innerHTML = `
-        <div class="flex items-center">
-            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} mr-3"></i>
-            <span>${escapeHtml(message)}</span>
-        </div>
-    `;
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.remove();
-    }, 3000);
+    if (typeof window.showAppToast === 'function') {
+        window.showAppToast(message, type);
+        return;
+    }
+
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            toast: true,
+            position: 'top',
+            icon: type,
+            title: String(message || ''),
+            showConfirmButton: false,
+            timer: 3200,
+            timerProgressBar: true
+        });
+        return;
+    }
+
+    alert(String(message || ''));
 }
 
 // Helper functions

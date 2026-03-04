@@ -88,11 +88,17 @@ try {
         exit;
     }
 
+    // Build profile picture URL relative to the project base path.
+    $projectBase = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/backend/get_profile.php', 2)), '/');
+    if ($projectBase === '') {
+        $projectBase = '/';
+    }
+
     // Build profile picture URL
     if ($user['profile_picture']) {
-        $user['profile_picture_url'] = '/pages/MinC_Project/Assets/images/profiles/' . $user['profile_picture'];
+        $user['profile_picture_url'] = rtrim($projectBase, '/') . '/Assets/images/profiles/' . $user['profile_picture'];
     } else {
-        $user['profile_picture_url'] = '/pages/MinC_Project/Assets/images/default-avatar.png';
+        $user['profile_picture_url'] = rtrim($projectBase, '/') . '/Assets/images/website-images/placeholder.svg';
     }
 
     echo json_encode([

@@ -537,7 +537,7 @@ ob_start();
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <?php if ($product_line['product_line_image']): ?>
-                                    <img src="../../assets/images/product-lines/<?php echo htmlspecialchars($product_line['product_line_image']); ?>" 
+                                    <img src="../../Assets/images/product-lines/<?php echo htmlspecialchars($product_line['product_line_image']); ?>" 
                                          alt="<?php echo htmlspecialchars($product_line['product_line_name']); ?>" 
                                          class="product-line-image-preview">
                                 <?php else: ?>
@@ -595,7 +595,7 @@ ob_start();
                     <div class="flex items-start justify-between mb-3">
                         <div class="flex items-center">
                             <?php if ($product_line['product_line_image']): ?>
-                                <img src="../../assets/images/product-lines/<?php echo htmlspecialchars($product_line['product_line_image']); ?>" 
+                                <img src="../../Assets/images/product-lines/<?php echo htmlspecialchars($product_line['product_line_image']); ?>" 
                                      alt="<?php echo htmlspecialchars($product_line['product_line_name']); ?>" 
                                      class="product-line-image-preview mr-3">
                             <?php else: ?>
@@ -1108,7 +1108,7 @@ function openEditModal(productLineId) {
                 const currentImageContainer = document.getElementById("edit_current_image_container");
                 if (productLine.product_line_image) {
                     currentImageContainer.innerHTML = `
-                        <img src="../../assets/images/product-lines/${productLine.product_line_image}" 
+                        <img src="../../Assets/images/product-lines/${productLine.product_line_image}" 
                              alt="${productLine.product_line_name}" 
                              class="product-line-image-preview">
                     `;

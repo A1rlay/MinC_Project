@@ -94,6 +94,10 @@ session_start();
             border-color: #08415c;
         }
 
+        .filter-panel-scroll {
+            -webkit-overflow-scrolling: touch;
+        }
+
         #loader {
             display: none;
             position: fixed;
@@ -142,7 +146,7 @@ session_start();
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
             <!-- Sidebar Filters -->
             <div class="lg:col-span-1">
-                <div class="bg-white rounded-xl shadow-lg p-6 sticky top-24">
+                <div class="bg-white rounded-xl shadow-lg p-6 lg:sticky lg:top-24 max-h-[calc(100vh-7rem)] overflow-y-auto filter-panel-scroll">
                     <h3 class="text-xl font-bold text-[#08415c] mb-6">Filters</h3>
 
                     <!-- Product Line Filter -->
@@ -672,14 +676,18 @@ function updateCartCount(count) {
 
         // Show notification
         function showNotification(message) {
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast(message, 'success');
+                return;
+            }
+
             Swal.fire({
                 icon: 'success',
-                title: 'Added to Cart',
-                text: message,
+                title: message,
                 toast: true,
-                position: 'top-end',
+                position: 'top',
                 showConfirmButton: false,
-                timer: 3000,
+                timer: 3200,
                 timerProgressBar: true
             });
         }

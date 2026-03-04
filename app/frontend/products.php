@@ -439,7 +439,7 @@ ob_start();
                 Manage your auto parts inventory, pricing, and stock levels.
             </p>
         </div>
-        <div class="flex items-center space-x-3">
+        <div class="w-full md:w-auto flex justify-start md:justify-end">
             <button onclick="openAddModal()" class="btn-primary px-6 py-3 rounded-xl font-medium flex items-center">
                 <i class="fas fa-plus mr-2"></i>
                 Add New Product
@@ -921,7 +921,7 @@ data-product-id="<?php echo $product['product_id']; ?>">
             </div>
         </div>
         
-        <div class="flex justify-end space-x-3 mt-6">
+        <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <button type="button" onclick="closeAddModal()" 
                     class="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors duration-200">
                 Cancel

@@ -180,12 +180,17 @@ try {
         error_log('Audit log failed in upload_profile_picture.php: ' . $auditError->getMessage());
     }
 
+    $projectBase = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/backend/upload_profile_picture.php', 2)), '/');
+    if ($projectBase === '') {
+        $projectBase = '/';
+    }
+
     echo json_encode([
         'success' => true,
         'message' => 'Profile picture uploaded successfully',
         'data' => [
             'filename' => $filename,
-            'picture_url' => '/pages/MinC_Project/Assets/images/profiles/' . $filename
+            'picture_url' => rtrim($projectBase, '/') . '/Assets/images/profiles/' . $filename
         ]
     ]);
 

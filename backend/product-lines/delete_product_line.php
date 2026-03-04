@@ -63,7 +63,7 @@ try {
     
     // Delete product line image if exists
     if ($current_data['product_line_image']) {
-        $image_path = '../../assets/images/product-lines/' . $current_data['product_line_image'];
+        $image_path = '../../Assets/images/product-lines/' . $current_data['product_line_image'];
         if (file_exists($image_path)) {
             unlink($image_path);
         }

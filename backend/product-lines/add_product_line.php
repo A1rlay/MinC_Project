@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Handle image upload
         $product_line_image = null;
         if (isset($_FILES['product_line_image']) && $_FILES['product_line_image']['error'] === UPLOAD_ERR_OK) {
-            $upload_dir = '../../assets/images/product-lines/';
+            $upload_dir = '../../Assets/images/product-lines/';
             
             // Create directory if it doesn't exist
             if (!file_exists($upload_dir)) {
@@ -176,8 +176,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         // Delete uploaded image if exists
-        if (isset($product_line_image) && file_exists('../../assets/images/product-lines/' . $product_line_image)) {
-            unlink('../../assets/images/product-lines/' . $product_line_image);
+        if (isset($product_line_image) && file_exists('../../Assets/images/product-lines/' . $product_line_image)) {
+            unlink('../../Assets/images/product-lines/' . $product_line_image);
         }
         
         $_SESSION['error_message'] = 'Error: ' . $e->getMessage();

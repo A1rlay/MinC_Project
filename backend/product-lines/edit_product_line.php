@@ -84,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $old_image_path = null;
         
         if (isset($_FILES['product_line_image']) && $_FILES['product_line_image']['error'] === UPLOAD_ERR_OK) {
-            $upload_dir = '../../assets/images/product-lines/';
+            $upload_dir = '../../Assets/images/product-lines/';
             
             // Create directory if it doesn't exist
             if (!file_exists($upload_dir)) {

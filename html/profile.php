@@ -2,7 +2,7 @@
 // Check if user is logged in
 session_start();
 if (!isset($_SESSION['user_id'])) {
-    header('Location: /pages/MinC_Project/index.php');
+    header('Location: ../index.php');
     exit;
 }
 ?>
@@ -102,9 +102,6 @@ if (!isset($_SESSION['user_id'])) {
     <div class="mt-20 min-h-screen bg-gray-50">
         <div class="max-w-4xl mx-auto px-4 py-8">
             
-            <!-- Alert Messages -->
-            <div id="alertBox" class="mb-6"></div>
-            
             <!-- Profile Header Card -->
             <div class="bg-white rounded-xl shadow-lg mb-8 overflow-hidden">
                 <div class="profile-gradient py-12 px-8 text-white">
@@ -112,7 +109,7 @@ if (!isset($_SESSION['user_id'])) {
                         <!-- Avatar Section -->
                         <div class="avatar-wrapper flex-shrink-0">
                             <img id="profilePictureDisplay" 
-                                 src="/pages/MinC_Project/Assets/images/default-avatar.png" 
+                                 src="../Assets/images/website-images/placeholder.svg" 
                                  alt="Profile Picture" 
                                  class="w-32 h-32 rounded-full border-4 border-white object-cover shadow-lg">
                             <div class="edit-badge cursor-pointer" onclick="document.getElementById('profilePictureInput').click()">
@@ -334,28 +331,31 @@ if (!isset($_SESSION['user_id'])) {
         }
 
         function showAlert(message, type = 'info') {
-            const alertBox = document.getElementById('alertBox');
-            const bgColor = type === 'success' ? 'bg-green-100' : type === 'error' ? 'bg-red-100' : 'bg-blue-100';
-            const textColor = type === 'success' ? 'text-green-800' : type === 'error' ? 'text-red-800' : 'text-blue-800';
-            const borderColor = type === 'success' ? 'border-green-400' : type === 'error' ? 'border-red-400' : 'border-blue-400';
-            const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle';
-            
-            alertBox.innerHTML = `
-                <div class="${bgColor} ${textColor} ${borderColor} border-l-4 p-4 rounded-lg flex items-center">
-                    <i class="fas fa-${icon} mr-3"></i>
-                    <span>${message}</span>
-                </div>
-            `;
+            const normalized = type === 'error' ? 'error' : (type === 'success' ? 'success' : 'info');
 
-            if (type === 'success') {
-                setTimeout(() => {
-                    alertBox.innerHTML = '';
-                }, 4000);
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast(String(message || ''), normalized);
+                return;
             }
+
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    toast: true,
+                    position: 'top',
+                    icon: normalized,
+                    title: String(message || ''),
+                    showConfirmButton: false,
+                    timer: 3200,
+                    timerProgressBar: true
+                });
+                return;
+            }
+
+            alert(String(message || ''));
         }
 
         function loadProfile() {
-            fetch('/pages/MinC_Project/backend/get_profile.php')
+            fetch('../backend/get_profile.php')
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -388,7 +388,7 @@ if (!isset($_SESSION['user_id'])) {
                     } else {
                         const message = (data.message || '').toLowerCase();
                         if (message.includes('session') || message.includes('login') || message.includes('unauthorized')) {
-                            window.location.href = '/pages/MinC_Project/index.php';
+                            window.location.href = '../index.php';
                             return;
                         }
                         showAlert('Error loading profile: ' + (data.message || 'Unknown error'), 'error');
@@ -425,7 +425,7 @@ if (!isset($_SESSION['user_id'])) {
 
             document.getElementById('loading').classList.remove('hidden');
 
-            fetch('/pages/MinC_Project/backend/update_profile.php', {
+            fetch('../backend/update_profile.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -478,7 +478,7 @@ if (!isset($_SESSION['user_id'])) {
                 return;
             }
 
-            fetch('/pages/MinC_Project/backend/change_password_profile.php', {
+            fetch('../backend/change_password_profile.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -523,7 +523,7 @@ if (!isset($_SESSION['user_id'])) {
                 : confirm('Are you sure you want to deactivate your account? You will be logged out.');
             if (!confirmed) return;
 
-            fetch('/pages/MinC_Project/backend/deactivate_account.php', {
+            fetch('../backend/deactivate_account.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -535,7 +535,7 @@ if (!isset($_SESSION['user_id'])) {
                 if (data.success) {
                     showAlert(data.message || 'Account deactivated', 'success');
                     setTimeout(() => {
-                        window.location.href = data.redirect || '/pages/MinC_Project/index.php';
+                        window.location.href = data.redirect || '../index.php';
                     }, 800);
                 } else {
                     showAlert('Error: ' + (data.message || 'Unable to deactivate account'), 'error');
@@ -567,7 +567,7 @@ if (!isset($_SESSION['user_id'])) {
             const formData = new FormData();
             formData.append('profile_picture', file);
 
-            fetch('/pages/MinC_Project/backend/upload_profile_picture.php', {
+            fetch('../backend/upload_profile_picture.php', {
                 method: 'POST',
                 body: formData
             })
@@ -607,13 +607,13 @@ if (!isset($_SESSION['user_id'])) {
                 return;
             }
 
-            fetch('/pages/MinC_Project/backend/delete_profile_picture.php', {
+            fetch('../backend/delete_profile_picture.php', {
                 method: 'POST'
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    document.getElementById('profilePictureDisplay').src = '/pages/MinC_Project/Assets/images/default-avatar.png';
+                    document.getElementById('profilePictureDisplay').src = '../Assets/images/website-images/placeholder.svg';
                     document.getElementById('pictureBtnContainer').classList.add('hidden');
                     showAlert('Profile picture deleted successfully', 'success');
                 } else {

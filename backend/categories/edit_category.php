@@ -71,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Handle image upload
         $category_image = $old_data['category_image'];
         if (isset($_FILES['category_image']) && $_FILES['category_image']['error'] === UPLOAD_ERR_OK) {
-            $upload_dir = '../../assets/images/categories/';
+            $upload_dir = '../../Assets/images/categories/';
             
             // Create directory if it doesn't exist
             if (!file_exists($upload_dir)) {
@@ -197,8 +197,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         // Delete newly uploaded image if exists and there was an error
-        if (isset($category_image) && $category_image !== $old_data['category_image'] && file_exists('../../assets/images/categories/' . $category_image)) {
-            unlink('../../assets/images/categories/' . $category_image);
+        if (isset($category_image) && $category_image !== $old_data['category_image'] && file_exists('../../Assets/images/categories/' . $category_image)) {
+            unlink('../../Assets/images/categories/' . $category_image);
         }
         
         $_SESSION['error_message'] = 'Error: ' . $e->getMessage();

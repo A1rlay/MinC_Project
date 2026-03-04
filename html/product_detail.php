@@ -568,8 +568,8 @@ session_start();
     }
 
     // Add to cart
-    async function addToCart() {
-        if (!currentProduct) return;
+    async function addToCart(suppressSuccessToast = false) {
+        if (!currentProduct) return false;
 
         try {
             const response = await fetch('../backend/cart/cart_add.php', {
@@ -587,16 +587,23 @@ session_start();
 
             if (data.success) {
                 updateCartCount(data.cart_count);
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Added to Cart',
-                    text: `${quantity} x ${currentProduct.product_name} added to cart!`,
-                    toast: true,
-                    position: 'top-end',
-                    showConfirmButton: false,
-                    timer: 3000,
-                    timerProgressBar: true
-                });
+                if (!suppressSuccessToast) {
+                    const toastMessage = `${quantity} x ${currentProduct.product_name} added to cart!`;
+                    if (typeof window.showAppToast === 'function') {
+                        window.showAppToast(toastMessage, 'success');
+                    } else {
+                        Swal.fire({
+                            icon: 'success',
+                            title: toastMessage,
+                            toast: true,
+                            position: 'top',
+                            showConfirmButton: false,
+                            timer: 3200,
+                            timerProgressBar: true
+                        });
+                    }
+                }
+                return true;
             } else {
                 Swal.fire({
                     icon: 'error',
@@ -604,6 +611,7 @@ session_start();
                     text: data.message || 'Failed to add item to cart',
                     confirmButtonColor: '#08415c'
                 });
+                return false;
             }
         } catch (error) {
             console.error('Error adding to cart:', error);
@@ -613,19 +621,46 @@ session_start();
                 text: 'An error occurred while adding to cart',
                 confirmButtonColor: '#08415c'
             });
+            return false;
         }
     }
 
-    // Buy now
+    // Buy now (checkout only this product/quantity)
     function buyNow() {
-        addToCart();
-        // Redirect to checkout page (to be implemented)
-        Swal.fire({
-            icon: 'info',
-            title: 'Checkout',
-            text: 'Checkout feature coming soon!',
-            confirmButtonColor: '#08415c'
-        });
+        if (!currentProduct) return;
+
+        const selectedQty = Math.max(1, parseInt(quantity, 10) || 1);
+        const maxStock = parseInt(currentProduct.stock_quantity, 10) || 0;
+
+        if (maxStock <= 0) {
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast('This item is out of stock.', 'error');
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Out of Stock',
+                    text: 'This item is currently unavailable.',
+                    confirmButtonColor: '#08415c'
+                });
+            }
+            return;
+        }
+
+        if (selectedQty > maxStock) {
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast(`Only ${maxStock} item(s) available.`, 'warning');
+            } else {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Invalid Quantity',
+                    text: `Only ${maxStock} item(s) available.`,
+                    confirmButtonColor: '#08415c'
+                });
+            }
+            return;
+        }
+
+        window.location.href = `checkout.php?buy_now=1&product_id=${encodeURIComponent(currentProduct.product_id)}&quantity=${encodeURIComponent(selectedQty)}`;
     }
 
     // Update cart count

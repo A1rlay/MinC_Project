@@ -239,19 +239,6 @@ INSERT INTO `products` (`product_id`, `product_line_id`, `product_name`, `produc
 (33, 12, 'Premium Wiper Blades 22 inch', 'premium-wiper-blades-22-inch', 'WIPER-001', 'All-season premium wiper blade 22 inch', 'wiper-22.jpg', 599.00, 70, 'in_stock', 15, 1, 1, 'active', '2025-11-29 04:33:22', '2025-11-29 04:33:22'),
 (34, 12, 'Rear Wiper Blade 14 inch', 'rear-wiper-blade-14-inch', 'WIPER-002', 'Rear windshield wiper blade 14 inch', 'wiper-rear-14.jpg', 399.00, 80, 'in_stock', 20, 0, 2, 'active', '2025-11-29 04:33:22', '2025-11-29 04:33:22'),
 (35, 12, 'Heavy Duty Wiper Blades', 'heavy-duty-wiper-blades', 'WIPER-003', 'Heavy duty winter wiper blade set', 'wiper-heavy-duty.jpg', 899.00, 55, 'in_stock', 15, 1, 3, 'active', '2025-11-29 04:33:22', '2025-11-29 04:33:22');
-DELIMITER $$
-CREATE TRIGGER `update_stock_status` BEFORE UPDATE ON `products` FOR EACH ROW BEGIN
-    IF NEW.stock_quantity = 0 THEN
-        SET NEW.stock_status = 'out_of_stock';
-    ELSEIF NEW.stock_quantity <= NEW.min_stock_level THEN
-        SET NEW.stock_status = 'low_stock';
-    ELSE
-        SET NEW.stock_status = 'in_stock';
-    END IF;
-END
-$$
-DELIMITER ;
-
 CREATE TABLE `product_lines` (
   `product_line_id` int(11) NOT NULL,
   `category_id` int(11) NOT NULL,

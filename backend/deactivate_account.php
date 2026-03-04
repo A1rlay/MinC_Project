@@ -84,10 +84,15 @@ try {
     session_unset();
     session_destroy();
 
+    $projectBase = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/backend/deactivate_account.php', 2)), '/');
+    if ($projectBase === '') {
+        $projectBase = '/';
+    }
+
     echo json_encode([
         'success' => true,
         'message' => 'Account deactivated successfully',
-        'redirect' => '/pages/MinC_Project/index.php'
+        'redirect' => rtrim($projectBase, '/') . '/index.php'
     ]);
 } catch (Exception $e) {
     error_log('Error in deactivate_account.php: ' . $e->getMessage());

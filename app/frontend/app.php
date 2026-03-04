@@ -439,6 +439,65 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
         background: rgba(8, 65, 92, 0.2) !important;
         color: #08415c !important;
     }
+
+    .minc-toast-container {
+        position: fixed !important;
+        inset: 0 !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: flex-start !important;
+        padding-top: 50px !important;
+        pointer-events: none !important;
+        z-index: 10000 !important;
+    }
+
+    .swal2-container.minc-toast-container > .swal2-popup.minc-toast-popup {
+        margin: 0 auto !important;
+    }
+
+    .swal2-popup.minc-toast-popup {
+        width: min(92vw, 420px) !important;
+        min-height: 0 !important;
+        padding: 0.55rem 0.8rem !important;
+        border-radius: 12px !important;
+        background: linear-gradient(135deg, #08415c 0%, #0a5273 100%) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        color: #fff !important;
+        pointer-events: auto !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22) !important;
+    }
+
+    .swal2-popup.minc-toast-popup .swal2-title.minc-toast-title {
+        margin: 0 !important;
+        font-size: 0.92rem !important;
+        font-weight: 600 !important;
+        line-height: 1.25 !important;
+    }
+
+    .swal2-popup.minc-toast-popup .swal2-close.minc-toast-close {
+        color: rgba(255, 255, 255, 0.9) !important;
+        font-size: 1.2rem !important;
+        width: 1.5rem !important;
+        height: 1.5rem !important;
+    }
+
+    .swal2-popup.minc-toast-popup .swal2-icon {
+        margin: 0 0.55rem 0 0 !important;
+        transform: scale(0.78);
+    }
+
+    .swal2-popup.minc-toast-popup .swal2-timer-progress-bar {
+        background: rgba(255, 255, 255, 0.4) !important;
+    }
+
+    .swal2-popup.minc-toast-popup.minc-toast-info,
+    .swal2-popup.minc-toast-popup.minc-toast-success,
+    .swal2-popup.minc-toast-popup.minc-toast-warning,
+    .swal2-popup.minc-toast-popup.minc-toast-error,
+    .swal2-popup.minc-toast-popup.minc-toast-question {
+        background: linear-gradient(135deg, #08415c 0%, #0a5273 100%) !important;
+        color: #fff !important;
+    }
     
     /* Additional custom styles */
     <?php if (isset($additional_styles)): ?>
@@ -594,6 +653,123 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
 
     <!-- JavaScript for enhanced functionality -->
     <script>
+        function resolveToastVariant(icon) {
+            const value = String(icon || 'info').toLowerCase();
+            if (value === 'error' || value === 'success' || value === 'warning' || value === 'question' || value === 'info') {
+                return value;
+            }
+            return 'info';
+        }
+
+        function enforceCenteredToastLayout(toastEl) {
+            const container = toastEl && toastEl.parentElement ? toastEl.parentElement : null;
+            if (!container) return;
+
+            container.style.position = 'fixed';
+            container.style.top = '0';
+            container.style.right = '0';
+            container.style.bottom = '0';
+            container.style.left = '0';
+            container.style.width = '100vw';
+            container.style.maxWidth = '100vw';
+            container.style.transform = 'none';
+            container.style.margin = '0';
+            container.style.display = 'flex';
+            container.style.justifyContent = 'center';
+            container.style.alignItems = 'flex-start';
+            container.style.paddingTop = '50px';
+            container.style.pointerEvents = 'none';
+            container.style.zIndex = '10000';
+            container.classList.remove('swal2-top-start', 'swal2-top-end');
+            container.classList.add('swal2-top');
+
+            toastEl.style.margin = '0 auto';
+            toastEl.style.pointerEvents = 'auto';
+        }
+
+        function showAppToast(message, icon = 'info', options = {}) {
+            if (typeof Swal === 'undefined') {
+                alert(String(message ?? ''));
+                return Promise.resolve();
+            }
+
+            const variant = resolveToastVariant(icon || options.icon);
+            const popupClass = `minc-toast-popup minc-toast-${variant}`;
+            const originalDidOpen = options.didOpen;
+
+            return Swal.fire(Object.assign({}, options, {
+                toast: true,
+                position: 'top',
+                icon: variant,
+                title: options.title || String(message ?? ''),
+                text: options.text || undefined,
+                showConfirmButton: false,
+                showCloseButton: true,
+                timer: options.timer ?? 3200,
+                timerProgressBar: true,
+                customClass: Object.assign({}, options.customClass || {}, {
+                    container: 'minc-toast-container',
+                    popup: popupClass,
+                    title: 'minc-toast-title',
+                    closeButton: 'minc-toast-close'
+                }),
+                didOpen: (toast) => {
+                    enforceCenteredToastLayout(toast);
+                    toast.addEventListener('mouseenter', Swal.stopTimer);
+                    toast.addEventListener('mouseleave', Swal.resumeTimer);
+                    if (typeof originalDidOpen === 'function') {
+                        originalDidOpen(toast);
+                    }
+                }
+            }));
+        }
+
+        function applyGlobalToastDefaults() {
+            if (typeof Swal === 'undefined' || Swal.__mincToastPatched) {
+                return;
+            }
+
+            const originalFire = Swal.fire.bind(Swal);
+
+            Swal.fire = function(...args) {
+                if (args.length === 1 && args[0] && typeof args[0] === 'object' && args[0].toast === true) {
+                    const input = args[0];
+                    const variant = resolveToastVariant(input.icon);
+                    const originalDidOpen = input.didOpen;
+                    const existingPopup = (input.customClass && input.customClass.popup) ? String(input.customClass.popup) : '';
+                    const popupClass = existingPopup.includes('minc-toast-popup')
+                        ? existingPopup
+                        : `${existingPopup} minc-toast-popup minc-toast-${variant}`.trim();
+
+                    return originalFire(Object.assign({}, input, {
+                        position: 'top',
+                        showCloseButton: input.showCloseButton ?? true,
+                        showConfirmButton: false,
+                        timerProgressBar: input.timerProgressBar ?? true,
+                        customClass: Object.assign({}, input.customClass || {}, {
+                            container: (input.customClass && input.customClass.container) || 'minc-toast-container',
+                            popup: popupClass,
+                            title: (input.customClass && input.customClass.title) || 'minc-toast-title',
+                            closeButton: (input.customClass && input.customClass.closeButton) || 'minc-toast-close'
+                        }),
+                        didOpen: (toast) => {
+                            enforceCenteredToastLayout(toast);
+                            toast.addEventListener('mouseenter', Swal.stopTimer);
+                            toast.addEventListener('mouseleave', Swal.resumeTimer);
+                            if (typeof originalDidOpen === 'function') {
+                                originalDidOpen(toast);
+                            }
+                        }
+                    }));
+                }
+
+                return originalFire(...args);
+            };
+
+            Swal.__mincToastPatched = true;
+        }
+
+        applyGlobalToastDefaults();
         function showAlertModal(message, icon = 'info', title = 'Notice') {
             if (typeof Swal !== 'undefined') {
                 return Swal.fire({
@@ -639,6 +815,7 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
             return prompt(inputLabel || title);
         }
 
+        window.showAppToast = showAppToast;
         window.showAlertModal = showAlertModal;
         window.showConfirmModal = showConfirmModal;
         window.showPromptModal = showPromptModal;
