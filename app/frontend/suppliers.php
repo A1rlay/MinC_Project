@@ -213,22 +213,30 @@ ob_start();
 <div id="addSupplierModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
     <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
         <h3 class="text-lg font-bold text-[#08415c] mb-4">Add New Supplier</h3>
-        <form id="addSupplierForm" class="space-y-4">
+        <form id="addSupplierForm" class="space-y-4" action="../../backend/suppliers/add_supplier.php" method="POST">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Supplier Name *</label>
-                <input type="text" name="supplier_name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" required>
+                <input type="text" name="supplier_name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" minlength="2" maxlength="255" required>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Contact Person</label>
-                <input type="text" name="contact_person" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent">
+                <input type="text" name="contact_person" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" maxlength="255">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input type="email" name="email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent">
+                <input type="email" name="email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" maxlength="255">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                <input type="tel" name="phone" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent">
+                <input type="tel" name="phone" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" maxlength="50">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+                <input type="text" name="city" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" maxlength="100">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Province</label>
+                <input type="text" name="province" value="Pampanga" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" maxlength="100">
             </div>
             <div class="flex space-x-3 justify-end mt-6">
                 <button type="button" onclick="closeAddSupplierModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
@@ -251,11 +259,6 @@ ob_start();
         document.getElementById('addSupplierModal').classList.add('hidden');
     }
 
-    document.getElementById('addSupplierForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        showAlertModal('Supplier management module is ready. Backend API endpoints need to be created for full functionality.', 'info', 'Suppliers');
-        closeAddSupplierModal();
-    });
 </script>
 
 <?php

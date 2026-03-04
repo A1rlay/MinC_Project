@@ -26,6 +26,10 @@ if (!isset($config) || !isset($user)) {
     $current_page = $current_page ?? basename($_SERVER['PHP_SELF'], '.php');
 }
 
+$is_employee_sidebar = function_exists('isEmployee')
+    ? isEmployee()
+    : (isset($_SESSION['user_level_id']) && (int)$_SESSION['user_level_id'] === 2);
+
 ?>
 
 <!-- Sidebar Overlay (Mobile) -->
@@ -61,6 +65,7 @@ if (!isset($config) || !isset($user)) {
     <!-- Navigation Links -->
     <div class="py-4 flex-1 relative z-10 bg-gray-100">
 
+        <?php if (!$is_employee_sidebar): ?>
         <!-- Main Navigation -->
         <div class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 sidebar-heading transition-all duration-300">Main Navigation</div>
         <ul class="space-y-1 px-2">
@@ -95,7 +100,9 @@ if (!isset($config) || !isset($user)) {
             </li>
             <?php endif; ?>
         </ul>
+        <?php endif; ?>
 
+        <?php if (!$is_employee_sidebar): ?>
         <!-- Commerce Section -->
         <div class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 mt-6 sidebar-heading transition-all duration-300">Commerce</div>
         <ul class="space-y-1 px-2">
@@ -163,11 +170,12 @@ if (!isset($config) || !isset($user)) {
             </li>
             <?php endif; ?>
         </ul>
+        <?php endif; ?>
 
         <!-- Inventory Section -->
         <div class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 mt-6 sidebar-heading transition-all duration-300">Inventory</div>
         <ul class="space-y-1 px-2">
-            <?php if (isITStaff() || isOwner()): ?>
+            <?php if (isITStaff()): ?>
             <li>
                 <a href="stock-management.php" class="nav-link group flex items-center px-3 py-2.5 text-gray-700 hover:bg-gray-200 hover:text-[#08415c] transition-all duration-200 rounded-lg <?php echo $current_page === 'stock-management' ? 'active-link text-[#08415c] bg-gray-200' : ''; ?>">
                     <span class="inline-flex justify-center items-center w-8 h-8 rounded-lg bg-gray-200 group-hover:bg-gray-300 nav-icon transition-all duration-300 group-hover:text-[#08415c]">
@@ -178,7 +186,7 @@ if (!isset($config) || !isset($user)) {
             </li>
             <?php endif; ?>
 
-            <?php if (isITStaff() || isOwner()): ?>
+            <?php if (isITStaff()): ?>
             <li>
                 <a href="suppliers.php" class="nav-link group flex items-center px-3 py-2.5 text-gray-700 hover:bg-gray-200 hover:text-[#08415c] transition-all duration-200 rounded-lg <?php echo $current_page === 'suppliers' ? 'active-link text-[#08415c] bg-gray-200' : ''; ?>">
                     <span class="inline-flex justify-center items-center w-8 h-8 rounded-lg bg-gray-200 group-hover:bg-gray-300 nav-icon transition-all duration-300 group-hover:text-[#08415c]">
@@ -189,7 +197,7 @@ if (!isset($config) || !isset($user)) {
             </li>
             <?php endif; ?>
 
-            <?php if (isITStaff() || isOwner()): ?>
+            <?php if (isITStaff() || $is_employee_sidebar): ?>
             <li>
                 <a href="purchase-order.php" class="nav-link group flex items-center px-3 py-2.5 text-gray-700 hover:bg-gray-200 hover:text-[#08415c] transition-all duration-200 rounded-lg <?php echo $current_page === 'purchase-order' ? 'active-link text-[#08415c] bg-gray-200' : ''; ?>">
                     <span class="inline-flex justify-center items-center w-8 h-8 rounded-lg bg-gray-200 group-hover:bg-gray-300 nav-icon transition-all duration-300 group-hover:text-[#08415c]">
@@ -201,6 +209,7 @@ if (!isset($config) || !isset($user)) {
             <?php endif; ?>
         </ul>
 
+        <?php if (isITStaff() || $is_employee_sidebar): ?>
         <!-- Reports Section -->
         <div class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 mt-6 sidebar-heading transition-all duration-300">Reports</div>
         <ul class="space-y-1 px-2">
@@ -222,7 +231,7 @@ if (!isset($config) || !isset($user)) {
                 </a>
             </li>
 
-            <?php if (isITStaff() || isOwner() || isManager()): ?>
+            <?php if (isITStaff() || $is_employee_sidebar): ?>
             <li>
                 <a href="generate_report.php" class="nav-link group flex items-center px-3 py-2.5 text-gray-700 hover:bg-gray-200 hover:text-[#08415c] transition-all duration-200 rounded-lg <?php echo $current_page === 'generate_report' ? 'active-link text-[#08415c] bg-gray-200' : ''; ?>">
                     <span class="inline-flex justify-center items-center w-8 h-8 rounded-lg bg-gray-200 group-hover:bg-gray-300 nav-icon transition-all duration-300 group-hover:text-[#08415c]">
@@ -233,11 +242,13 @@ if (!isset($config) || !isset($user)) {
             </li>
             <?php endif; ?>
         </ul>
-        
+        <?php endif; ?>
+
+        <?php if ($is_employee_sidebar): ?>
         <!-- Customer Service Section -->
         <div class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 mt-6 sidebar-heading transition-all duration-300">Customer Service</div>
         <ul class="space-y-1 px-2">
-            <?php if (isEmployee()): ?>
+            <?php if ($is_employee_sidebar): ?>
             <li>
                 <a href="customer-messages.php" class="nav-link group flex items-center px-3 py-2.5 text-gray-700 hover:bg-gray-200 hover:text-[#08415c] transition-all duration-200 rounded-lg <?php echo in_array($current_page, ['customer-messages', 'chat-admin'], true) ? 'active-link text-[#08415c] bg-gray-200' : ''; ?>">
                     <span class="inline-flex justify-center items-center w-8 h-8 rounded-lg bg-gray-200 group-hover:bg-gray-300 nav-icon transition-all duration-300 group-hover:text-[#08415c]">
@@ -248,6 +259,7 @@ if (!isset($config) || !isset($user)) {
             </li>
             <?php endif; ?>
         </ul>
+        <?php endif; ?>
     </div>
     
     <!-- Sidebar Footer -->
