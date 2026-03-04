@@ -118,19 +118,10 @@ $normalizeMessageBody = static function ($content) {
         $content = $decoded;
     }
 
+    $content = strip_tags($content);
     $content = str_replace(["\xC2\xA0", '&nbsp;'], ' ', $content);
-    $content = str_replace(["\r\n", "\r"], "\n", $content);
-    $content = preg_replace('/[ \t\f\v]+/u', ' ', $content);
-
-    $lines = array_map(static function ($line) {
-        return trim((string)$line);
-    }, explode("\n", $content));
-
-    $lines = array_values(array_filter($lines, static function ($line) {
-        return $line !== '';
-    }));
-
-    $content = implode("\n", $lines);
+    $content = str_replace(["\r\n", "\r", "\n"], ' ', $content);
+    $content = preg_replace('/\s+/u', ' ', $content);
     return trim($content);
 };
 
@@ -193,6 +184,31 @@ try {
         $msgStmt = $pdo->prepare($msgQuery);
         $msgStmt->execute([':session_id' => $current_session]);
         $current_messages = $msgStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Normalize legacy records for the active conversation so rendering is consistent.
+        $normalizeUpdateStmt = $pdo->prepare("
+            UPDATE chat_messages
+            SET message_content = :message_content
+            WHERE message_id = :message_id
+            LIMIT 1
+        ");
+
+        foreach ($current_messages as &$messageRow) {
+            $normalized = $normalizeMessageBody($messageRow['message_content'] ?? '');
+            if ($normalized === '') {
+                continue;
+            }
+
+            $encodedNormalized = htmlspecialchars($normalized, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            if ((string)($messageRow['message_content'] ?? '') !== $encodedNormalized) {
+                $normalizeUpdateStmt->execute([
+                    ':message_content' => $encodedNormalized,
+                    ':message_id' => (int)($messageRow['message_id'] ?? 0)
+                ]);
+                $messageRow['message_content'] = $encodedNormalized;
+            }
+        }
+        unset($messageRow);
 
         $updateQuery = "
             UPDATE chat_messages
@@ -397,8 +413,10 @@ $additional_styles = <<<CSS
     padding: 10px 12px;
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
     word-break: break-word;
-    white-space: pre-wrap;
+    white-space: normal;
     text-align: left !important;
+    line-height: 1.35;
+    display: block;
 }
 
 .chat-bubble.customer {
@@ -670,18 +688,17 @@ const messageText = document.getElementById('messageText');
 const messagesContainer = document.getElementById('messages');
 
 function normalizeMessageBody(text) {
-    const decoded = document.createElement('textarea');
-    decoded.innerHTML = String(text || '');
-    const normalized = decoded.value
-        .replace(/\u00A0/g, ' ')
-        .replace(/\r\n?/g, '\n')
-        .replace(/[ \t\f\v]+/g, ' ');
+    const decodeArea = document.createElement('textarea');
+    decodeArea.innerHTML = String(text || '');
 
-    return normalized
-        .split('\n')
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0)
-        .join('\n')
+    const stripNode = document.createElement('div');
+    stripNode.textContent = decodeArea.value;
+
+    return String(stripNode.textContent || '')
+        .replace(/\u00A0/g, ' ')
+        .replace(/\r\n?/g, ' ')
+        .replace(/\n/g, ' ')
+        .replace(/\s+/g, ' ')
         .trim();
 }
 

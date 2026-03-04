@@ -18,19 +18,12 @@ try {
             $message = $decoded;
         }
 
+        $message = strip_tags($message);
         $message = str_replace(["\xC2\xA0", '&nbsp;'], ' ', $message);
-        $message = str_replace(["\r\n", "\r"], "\n", $message);
-        $message = preg_replace('/[ \t\f\v]+/u', ' ', $message);
+        $message = str_replace(["\r\n", "\r", "\n"], ' ', $message);
+        $message = preg_replace('/\s+/u', ' ', $message);
 
-        $lines = array_map(static function ($line) {
-            return trim((string)$line);
-        }, explode("\n", $message));
-
-        $lines = array_values(array_filter($lines, static function ($line) {
-            return $line !== '';
-        }));
-
-        return trim(implode("\n", $lines));
+        return trim($message);
     };
 
     // Get the request method
