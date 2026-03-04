@@ -23,6 +23,21 @@ function normalizeName($value) {
     return ucwords(strtolower($value), " -'");
 }
 
+function resolveUserTypeName($userLevelId, $fallback = 'Unknown') {
+    switch ((int)$userLevelId) {
+        case 1:
+            return 'Admin';
+        case 2:
+            return 'Employee';
+        case 3:
+            return 'Supplier';
+        case 4:
+            return 'Customer';
+        default:
+            return (string)$fallback;
+    }
+}
+
 /**
  * Validate session and handle authentication
  * @param bool $redirect Whether to redirect on failure (false for API calls)
@@ -93,10 +108,10 @@ function isITStaff() {
 }
 
 /**
- * Check if user is Employee (legacy Owner/Manager ids: 2, 3)
+ * Check if user is Employee (level 2)
  */
 function isOwner() {
-    return isset($_SESSION['user_level_id']) && in_array((int)$_SESSION['user_level_id'], [2, 3], true);
+    return isset($_SESSION['user_level_id']) && (int)$_SESSION['user_level_id'] === 2;
 }
 
 /**
@@ -108,16 +123,32 @@ function isManager() {
 
 /**
  * Check if user is Employee-only role.
- * This excludes IT/admin and owner-level accounts.
  */
 function isEmployee() {
+    if (isset($_SESSION['user_level_id'])) {
+        return (int)$_SESSION['user_level_id'] === 2;
+    }
+
     if (isset($_SESSION['user_type_name'])) {
         $type = strtolower(trim((string)$_SESSION['user_type_name']));
-        if (in_array($type, ['employee', 'employees', 'manager'], true)) {
+        if (in_array($type, ['employee', 'employees'], true)) {
             return true;
         }
     }
 
+    return false;
+}
+
+/**
+ * Check if user is Supplier (user_level_id = 3)
+ */
+function isSupplier() {
+    if (isset($_SESSION['user_type_name'])) {
+        $type = strtolower(trim((string)$_SESSION['user_type_name']));
+        if (in_array($type, ['supplier', 'suppliers'], true)) {
+            return true;
+        }
+    }
     return isset($_SESSION['user_level_id']) && (int)$_SESSION['user_level_id'] === 3;
 }
 
@@ -255,8 +286,8 @@ if (isset($_GET['api']) && $_GET['api'] === 'status') {
                 'name' => trim($displayFname . ' ' . $displayLname),
                 'email' => $user['email'],
                 'user_level_id' => $user['user_level_id'],
-                'user_type_name' => $user['user_type_name'],
-                'is_admin' => in_array($user['user_level_id'], [1, 2, 3])
+                'user_type_name' => resolveUserTypeName($user['user_level_id'], $user['user_type_name']),
+                'is_admin' => in_array($user['user_level_id'], [1, 2], true)
             ]
         ]);
         

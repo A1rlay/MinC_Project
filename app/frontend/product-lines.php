@@ -49,7 +49,6 @@ try {
             pl.product_line_id,
             pl.category_id,
             pl.product_line_name,
-            pl.product_line_slug,
             pl.product_line_description,
             pl.product_line_image,
             pl.display_order,
@@ -487,7 +486,6 @@ ob_start();
                     <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
                     <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                     <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Line</th>
-                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Slug</th>
                     <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
                     <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -496,7 +494,7 @@ ob_start();
             <tbody class="bg-white divide-y divide-gray-200">
                 <?php if (empty($product_lines)): ?>
                     <tr>
-                        <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                        <td colspan="6" class="px-6 py-12 text-center text-gray-500">
                             <i class="fas fa-boxes text-4xl mb-4 text-gray-300"></i>
                             <p>No product lines found.</p>
                         </td>
@@ -528,11 +526,6 @@ ob_start();
                                 </div>
                                 <div class="text-sm text-gray-500">
                                     <?php echo htmlspecialchars(substr($product_line['product_line_description'] ?? 'No description', 0, 50)) . (strlen($product_line['product_line_description'] ?? '') > 50 ? '...' : ''); ?>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm text-gray-900">
-                                    <?php echo htmlspecialchars($product_line['product_line_slug']); ?>
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
@@ -605,7 +598,6 @@ ob_start();
                             <?php endif; ?>
                             <div>
                                 <h4 class="font-medium text-gray-900"><?php echo htmlspecialchars($product_line['product_line_name']); ?></h4>
-                                <p class="text-xs text-gray-500"><?php echo htmlspecialchars($product_line['product_line_slug']); ?></p>
                             </div>
                         </div>
                         <span class="status-badge status-<?php echo $product_line['status']; ?>">
@@ -680,11 +672,6 @@ ob_start();
                 <input type="text" id="add_product_line_name" name="product_line_name" class="form-input" required>
             </div>
             <div class="form-group">
-                <label for="add_product_line_slug" class="form-label">Product Line Slug *</label>
-                <input type="text" id="add_product_line_slug" name="product_line_slug" class="form-input" required>
-                <p class="text-xs text-gray-500 mt-1">URL-friendly version (e.g., wheel-accessories)</p>
-            </div>
-            <div class="form-group">
                 <label for="add_product_line_description" class="form-label">Description</label>
                 <textarea id="add_product_line_description" name="product_line_description" class="form-textarea"></textarea>
             </div>
@@ -748,12 +735,6 @@ ob_start();
             <div class="form-group">
                 <label for="edit_product_line_name" class="form-label">Product Line Name *</label>
                 <input type="text" id="edit_product_line_name" name="product_line_name" class="form-input" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="edit_product_line_slug" class="form-label">Product Line Slug *</label>
-                <input type="text" id="edit_product_line_slug" name="product_line_slug" class="form-input" required>
-                <p class="text-xs text-gray-500 mt-1">URL-friendly version (e.g., wheel-accessories)</p>
             </div>
             
             <div class="form-group">
@@ -821,7 +802,6 @@ document.addEventListener("DOMContentLoaded", function() {
     console.log("DOM loaded, initializing filters and pagination");
     initializeFilters();
     initializePagination();
-    initializeSlugGeneration();
     updateDisplay();
 });
 
@@ -869,22 +849,6 @@ function initializePagination() {
             recordsPerPage = parseInt(this.value);
             currentPage = 1;
             updateDisplay();
-        });
-    }
-}
-
-// Auto-generate slug from product line name
-function initializeSlugGeneration() {
-    const addNameInput = document.getElementById("add_product_line_name");
-    const addSlugInput = document.getElementById("add_product_line_slug");
-    
-    if (addNameInput && addSlugInput) {
-        addNameInput.addEventListener("input", function() {
-            const slug = this.value
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/^-+|-+$/g, '');
-            addSlugInput.value = slug;
         });
     }
 }
@@ -1099,7 +1063,6 @@ function openEditModal(productLineId) {
                 document.getElementById("edit_product_line_id").value = productLine.product_line_id || "";
                 document.getElementById("edit_category_id").value = productLine.category_id || "";
                 document.getElementById("edit_product_line_name").value = productLine.product_line_name || "";
-                document.getElementById("edit_product_line_slug").value = productLine.product_line_slug || "";
                 document.getElementById("edit_product_line_description").value = productLine.product_line_description || "";
                 document.getElementById("edit_display_order").value = productLine.display_order || "0";
                 document.getElementById("edit_status").value = productLine.status || "active";

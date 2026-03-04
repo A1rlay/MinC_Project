@@ -84,27 +84,28 @@ try {
         
         if ($sender_type === 'admin') {
             // Admin can see all unread messages and conversation summaries
-            $query = "SELECT DISTINCT 
+            $query = "SELECT
                         MIN(message_id) as first_message_id,
-                        sender_id, 
-                        sender_name, 
-                        sender_email,
-                        sender_type,
+                        MAX(CASE WHEN sender_type = 'customer' THEN sender_id END) as sender_id,
+                        MAX(CASE WHEN sender_type = 'customer' THEN sender_name END) as sender_name,
+                        MAX(CASE WHEN sender_type = 'customer' THEN sender_email END) as sender_email,
+                        'customer' as sender_type,
                         session_id,
                         COUNT(*) as message_count,
                         MAX(created_at) as last_message_time,
-                        SUM(CASE WHEN is_read = 0 THEN 1 ELSE 0 END) as unread_count
-                      FROM chat_messages 
-                      WHERE sender_type = 'customer'
-                      GROUP BY session_id, sender_email
+                        SUM(CASE WHEN is_read = 0 AND sender_type = 'customer' THEN 1 ELSE 0 END) as unread_count
+                      FROM chat_messages
+                      WHERE session_id IS NOT NULL AND session_id != ''
+                      GROUP BY session_id
                       ORDER BY last_message_time DESC
                       LIMIT 50";
         } else {
-            // Customer sees their own messages and admin responses
-            $query = "SELECT * FROM chat_messages 
-                      WHERE session_id = :session_id OR (sender_type = 'admin' AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY))
+            // Customer only sees the current conversation session.
+            // This prevents messages from other users/sessions from appearing.
+            $query = "SELECT * FROM chat_messages
+                      WHERE session_id = :session_id
                       ORDER BY created_at ASC
-                      LIMIT 100";
+                      LIMIT 200";
         }
         
         $stmt = $pdo->prepare($query);

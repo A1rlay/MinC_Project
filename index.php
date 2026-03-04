@@ -245,7 +245,7 @@ function updateUIForLoggedInUser(user) {
                 <a href="#" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">
                     <i class="fas fa-shopping-bag mr-2"></i>Orders
                 </a>
-                ${user.user_level_id <= 3 ? `
+                ${user.user_level_id <= 2 ? `
                 <a href="app/frontend/dashboard.php" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">
                     <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
                 </a>` : ''}

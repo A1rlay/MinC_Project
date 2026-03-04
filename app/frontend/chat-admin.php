@@ -76,9 +76,8 @@ try {
     error_log("Error fetching user data in chat-admin.php: " . $e->getMessage());
 }
 
-// Check authorization - employee role only
-$employeeRoleNames = ['employee', 'employees', 'manager'];
-$isEmployeeRole = isset($user['user_type_slug']) && in_array($user['user_type_slug'], $employeeRoleNames, true);
+// Check authorization - employee role only (level 2)
+$isEmployeeRole = isset($user['user_level_id']) && (int)$user['user_level_id'] === 2;
 $isRoleActive = isset($user['user_type_status']) && strtolower((string)$user['user_type_status']) === 'active';
 
 if (!$isEmployeeRole || !$isRoleActive) {
@@ -96,8 +95,8 @@ try {
     // Fetch all conversations
     $convQuery = "SELECT 
                     session_id, 
-                    MAX(sender_name) as sender_name, 
-                    MAX(sender_email) as sender_email,
+                    MAX(CASE WHEN sender_type = 'customer' THEN sender_name END) as sender_name,
+                    MAX(CASE WHEN sender_type = 'customer' THEN sender_email END) as sender_email,
                     MAX(created_at) as last_message_time,
                     COUNT(*) as total_messages,
                     SUM(CASE WHEN sender_type = 'customer' THEN 1 ELSE 0 END) as customer_messages,

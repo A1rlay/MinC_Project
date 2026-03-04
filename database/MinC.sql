@@ -303,7 +303,7 @@ CREATE TABLE `user_levels` (
 INSERT INTO `user_levels` (`user_level_id`, `user_type_name`, `user_type_status`, `created_at`, `updated_at`) VALUES
 (1, 'Admin', 'active', '2025-10-23 05:06:26', '2025-10-23 05:06:26'),
 (2, 'Employee', 'active', '2025-10-23 05:06:26', '2025-10-23 05:06:26'),
-(3, 'Employee', 'inactive', '2025-10-23 05:06:26', '2025-10-23 05:06:26'),
+(3, 'Supplier', 'active', '2025-10-23 05:06:26', '2025-10-23 05:06:26'),
 (4, 'Customer', 'active', '2025-10-23 05:06:26', '2025-10-23 05:06:26');
 
 CREATE TABLE `suppliers` (

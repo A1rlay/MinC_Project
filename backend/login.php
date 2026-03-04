@@ -18,6 +18,21 @@ function normalizeName($value) {
     return ucwords(strtolower($value), " -'");
 }
 
+function resolveUserTypeName($userLevelId, $fallback = 'User') {
+    switch ((int)$userLevelId) {
+        case 1:
+            return 'Admin';
+        case 2:
+            return 'Employee';
+        case 3:
+            return 'Supplier';
+        case 4:
+            return 'Customer';
+        default:
+            return (string)$fallback;
+    }
+}
+
 // Function to log audit trail
 function logAuditTrail($pdo, $userId, $username, $action, $entityType, $entityId, $oldValue = null, $newValue = null, $changeReason = null) {
     try {
@@ -156,9 +171,10 @@ try {
     }
     
 // MODIFIED: Determine if user is admin or customer
-// IT Personnel (1), Owner (2), Manager (3) -> Admin/Dashboard access
-// Consumer (4) -> Customer/Landing page access
-$isAdmin = in_array($user['user_level_id'], [1, 2, 3]);
+// IT Personnel (1) and Employee (2) -> Admin/Dashboard access
+// Supplier (3) and Customer (4) use customer-facing routes
+$isAdmin = in_array((int)$user['user_level_id'], [1, 2], true);
+$resolvedUserType = resolveUserTypeName((int)$user['user_level_id'], $user['user_type_name'] ?? 'User');
 
 // Login successful - Create session
 $_SESSION['user_id'] = $user['user_id'];
@@ -167,7 +183,7 @@ $_SESSION['fname'] = $user['fname'];
 $_SESSION['lname'] = $user['lname'];
 $_SESSION['username'] = $user['username'] ?? $user['fname'];
 $_SESSION['user_level_id'] = $user['user_level_id'];
-$_SESSION['user_type_name'] = $user['user_type_name'];
+$_SESSION['user_type_name'] = $resolvedUserType;
 $_SESSION['login_time'] = time();
 $_SESSION['is_admin'] = $isAdmin;
 
@@ -189,7 +205,7 @@ logAuditTrail(
     null,
     [
         'email' => $user['email'],
-        'user_level' => $user['user_type_name'],
+        'user_level' => $resolvedUserType,
         'login_time' => date('Y-m-d H:i:s'),
         'user_type' => $isAdmin ? 'admin' : 'customer'
     ],
@@ -212,7 +228,7 @@ echo json_encode([
         'user_id' => $user['user_id'],
         'name' => $fullName,
         'email' => $user['email'],
-        'user_level' => $user['user_type_name'],
+        'user_level' => $resolvedUserType,
         'user_level_id' => $user['user_level_id'],
         'is_admin' => $isAdmin
     ],

@@ -16,7 +16,7 @@ if (!$validation['valid']) {
 }
 
 // Check if user has permission to access user management
-// Only IT Personnel (1), Owner (2), and Manager (3) can access
+// Only Admin (1) and Employee (2) can access
 if (!isManagementLevel()) {
     $_SESSION['error_message'] = 'Access denied. You do not have permission to access this page.';
     header('Location: dashboard.php');
@@ -50,8 +50,13 @@ try {
             SELECT
                 user_level_id,
                 CASE
+                    WHEN user_level_id = 1 THEN 'Admin'
+                    WHEN user_level_id = 2 THEN 'Employee'
+                    WHEN user_level_id = 3 THEN 'Supplier'
+                    WHEN user_level_id = 4 THEN 'Customer'
                     WHEN LOWER(user_type_name) IN ('it personnel', 'admin') THEN 'Admin'
                     WHEN LOWER(user_type_name) IN ('owner', 'manager', 'employee', 'employees') THEN 'Employee'
+                    WHEN LOWER(user_type_name) IN ('supplier', 'suppliers') THEN 'Supplier'
                     WHEN LOWER(user_type_name) IN ('consumer', 'customer', 'customers') THEN 'Customer'
                     ELSE user_type_name
                 END AS normalized_name
@@ -63,8 +68,9 @@ try {
             CASE normalized_name
                 WHEN 'Admin' THEN 1
                 WHEN 'Employee' THEN 2
-                WHEN 'Customer' THEN 3
-                ELSE 4
+                WHEN 'Supplier' THEN 3
+                WHEN 'Customer' THEN 4
+                ELSE 5
             END,
             normalized_name
     ";
@@ -97,8 +103,13 @@ try {
             u.user_status,
             u.user_level_id,
             CASE
+                WHEN u.user_level_id = 1 THEN 'Admin'
+                WHEN u.user_level_id = 2 THEN 'Employee'
+                WHEN u.user_level_id = 3 THEN 'Supplier'
+                WHEN u.user_level_id = 4 THEN 'Customer'
                 WHEN LOWER(ul.user_type_name) IN ('it personnel', 'admin') THEN 'Admin'
                 WHEN LOWER(ul.user_type_name) IN ('owner', 'manager', 'employee', 'employees') THEN 'Employee'
+                WHEN LOWER(ul.user_type_name) IN ('supplier', 'suppliers') THEN 'Supplier'
                 WHEN LOWER(ul.user_type_name) IN ('consumer', 'customer', 'customers') THEN 'Customer'
                 ELSE ul.user_type_name
             END AS user_type_name,

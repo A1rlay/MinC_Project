@@ -25,10 +25,33 @@ if (!isManagementLevel()) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
+        $slugify = static function ($value) {
+            $slug = strtolower(trim((string)$value));
+            $slug = preg_replace('/[^a-z0-9]+/', '-', $slug);
+            $slug = trim($slug, '-');
+            return $slug !== '' ? $slug : 'product-line';
+        };
+
+        $generateUniqueSlug = static function ($pdo, $baseSlug) {
+            $slug = $baseSlug;
+            $counter = 2;
+            while (true) {
+                $check = $pdo->prepare("SELECT product_line_id FROM product_lines WHERE product_line_slug = ? LIMIT 1");
+                $check->execute([$slug]);
+                if (!$check->fetch()) {
+                    return $slug;
+                }
+                $slug = $baseSlug . '-' . $counter;
+                $counter++;
+                if ($counter > 9999) {
+                    throw new Exception('Unable to generate a unique product line slug.');
+                }
+            }
+        };
+
         // Get form data
         $category_id = intval($_POST['category_id'] ?? 0);
         $product_line_name = trim($_POST['product_line_name'] ?? '');
-        $product_line_slug = trim($_POST['product_line_slug'] ?? '');
         $product_line_description = trim($_POST['product_line_description'] ?? '');
         $display_order = intval($_POST['display_order'] ?? 0);
         
@@ -40,23 +63,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($product_line_name)) {
             throw new Exception('Product line name is required.');
         }
-        
-        if (empty($product_line_slug)) {
-            throw new Exception('Product line slug is required.');
-        }
+
+        $baseSlug = $slugify($product_line_name);
+        $product_line_slug = $generateUniqueSlug($pdo, $baseSlug);
         
         // Validate category exists
         $check_category = $pdo->prepare("SELECT category_id FROM categories WHERE category_id = ?");
         $check_category->execute([$category_id]);
         if (!$check_category->fetch()) {
             throw new Exception('Selected category does not exist.');
-        }
-        
-        // Check if slug already exists
-        $check_slug = $pdo->prepare("SELECT product_line_id FROM product_lines WHERE product_line_slug = ?");
-        $check_slug->execute([$product_line_slug]);
-        if ($check_slug->fetch()) {
-            throw new Exception('Product line slug already exists. Please use a different slug.');
         }
         
         // Handle image upload

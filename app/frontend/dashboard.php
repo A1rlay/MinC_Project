@@ -183,6 +183,10 @@ $additional_styles = '
     .stat-card .icon-box {
         background: linear-gradient(135deg, #08415c 0%, #0a5273 100%);
     }
+
+    .stat-card .icon-box-warning {
+        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    }
     
     .quick-action-btn {
         background: linear-gradient(135deg, rgba(248,250,252,0.95) 0%, rgba(255,255,255,0.95) 100%);
@@ -317,10 +321,10 @@ ob_start();
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-sm font-medium text-gray-600 mb-1">Low Stock Items</p>
-                <p class="text-3xl font-bold text-[#08415c]"><?= $low_stock ?></p>
-                <p class="text-xs text-[#0a5273] mt-2">Restock needed</p>
+                <p class="text-3xl font-bold text-[#dc2626]"><?= $low_stock ?></p>
+                <p class="text-xs text-[#b91c1c] mt-2">Restock needed</p>
             </div>
-            <div class="p-4 icon-box rounded-xl">
+            <div class="p-4 icon-box-warning rounded-xl">
                 <i class="fas fa-exclamation-triangle text-white text-2xl"></i>
             </div>
         </div>

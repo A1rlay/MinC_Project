@@ -48,8 +48,13 @@ if (isset($_SESSION['user_id'])) {
                 u.email,
                 u.contact_num,
                 CASE
+                    WHEN u.user_level_id = 1 THEN 'Admin'
+                    WHEN u.user_level_id = 2 THEN 'Employee'
+                    WHEN u.user_level_id = 3 THEN 'Supplier'
+                    WHEN u.user_level_id = 4 THEN 'Customer'
                     WHEN LOWER(ul.user_type_name) IN ('it personnel', 'admin') THEN 'Admin'
                     WHEN LOWER(ul.user_type_name) IN ('owner', 'manager', 'employee', 'employees') THEN 'Employee'
+                    WHEN LOWER(ul.user_type_name) IN ('supplier', 'suppliers') THEN 'Supplier'
                     WHEN LOWER(ul.user_type_name) IN ('consumer', 'customer', 'customers') THEN 'Customer'
                     ELSE ul.user_type_name
                 END as user_type,
