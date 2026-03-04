@@ -8,6 +8,16 @@ header('Content-Type: application/json');
 require_once '../../database/connect_database.php';
 
 try {
+    $isGenericDisplayName = static function ($value) {
+        $value = strtolower(trim((string)$value));
+        if ($value === '') {
+            return true;
+        }
+
+        $generic = ['customer', 'anonymous customer', 'anonymous', 'guest', 'user', 'unknown'];
+        return in_array($value, $generic, true);
+    };
+
     $normalizeMessageBody = static function ($message) {
         $message = (string)$message;
         for ($i = 0; $i < 2; $i++) {
@@ -52,6 +62,43 @@ try {
         $message_content = htmlspecialchars($normalizedMessage, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $sender_id = isset($data['sender_id']) ? intval($data['sender_id']) : null;
         $sender_type = isset($data['sender_type']) && $data['sender_type'] === 'admin' ? 'admin' : 'customer';
+
+        if ($sender_email !== null) {
+            $sender_email = trim((string)$sender_email);
+            if ($sender_email !== '' && !filter_var($sender_email, FILTER_VALIDATE_EMAIL)) {
+                $sender_email = null;
+            }
+        }
+
+        if ($sender_type === 'customer' && $sender_id !== null && $sender_id > 0) {
+            try {
+                $userInfoStmt = $pdo->prepare("
+                    SELECT
+                        TRIM(CONCAT(COALESCE(fname, ''), ' ', COALESCE(lname, ''))) AS full_name,
+                        email
+                    FROM users
+                    WHERE user_id = :user_id
+                    LIMIT 1
+                ");
+                $userInfoStmt->execute([':user_id' => $sender_id]);
+                $userInfo = $userInfoStmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($userInfo) {
+                    $fullName = trim((string)($userInfo['full_name'] ?? ''));
+                    $email = trim((string)($userInfo['email'] ?? ''));
+
+                    if ($fullName !== '' && $isGenericDisplayName($sender_name)) {
+                        $sender_name = $fullName;
+                    }
+
+                    if (($sender_email === null || $sender_email === '') && $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                        $sender_email = $email;
+                    }
+                }
+            } catch (Exception $ignored) {
+                // Keep chat send resilient if user lookup fails.
+            }
+        }
         
         // Use session_id from request data, fallback to PHP session_id
         $session_id = $data['session_id'] ?? session_id();

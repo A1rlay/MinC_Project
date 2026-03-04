@@ -4,8 +4,26 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 $chatIdentity = 'guest';
+$chatUserId = null;
+$chatDefaultName = 'Customer';
+$chatDefaultEmail = null;
+
 if (isset($_SESSION['user_id'])) {
-    $chatIdentity = 'user_' . (int) $_SESSION['user_id'];
+    $chatUserId = (int)$_SESSION['user_id'];
+    $chatIdentity = 'user_' . $chatUserId;
+
+    $sessionFullName = trim((string)($_SESSION['full_name'] ?? ''));
+    if ($sessionFullName === '') {
+        $sessionFullName = trim((string)(($_SESSION['fname'] ?? '') . ' ' . ($_SESSION['lname'] ?? '')));
+    }
+    if ($sessionFullName !== '') {
+        $chatDefaultName = $sessionFullName;
+    }
+
+    $sessionEmail = trim((string)($_SESSION['email'] ?? ''));
+    if ($sessionEmail !== '' && filter_var($sessionEmail, FILTER_VALIDATE_EMAIL)) {
+        $chatDefaultEmail = $sessionEmail;
+    }
 }
 ?>
 
@@ -172,6 +190,9 @@ if (isset($_SESSION['user_id'])) {
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const chatIdentity = <?php echo json_encode($chatIdentity); ?>;
+    const sessionUserId = <?php echo json_encode($chatUserId); ?>;
+    const sessionDefaultName = <?php echo json_encode($chatDefaultName); ?>;
+    const sessionDefaultEmail = <?php echo json_encode($chatDefaultEmail); ?>;
     const sessionStorageKey = 'chat_session_id_' + String(chatIdentity || 'guest');
     const chatToggleBtn = document.getElementById('chat-toggle-btn');
     const chatWindow = document.getElementById('chat-window');
@@ -266,8 +287,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const message = chatInput.value.trim();
         if (!message || !sessionId) return;
 
-        const customerName = localStorage.getItem('customer_name') || 'Customer';
-        const customerEmail = localStorage.getItem('customer_email') || null;
+        const isGenericName = (name) => /^(customer|anonymous customer|anonymous|guest|user|unknown)$/i.test(String(name || '').trim());
+
+        const storedName = String(localStorage.getItem('customer_name') || '').trim();
+        const storedEmail = String(localStorage.getItem('customer_email') || '').trim();
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        const customerName = (storedName !== '' && !isGenericName(storedName))
+            ? storedName
+            : String(sessionDefaultName || 'Customer');
+
+        const customerEmail = (storedEmail !== '' && emailPattern.test(storedEmail))
+            ? storedEmail
+            : (sessionDefaultEmail || null);
 
         chatSendBtn.disabled = true;
         fetch('./backend/chat/send_message.php', {
@@ -277,6 +309,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 message_content: message,
                 sender_name: customerName,
                 sender_email: customerEmail,
+                sender_id: sessionUserId ? Number(sessionUserId) : null,
                 sender_type: 'customer',
                 session_id: sessionId
             })

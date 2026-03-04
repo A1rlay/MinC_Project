@@ -63,11 +63,29 @@ if (!$isEmployeeRole || !$isRoleActive) {
     exit;
 }
 
-$resolveDisplayName = static function ($name, $email, $sessionId = '') {
-    $value = trim((string)$name);
-    $generic = ['customer', 'anonymous customer', 'anonymous', 'guest', 'user', 'unknown'];
+$isGenericDisplayName = static function ($name) {
+    $value = strtolower(trim((string)$name));
+    if ($value === '') {
+        return true;
+    }
 
-    if ($value !== '' && !in_array(strtolower($value), $generic, true)) {
+    $generic = ['customer', 'anonymous customer', 'anonymous', 'guest', 'user', 'unknown'];
+    return in_array($value, $generic, true);
+};
+
+$extractSessionUserId = static function ($sessionId) {
+    if (preg_match('/^user[_-]?(\d+)$/i', (string)$sessionId, $matches)) {
+        $userId = (int)$matches[1];
+        return $userId > 0 ? $userId : null;
+    }
+
+    return null;
+};
+
+$resolveDisplayName = static function ($name, $email, $sessionId = '') use ($isGenericDisplayName) {
+    $value = trim((string)$name);
+
+    if (!$isGenericDisplayName($value)) {
         return $value;
     }
 
@@ -138,6 +156,7 @@ try {
     $convQuery = "
         SELECT 
             session_id,
+            MAX(CASE WHEN sender_type = 'customer' THEN sender_id END) AS sender_id,
             MAX(CASE WHEN sender_type = 'customer' THEN sender_name END) AS sender_name,
             MAX(CASE WHEN sender_type = 'customer' THEN sender_email END) AS sender_email,
             MAX(created_at) AS last_message_time,
@@ -153,8 +172,55 @@ try {
 
     $convStmt = $pdo->query($convQuery);
     $conversations = $convStmt->fetchAll(PDO::FETCH_ASSOC);
+    $usersById = [];
+
+    if (!empty($conversations)) {
+        $conversationUserIds = [];
+        foreach ($conversations as $convRow) {
+            $senderId = (int)($convRow['sender_id'] ?? 0);
+            if ($senderId > 0) {
+                $conversationUserIds[$senderId] = $senderId;
+            }
+
+            $sessionUserId = $extractSessionUserId($convRow['session_id'] ?? '');
+            if ($sessionUserId !== null) {
+                $conversationUserIds[$sessionUserId] = $sessionUserId;
+            }
+        }
+
+        if (!empty($conversationUserIds)) {
+            $idPlaceholders = implode(',', array_fill(0, count($conversationUserIds), '?'));
+            $userLookupStmt = $pdo->prepare("
+                SELECT
+                    user_id,
+                    TRIM(CONCAT(COALESCE(fname, ''), ' ', COALESCE(lname, ''))) AS full_name,
+                    email
+                FROM users
+                WHERE user_id IN ($idPlaceholders)
+            ");
+            $userLookupStmt->execute(array_values($conversationUserIds));
+            $userRows = $userLookupStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($userRows as $userRow) {
+                $uid = (int)($userRow['user_id'] ?? 0);
+                if ($uid <= 0) {
+                    continue;
+                }
+
+                $usersById[$uid] = [
+                    'full_name' => trim((string)($userRow['full_name'] ?? '')),
+                    'email' => trim((string)($userRow['email'] ?? ''))
+                ];
+            }
+        }
+    }
 
     foreach ($conversations as &$conv) {
+        $convSessionUserId = $extractSessionUserId($conv['session_id'] ?? '');
+        $convSenderUserId = (int)($conv['sender_id'] ?? 0);
+        $convUserId = $convSenderUserId > 0 ? $convSenderUserId : ($convSessionUserId ?? 0);
+        $convUser = ($convUserId > 0 && isset($usersById[$convUserId])) ? $usersById[$convUserId] : null;
+
         $displayName = $resolveDisplayName(
             $conv['sender_name'] ?? '',
             $conv['sender_email'] ?? '',
@@ -162,11 +228,25 @@ try {
         );
         $displayEmailRaw = trim((string)($conv['sender_email'] ?? ''));
 
+        if ($convUser !== null) {
+            $userFullName = trim((string)($convUser['full_name'] ?? ''));
+            $userEmail = trim((string)($convUser['email'] ?? ''));
+
+            if ($userFullName !== '' && $isGenericDisplayName($displayName)) {
+                $displayName = $userFullName;
+            }
+
+            if ($displayEmailRaw === '' && $userEmail !== '') {
+                $displayEmailRaw = $userEmail;
+            }
+        }
+
         $conv['_display_name'] = $displayName;
         $conv['_display_email_raw'] = $displayEmailRaw;
         $conv['_display_email'] = $displayEmailRaw !== '' ? $displayEmailRaw : 'No email provided';
         $conv['_avatar'] = strtoupper(substr($displayName, 0, 1));
         $conv['_time_label'] = $formatConversationTime($conv['last_message_time'] ?? null);
+        $conv['_resolved_user_id'] = $convUserId > 0 ? $convUserId : null;
 
         if ($current_session !== null && ($conv['session_id'] ?? '') === $current_session) {
             $selectedConv = $conv;
@@ -521,11 +601,11 @@ ob_start();
                 <div class="flex items-center gap-3">
                     <div class="bg-slate-100 rounded-xl px-4 py-2 text-center">
                         <p class="text-xs uppercase tracking-wide text-slate-500">Conversations</p>
-                        <p class="text-xl font-bold text-slate-800"><?php echo count($conversations); ?></p>
+                        <p id="conversationCountValue" class="text-xl font-bold text-slate-800"><?php echo count($conversations); ?></p>
                     </div>
                     <div class="bg-red-50 border border-red-200 rounded-xl px-4 py-2 text-center">
                         <p class="text-xs uppercase tracking-wide text-red-500">Unread</p>
-                        <p class="text-xl font-bold text-red-600"><?php echo $unread_count; ?></p>
+                        <p id="unreadCountValue" class="text-xl font-bold text-red-600"><?php echo $unread_count; ?></p>
                     </div>
                 </div>
             </div>
@@ -556,17 +636,18 @@ ob_start();
                             <a href="customer-messages.php?session_id=<?php echo urlencode($sessionId); ?>"
                                class="conversation-item no-underline <?php echo $isSelected ? 'active' : ''; ?>"
                                data-session-id="<?php echo htmlspecialchars($sessionId); ?>"
+                               data-conversation-item="1"
                                onclick="return navigateToConversation(this);">
                                 <span class="conversation-avatar"><?php echo htmlspecialchars($conv['_avatar'] ?: 'U'); ?></span>
                                 <div class="flex-1 min-w-0">
                                     <p class="conversation-name truncate"><?php echo htmlspecialchars($conv['_display_name']); ?></p>
                                     <p class="conversation-email truncate"><?php echo htmlspecialchars($conv['_display_email']); ?></p>
-                                    <p class="conversation-count"><?php echo (int)$conv['customer_messages']; ?> message<?php echo ((int)$conv['customer_messages'] === 1) ? '' : 's'; ?></p>
+                                    <p class="conversation-count" data-conversation-count><?php echo (int)$conv['customer_messages']; ?> message<?php echo ((int)$conv['customer_messages'] === 1) ? '' : 's'; ?></p>
                                 </div>
                                 <div class="flex flex-col items-end gap-2">
-                                    <span class="conversation-time"><?php echo htmlspecialchars($conv['_time_label']); ?></span>
+                                    <span class="conversation-time" data-conversation-time><?php echo htmlspecialchars($conv['_time_label']); ?></span>
                                     <?php if ($unread > 0): ?>
-                                        <span class="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold">
+                                        <span data-unread-badge class="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold">
                                             <?php echo $unread; ?>
                                         </span>
                                     <?php endif; ?>
@@ -604,7 +685,7 @@ ob_start();
                             </div>
                         </div>
                         <div class="text-xs sm:text-sm text-slate-500 text-right">
-                            <span class="font-semibold text-slate-700"><?php echo (int)$selectedConv['total_messages']; ?></span> total messages
+                            <span id="selectedTotalMessages" class="font-semibold text-slate-700"><?php echo (int)$selectedConv['total_messages']; ?></span> total messages
                         </div>
                     </header>
 
@@ -631,6 +712,16 @@ ob_start();
                                     $msgDisplayName = 'You';
                                 } else {
                                     $msgDisplayName = $resolveDisplayName($msgNameRaw, $msgEmailRaw, $current_session ?? '');
+
+                                    $selectedEmailRaw = trim((string)($selectedConv['_display_email_raw'] ?? ''));
+                                    $selectedName = trim((string)($selectedConv['_display_name'] ?? ''));
+                                    if ($isGenericDisplayName($msgDisplayName) && $selectedName !== '') {
+                                        $msgDisplayName = $selectedName;
+                                    }
+
+                                    if ($msgEmailRaw === '' && $selectedEmailRaw !== '' && strtolower($selectedEmailRaw) !== 'no email provided') {
+                                        $msgEmailRaw = $selectedEmailRaw;
+                                    }
                                 }
 
                                 $messageBody = $normalizeMessageBody($msg['message_content'] ?? '');
@@ -638,7 +729,7 @@ ob_start();
                                     continue;
                                 }
                                 ?>
-                                <article class="chat-row <?php echo $isAdminMessage ? 'outgoing' : 'incoming'; ?>">
+                                <article class="chat-row <?php echo $isAdminMessage ? 'outgoing' : 'incoming'; ?>" data-message-id="<?php echo (int)($msg['message_id'] ?? 0); ?>">
                                     <div class="chat-stack">
                                         <div class="chat-meta">
                                             <span class="chat-name"><?php echo htmlspecialchars($msgDisplayName); ?></span>
@@ -683,9 +774,29 @@ function navigateToConversation(link) {
     return false;
 }
 
+const ACTIVE_SESSION_ID = <?php echo json_encode($current_session); ?>;
+const SELECTED_CUSTOMER_NAME = <?php echo json_encode($selectedConv['_display_name'] ?? 'Customer'); ?>;
+const SELECTED_CUSTOMER_EMAIL = <?php echo json_encode($selectedConv['_display_email'] ?? 'No email provided'); ?>;
+
 const messageForm = document.getElementById('messageForm');
 const messageText = document.getElementById('messageText');
 const messagesContainer = document.getElementById('messages');
+const conversationCountValue = document.getElementById('conversationCountValue');
+const unreadCountValue = document.getElementById('unreadCountValue');
+const selectedTotalMessages = document.getElementById('selectedTotalMessages');
+
+const knownMessageIds = new Set();
+let pollingInProgress = false;
+
+function isGenericName(value) {
+    return /^(customer|anonymous customer|anonymous|guest|user|unknown)$/i.test(String(value || '').trim());
+}
+
+function escapeHtml(value) {
+    const node = document.createElement('div');
+    node.textContent = String(value || '');
+    return node.innerHTML;
+}
 
 function normalizeMessageBody(text) {
     const decodeArea = document.createElement('textarea');
@@ -713,33 +824,224 @@ function autoResizeTextarea(textarea) {
     textarea.style.height = Math.min(textarea.scrollHeight, 140) + 'px';
 }
 
-function appendAgentMessage(message) {
-    if (!messagesContainer) return;
+function formatTime(value) {
+    if (!value) {
+        return '';
+    }
 
-    const normalizedMessage = normalizeMessageBody(message);
-    if (!normalizedMessage) return;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
 
-    const row = document.createElement('article');
-    row.className = 'chat-row outgoing';
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function formatConversationTime(value) {
+    if (!value) {
+        return '';
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
 
     const now = new Date();
-    const timeText = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    if (date.toDateString() === now.toDateString()) {
+        return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    }
+
+    return date.toLocaleDateString([], { month: 'short', day: '2-digit' });
+}
+
+function ensureStartMarker() {
+    if (!messagesContainer) {
+        return;
+    }
+    if (messagesContainer.querySelector('.chat-start-marker')) {
+        return;
+    }
+
+    const marker = document.createElement('div');
+    marker.className = 'chat-start-marker';
+    marker.innerHTML = '<span class="chat-start-pill">Chat started</span>';
+    messagesContainer.prepend(marker);
+}
+
+function hydrateKnownMessageIds() {
+    if (!messagesContainer) {
+        return;
+    }
+    messagesContainer.querySelectorAll('.chat-row[data-message-id]').forEach((row) => {
+        const messageId = Number(row.getAttribute('data-message-id') || 0);
+        if (messageId > 0) {
+            knownMessageIds.add(messageId);
+        }
+    });
+}
+
+function findConversationItem(sessionId) {
+    if (!sessionId) {
+        return null;
+    }
+
+    const items = document.querySelectorAll('.conversation-item[data-session-id]');
+    for (const item of items) {
+        if ((item.getAttribute('data-session-id') || '') === sessionId) {
+            return item;
+        }
+    }
+    return null;
+}
+
+function updateSelectedConversationPreview(messages) {
+    if (!ACTIVE_SESSION_ID || !Array.isArray(messages)) {
+        return;
+    }
+
+    const item = findConversationItem(ACTIVE_SESSION_ID);
+    if (!item) {
+        return;
+    }
+
+    const customerMessages = messages.filter((msg) => (msg.sender_type || '') === 'customer').length;
+    const countEl = item.querySelector('[data-conversation-count]');
+    if (countEl) {
+        countEl.textContent = `${customerMessages} message${customerMessages === 1 ? '' : 's'}`;
+    }
+
+    const timeEl = item.querySelector('[data-conversation-time]');
+    const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+    if (timeEl && lastMessage) {
+        timeEl.textContent = formatConversationTime(lastMessage.created_at || '');
+    }
+
+    const unreadBadge = item.querySelector('[data-unread-badge]');
+    if (unreadBadge) {
+        unreadBadge.remove();
+    }
+}
+
+function appendMessageRow(msg) {
+    if (!messagesContainer || !msg) {
+        return false;
+    }
+
+    const messageId = Number(msg.message_id || 0);
+    if (messageId > 0 && knownMessageIds.has(messageId)) {
+        return false;
+    }
+
+    const senderType = (msg.sender_type || '') === 'admin' ? 'admin' : 'customer';
+    let displayName = senderType === 'admin' ? 'You' : normalizeMessageBody(msg.sender_name || '');
+    if (displayName === '' || isGenericName(displayName)) {
+        displayName = SELECTED_CUSTOMER_NAME || 'Customer';
+    }
+
+    const messageBody = normalizeMessageBody(msg.message_content || '');
+    if (!messageBody) {
+        return false;
+    }
+
+    if (!messagesContainer.querySelector('.chat-row')) {
+        messagesContainer.innerHTML = '';
+    }
+
+    ensureStartMarker();
+
+    const row = document.createElement('article');
+    row.className = `chat-row ${senderType === 'admin' ? 'outgoing' : 'incoming'}`;
+    if (messageId > 0) {
+        row.setAttribute('data-message-id', String(messageId));
+        knownMessageIds.add(messageId);
+    }
 
     row.innerHTML = `
         <div class="chat-stack">
             <div class="chat-meta">
-                <span class="chat-name">You</span>
+                <span class="chat-name">${escapeHtml(displayName)}</span>
             </div>
-            <div class="chat-bubble agent"></div>
-            <span class="chat-time">${timeText}</span>
+            <div class="chat-bubble ${senderType === 'admin' ? 'agent' : 'customer'}">${escapeHtml(messageBody)}</div>
+            <span class="chat-time">${escapeHtml(formatTime(msg.created_at || ''))}</span>
         </div>
     `;
 
-    const bubble = row.querySelector('.chat-bubble.agent');
-    bubble.textContent = normalizedMessage;
-
     messagesContainer.appendChild(row);
-    scrollMessagesToBottom();
+    return true;
+}
+
+function isNearBottom() {
+    if (!messagesContainer) {
+        return true;
+    }
+    const threshold = 120;
+    const distanceFromBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight;
+    return distanceFromBottom <= threshold;
+}
+
+function updateMessageCount(messageTotal) {
+    if (selectedTotalMessages && Number.isFinite(messageTotal)) {
+        selectedTotalMessages.textContent = String(messageTotal);
+    }
+}
+
+async function pollMessages() {
+    if (!ACTIVE_SESSION_ID || !messagesContainer || pollingInProgress) {
+        return;
+    }
+
+    pollingInProgress = true;
+    const keepBottom = isNearBottom();
+
+    try {
+        const response = await fetch('../../backend/chat/send_message.php?type=customer&session_id=' + encodeURIComponent(ACTIVE_SESSION_ID), {
+            cache: 'no-store'
+        });
+        const data = await response.json();
+        if (!data || data.status !== 'success' || !Array.isArray(data.data)) {
+            return;
+        }
+
+        let appended = 0;
+        data.data.forEach((msg) => {
+            if (appendMessageRow(msg)) {
+                appended++;
+            }
+        });
+
+        updateMessageCount(data.data.length);
+        updateSelectedConversationPreview(data.data);
+
+        if (appended > 0 && keepBottom) {
+            scrollMessagesToBottom();
+        }
+    } catch (error) {
+        console.error('Message polling failed:', error);
+    } finally {
+        pollingInProgress = false;
+    }
+}
+
+async function pollConversationSummary() {
+    try {
+        const response = await fetch('../../backend/chat/send_message.php?type=admin', { cache: 'no-store' });
+        const data = await response.json();
+        if (!data || data.status !== 'success' || !Array.isArray(data.data)) {
+            return;
+        }
+
+        if (conversationCountValue) {
+            conversationCountValue.textContent = String(data.data.length);
+        }
+
+        if (unreadCountValue) {
+            const unreadTotal = data.data.reduce((total, row) => total + Number(row.unread_count || 0), 0);
+            unreadCountValue.textContent = String(unreadTotal);
+        }
+    } catch (error) {
+        console.error('Conversation summary polling failed:', error);
+    }
 }
 
 if (messageText) {
@@ -791,12 +1093,24 @@ if (messageForm) {
                 throw new Error(msg);
             }
 
-            appendAgentMessage(message);
+            if (!appendMessageRow(data.data || null)) {
+                appendMessageRow({
+                    message_id: null,
+                    sender_type: 'admin',
+                    sender_name: 'You',
+                    message_content: message,
+                    created_at: new Date().toISOString()
+                });
+            }
+
             if (messageText) {
                 messageText.value = '';
                 autoResizeTextarea(messageText);
                 messageText.focus();
             }
+
+            pollMessages();
+            pollConversationSummary();
         })
         .catch((error) => {
             const errMessage = error && error.message ? error.message : 'Failed to send message.';
@@ -816,7 +1130,18 @@ if (messageForm) {
     });
 }
 
+hydrateKnownMessageIds();
+if (messagesContainer && messagesContainer.querySelector('.chat-row')) {
+    ensureStartMarker();
+}
 scrollMessagesToBottom();
+
+if (ACTIVE_SESSION_ID) {
+    pollMessages();
+    setInterval(pollMessages, 3000);
+}
+pollConversationSummary();
+setInterval(pollConversationSummary, 5000);
 </script>
 <?php
 $content = ob_get_clean();
