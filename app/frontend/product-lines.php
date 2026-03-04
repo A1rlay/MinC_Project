@@ -69,6 +69,7 @@ try {
         SELECT 
             category_id,
             category_name,
+            category_slug,
             status
         FROM categories
         WHERE status = 'active'
@@ -93,6 +94,98 @@ try {
 } catch (Exception $e) {
     $_SESSION['error_message'] = 'Error loading product lines data: ' . $e->getMessage();
     $product_lines = $categories = $product_line_statuses = [];
+}
+
+$default_subcategory_presets = [
+    'car parts' => ['Back & Head Lights'],
+    'external parts' => ['Side Mirrors', 'Wiper Blades', 'Door Handles & Locks', 'Truck Accessories', 'Window Visors'],
+    'internal parts' => ['Horns & Components', 'Mobile Electronics', 'Switches & Relays'],
+    'wheels & tyres' => ['Nuts', 'Tires', 'Wheel Accessories'],
+];
+
+$normalize_category_key = static function ($value) {
+    $value = strtolower(trim((string)$value));
+    $value = str_replace(['-', '_'], ' ', $value);
+    $value = preg_replace('/\s+/', ' ', $value);
+    return $value;
+};
+
+$resolve_default_subcategories = static function ($categoryName, $categorySlug = '') use ($default_subcategory_presets, $normalize_category_key) {
+    $nameKey = $normalize_category_key($categoryName);
+    $slugKey = $normalize_category_key($categorySlug);
+
+    if (isset($default_subcategory_presets[$nameKey])) {
+        return $default_subcategory_presets[$nameKey];
+    }
+
+    if (isset($default_subcategory_presets[$slugKey])) {
+        return $default_subcategory_presets[$slugKey];
+    }
+
+    if (strpos($nameKey, 'external') !== false) {
+        return $default_subcategory_presets['external parts'];
+    }
+    if (strpos($nameKey, 'internal') !== false) {
+        return $default_subcategory_presets['internal parts'];
+    }
+    if (strpos($nameKey, 'wheel') !== false) {
+        return $default_subcategory_presets['wheels & tyres'];
+    }
+    if (strpos($nameKey, 'car') !== false) {
+        return $default_subcategory_presets['car parts'];
+    }
+
+    return [];
+};
+
+// Default map by category ID (fallback when preset table is unavailable/empty)
+$subcategory_presets_by_category = [];
+foreach ($categories as $category) {
+    $defaults = $resolve_default_subcategories($category['category_name'] ?? '', $category['category_slug'] ?? '');
+    if (!empty($defaults)) {
+        $subcategory_presets_by_category[(string)$category['category_id']] = array_values($defaults);
+    }
+}
+
+// Load DB-defined presets if the table exists and has rows.
+try {
+    $table_check = $pdo->query("SHOW TABLES LIKE 'product_line_presets'");
+    $has_preset_table = $table_check && (bool)$table_check->fetchColumn();
+
+    if ($has_preset_table) {
+        $preset_query = "
+            SELECT p.category_id, p.preset_name
+            FROM product_line_presets p
+            INNER JOIN categories c ON p.category_id = c.category_id
+            WHERE p.status = 'active' AND c.status = 'active'
+            ORDER BY p.category_id ASC, p.display_order ASC, p.preset_name ASC
+        ";
+        $preset_result = $pdo->query($preset_query);
+        $preset_rows = $preset_result->fetchAll(PDO::FETCH_ASSOC);
+
+        if (!empty($preset_rows)) {
+            $db_map = [];
+            foreach ($preset_rows as $row) {
+                $category_key = (string)($row['category_id'] ?? '');
+                $preset_name = trim((string)($row['preset_name'] ?? ''));
+                if ($category_key === '' || $preset_name === '') {
+                    continue;
+                }
+                if (!isset($db_map[$category_key])) {
+                    $db_map[$category_key] = [];
+                }
+                if (!in_array($preset_name, $db_map[$category_key], true)) {
+                    $db_map[$category_key][] = $preset_name;
+                }
+            }
+
+            if (!empty($db_map)) {
+                $subcategory_presets_by_category = $db_map;
+            }
+        }
+    }
+} catch (Exception $e) {
+    error_log('Subcategory preset table load failed in product-lines.php: ' . $e->getMessage());
 }
 
 // Additional styles for product lines management specific elements
@@ -668,8 +761,11 @@ ob_start();
                 </select>
             </div>
             <div class="form-group">
-                <label for="add_product_line_name" class="form-label">Product Line Name *</label>
-                <input type="text" id="add_product_line_name" name="product_line_name" class="form-input" required>
+                <label for="add_product_line_name" class="form-label">Subcategory *</label>
+                <select id="add_product_line_name" name="product_line_name" class="form-select" required>
+                    <option value="">Select category first</option>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">Subcategory options are predefined by category.</p>
             </div>
             <div class="form-group">
                 <label for="add_product_line_description" class="form-label">Description</label>
@@ -733,8 +829,11 @@ ob_start();
             </div>
 
             <div class="form-group">
-                <label for="edit_product_line_name" class="form-label">Product Line Name *</label>
-                <input type="text" id="edit_product_line_name" name="product_line_name" class="form-input" required>
+                <label for="edit_product_line_name" class="form-label">Subcategory *</label>
+                <select id="edit_product_line_name" name="product_line_name" class="form-select" required>
+                    <option value="">Select category first</option>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">Subcategory options are predefined by category.</p>
             </div>
             
             <div class="form-group">
@@ -793,17 +892,78 @@ ob_start();
 <script>
 // Global variables
 const productLinesData = <?php echo json_encode($product_lines); ?>;
+const subcategoryPresetsByCategory = <?php echo json_encode($subcategory_presets_by_category); ?>;
 let filteredData = [...productLinesData];
 let currentPage = 1;
 let recordsPerPage = 10;
+
+function getSubcategoryOptionsByCategoryId(categoryId) {
+    const key = String(categoryId || '').trim();
+    if (!key) return [];
+    const options = subcategoryPresetsByCategory[key];
+    return Array.isArray(options) ? options : [];
+}
+
+function renderSubcategorySelectOptions(selectElement, categoryId, selectedValue = '') {
+    if (!selectElement) return;
+
+    const targetId = Number(categoryId || 0);
+    if (!targetId) {
+        selectElement.innerHTML = '<option value="">Select category first</option>';
+        selectElement.value = '';
+        return;
+    }
+
+    const options = getSubcategoryOptionsByCategoryId(categoryId);
+    const normalizedSelected = String(selectedValue || '').toLowerCase().trim();
+
+    if (!options.length) {
+        selectElement.innerHTML = '<option value="">No predefined subcategories for this category</option>';
+        selectElement.value = '';
+        return;
+    }
+
+    selectElement.innerHTML = '<option value="">Select Subcategory</option>';
+    options.forEach(optionName => {
+        const option = document.createElement('option');
+        option.value = optionName;
+        option.textContent = optionName;
+        if (optionName.toLowerCase().trim() === normalizedSelected) {
+            option.selected = true;
+        }
+        selectElement.appendChild(option);
+    });
+}
 
 // Initialize on page load
 document.addEventListener("DOMContentLoaded", function() {
     console.log("DOM loaded, initializing filters and pagination");
     initializeFilters();
     initializePagination();
+    initializeSubcategorySelectors();
     updateDisplay();
 });
+
+function initializeSubcategorySelectors() {
+    const addCategorySelect = document.getElementById("add_category_id");
+    const addSubcategorySelect = document.getElementById("add_product_line_name");
+    const editCategorySelect = document.getElementById("edit_category_id");
+    const editSubcategorySelect = document.getElementById("edit_product_line_name");
+
+    if (addCategorySelect && addSubcategorySelect) {
+        addCategorySelect.addEventListener("change", function() {
+            renderSubcategorySelectOptions(addSubcategorySelect, this.value);
+        });
+        renderSubcategorySelectOptions(addSubcategorySelect, addCategorySelect.value);
+    }
+
+    if (editCategorySelect && editSubcategorySelect) {
+        editCategorySelect.addEventListener("change", function() {
+            renderSubcategorySelectOptions(editSubcategorySelect, this.value);
+        });
+        renderSubcategorySelectOptions(editSubcategorySelect, editCategorySelect.value);
+    }
+}
 
 // Filter initialization
 function initializeFilters() {
@@ -1008,6 +1168,12 @@ function openAddModal() {
             preview.src = '';
         }
         if (container) container.classList.remove('has-image');
+
+        const addCategorySelect = document.getElementById("add_category_id");
+        const addSubcategorySelect = document.getElementById("add_product_line_name");
+        if (addCategorySelect && addSubcategorySelect) {
+            renderSubcategorySelectOptions(addSubcategorySelect, addCategorySelect.value);
+        }
         
         console.log("Add modal opened");
     } else {
@@ -1062,7 +1228,11 @@ function openEditModal(productLineId) {
                 
                 document.getElementById("edit_product_line_id").value = productLine.product_line_id || "";
                 document.getElementById("edit_category_id").value = productLine.category_id || "";
-                document.getElementById("edit_product_line_name").value = productLine.product_line_name || "";
+                renderSubcategorySelectOptions(
+                    document.getElementById("edit_product_line_name"),
+                    productLine.category_id || "",
+                    productLine.product_line_name || ""
+                );
                 document.getElementById("edit_product_line_description").value = productLine.product_line_description || "";
                 document.getElementById("edit_display_order").value = productLine.display_order || "0";
                 document.getElementById("edit_status").value = productLine.status || "active";

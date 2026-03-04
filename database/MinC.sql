@@ -266,6 +266,30 @@ INSERT INTO `product_lines` (`product_line_id`, `category_id`, `product_line_nam
 (11, 4, 'Side Mirrors', 'side-mirrors', 'Variety of Side Mirror Accessories', 'side-mirrors.png', 2, 'active', '2025-11-29 04:12:11', '2025-11-29 04:12:11'),
 (12, 4, 'Wiper Blades', 'wiper-blades', 'Variety of Wiper Accessories', 'wiper-blades.png', 3, 'active', '2025-11-29 04:12:11', '2025-11-29 04:12:11');
 
+CREATE TABLE `product_line_presets` (
+  `preset_id` int(11) NOT NULL,
+  `category_id` int(11) NOT NULL,
+  `preset_name` varchar(255) NOT NULL,
+  `display_order` int(11) NOT NULL DEFAULT 0,
+  `status` enum('active','inactive') NOT NULL DEFAULT 'active',
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO `product_line_presets` (`preset_id`, `category_id`, `preset_name`, `display_order`, `status`, `created_at`, `updated_at`) VALUES
+(1, 1, 'Nuts', 1, 'active', '2025-11-29 04:12:11', '2025-11-29 04:12:11'),
+(2, 1, 'Tires', 2, 'active', '2025-11-29 04:12:11', '2025-11-29 04:12:11'),
+(3, 1, 'Wheel Accessories', 3, 'active', '2025-11-29 04:12:11', '2025-11-29 04:12:11'),
+(4, 2, 'Side Mirrors', 1, 'active', '2025-11-29 04:12:11', '2025-11-29 04:12:11'),
+(5, 2, 'Wiper Blades', 2, 'active', '2025-11-29 04:12:11', '2025-11-29 04:12:11'),
+(6, 2, 'Door Handles & Locks', 3, 'active', '2025-11-29 04:12:11', '2025-11-29 04:12:11'),
+(7, 2, 'Truck Accessories', 4, 'active', '2025-11-29 04:12:11', '2025-11-29 04:12:11'),
+(8, 2, 'Window Visors', 5, 'active', '2025-11-29 04:12:11', '2025-11-29 04:12:11'),
+(9, 3, 'Horns & Components', 1, 'active', '2025-11-29 04:12:11', '2025-11-29 04:12:11'),
+(10, 3, 'Mobile Electronics', 2, 'active', '2025-11-29 04:12:11', '2025-11-29 04:12:11'),
+(11, 3, 'Switches & Relays', 3, 'active', '2025-11-29 04:12:11', '2025-11-29 04:12:11'),
+(12, 4, 'Back & Head Lights', 1, 'active', '2025-11-29 04:12:11', '2025-11-29 04:12:11');
+
 CREATE TABLE `users` (
   `user_id` bigint(20) UNSIGNED NOT NULL,
   `fname` varchar(255) NOT NULL,
@@ -411,6 +435,11 @@ ALTER TABLE `product_lines`
   ADD UNIQUE KEY `product_line_slug` (`product_line_slug`),
   ADD KEY `category_id` (`category_id`);
 
+ALTER TABLE `product_line_presets`
+  ADD PRIMARY KEY (`preset_id`),
+  ADD UNIQUE KEY `uk_product_line_presets_category_name` (`category_id`,`preset_name`),
+  ADD KEY `idx_product_line_presets_category_status` (`category_id`,`status`);
+
 ALTER TABLE `users`
   ADD PRIMARY KEY (`user_id`),
   ADD UNIQUE KEY `users_email_unique` (`email`),
@@ -448,6 +477,9 @@ ALTER TABLE `products`
 ALTER TABLE `product_lines`
   MODIFY `product_line_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
+ALTER TABLE `product_line_presets`
+  MODIFY `preset_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+
 ALTER TABLE `users`
   MODIFY `user_id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
@@ -480,6 +512,9 @@ ALTER TABLE `products`
 
 ALTER TABLE `product_lines`
   ADD CONSTRAINT `product_lines_category_id_foreign` FOREIGN KEY (`category_id`) REFERENCES `categories` (`category_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE `product_line_presets`
+  ADD CONSTRAINT `product_line_presets_category_id_foreign` FOREIGN KEY (`category_id`) REFERENCES `categories` (`category_id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 ALTER TABLE `users`
   ADD CONSTRAINT `users_user_level_id_foreign` FOREIGN KEY (`user_level_id`) REFERENCES `user_levels` (`user_level_id`) ON DELETE CASCADE ON UPDATE CASCADE;

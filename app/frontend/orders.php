@@ -83,7 +83,13 @@ try {
 
     // Calculate statistics
     $total_orders = count($orders);
-    $total_revenue = array_sum(array_column($orders, 'total_amount'));
+    $total_revenue = array_sum(array_map(static function ($order) {
+        $status = strtolower((string)($order['order_status'] ?? ''));
+        if ($status === 'cancelled') {
+            return 0;
+        }
+        return (float)($order['total_amount'] ?? 0);
+    }, $orders));
     $pending_orders = count(array_filter($orders, function($o) { return $o['order_status'] === 'pending'; }));
     $completed_orders = count(array_filter($orders, function($o) { return $o['order_status'] === 'delivered'; }));
 
@@ -337,6 +343,7 @@ ob_start();
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-sm font-medium text-gray-600 mb-1">Total Revenue</p>
+                <p class="text-xs text-gray-500">Excludes cancelled orders</p>
                 <p class="text-3xl font-bold text-green-600">₱<?php echo number_format($total_revenue, 2); ?></p>
             </div>
             <div class="p-4 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-lg">

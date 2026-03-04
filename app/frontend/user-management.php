@@ -77,6 +77,32 @@ try {
     $user_levels_result = $pdo->query($user_levels_query);
     $user_levels = $user_levels_result->fetchAll(PDO::FETCH_ASSOC);
 
+    // Enforce canonical role options in UI even if legacy DB role rows are inconsistent.
+    $canonical_roles = [
+        1 => 'Admin',
+        2 => 'Employee',
+        3 => 'Supplier',
+        4 => 'Customer'
+    ];
+    $resolved_user_levels = [];
+    foreach ($canonical_roles as $canonical_id => $canonical_name) {
+        $matched_id = null;
+        foreach ($user_levels as $level) {
+            $level_id = (int)($level['user_level_id'] ?? 0);
+            $level_name = trim((string)($level['user_type_name'] ?? ''));
+            if ($level_id === $canonical_id || strcasecmp($level_name, $canonical_name) === 0) {
+                $matched_id = $level_id > 0 ? $level_id : $canonical_id;
+                break;
+            }
+        }
+
+        $resolved_user_levels[] = [
+            'user_level_id' => $matched_id ?? $canonical_id,
+            'user_type_name' => $canonical_name
+        ];
+    }
+    $user_levels = $resolved_user_levels;
+
     // Get distinct user statuses from users table
     $statuses_query = "SELECT DISTINCT user_status FROM users WHERE user_status IS NOT NULL ORDER BY user_status";
     $statuses_result = $pdo->query($statuses_query);

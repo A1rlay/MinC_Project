@@ -43,6 +43,58 @@ $user = [
 
 // Fetch audit trail data
 try {
+    $allowed_action_filters = [
+        'create',
+        'update',
+        'delete',
+        'login',
+        'logout',
+        'registration_started',
+        'resend_registration_otp',
+        'email_verified',
+        'update_profile',
+        'upload_profile_picture',
+        'delete_profile_picture',
+        'change_password',
+        'deactivate_own_account',
+        'update_order_state'
+    ];
+
+    $allowed_entity_filters = [
+        'user',
+        'order',
+        'product',
+        'product_line',
+        'category',
+        'auth'
+    ];
+
+    $action_label_map = [
+        'create' => 'Create',
+        'update' => 'Update',
+        'delete' => 'Delete',
+        'login' => 'Login',
+        'logout' => 'Logout',
+        'registration_started' => 'Registration Started',
+        'resend_registration_otp' => 'Resend Registration OTP',
+        'email_verified' => 'Email Verified',
+        'update_profile' => 'Update Profile',
+        'upload_profile_picture' => 'Upload Profile Picture',
+        'delete_profile_picture' => 'Delete Profile Picture',
+        'change_password' => 'Change Password',
+        'deactivate_own_account' => 'Deactivate Own Account',
+        'update_order_state' => 'Update Order State'
+    ];
+
+    $entity_label_map = [
+        'user' => 'User',
+        'order' => 'Order',
+        'product' => 'Product',
+        'product_line' => 'Product Line',
+        'category' => 'Category',
+        'auth' => 'Auth'
+    ];
+
     // Get audit trail records with user information
     $audit_query = "
         SELECT 
@@ -71,15 +123,43 @@ try {
     $audit_result = $pdo->query($audit_query);
     $audit_records = $audit_result->fetchAll(PDO::FETCH_ASSOC);
 
-    // Get distinct actions for filter
-    $actions_query = "SELECT DISTINCT action FROM audit_trail ORDER BY action";
+    // Get distinct actions for filter (whitelisted to MinC domain actions)
+    $actions_query = "SELECT DISTINCT LOWER(TRIM(action)) AS action FROM audit_trail WHERE action IS NOT NULL AND TRIM(action) != ''";
     $actions_result = $pdo->query($actions_query);
-    $actions = $actions_result->fetchAll(PDO::FETCH_ASSOC);
+    $raw_actions = $actions_result->fetchAll(PDO::FETCH_COLUMN, 0);
+    $raw_actions = array_map(static function ($value) {
+        return strtolower(trim((string)$value));
+    }, $raw_actions);
+    $raw_actions = array_values(array_unique($raw_actions));
 
-    // Get distinct entity types for filter
-    $entities_query = "SELECT DISTINCT entity_type FROM audit_trail ORDER BY entity_type";
+    $actions = [];
+    foreach ($allowed_action_filters as $allowed_action) {
+        if (in_array($allowed_action, $raw_actions, true)) {
+            $actions[] = [
+                'action' => $allowed_action,
+                'label' => $action_label_map[$allowed_action] ?? ucwords(str_replace('_', ' ', $allowed_action))
+            ];
+        }
+    }
+
+    // Get distinct entity types for filter (whitelisted to MinC domain entities)
+    $entities_query = "SELECT DISTINCT LOWER(TRIM(entity_type)) AS entity_type FROM audit_trail WHERE entity_type IS NOT NULL AND TRIM(entity_type) != ''";
     $entities_result = $pdo->query($entities_query);
-    $entity_types = $entities_result->fetchAll(PDO::FETCH_ASSOC);
+    $raw_entities = $entities_result->fetchAll(PDO::FETCH_COLUMN, 0);
+    $raw_entities = array_map(static function ($value) {
+        return strtolower(trim((string)$value));
+    }, $raw_entities);
+    $raw_entities = array_values(array_unique($raw_entities));
+
+    $entity_types = [];
+    foreach ($allowed_entity_filters as $allowed_entity) {
+        if (in_array($allowed_entity, $raw_entities, true)) {
+            $entity_types[] = [
+                'entity_type' => $allowed_entity,
+                'label' => $entity_label_map[$allowed_entity] ?? ucwords(str_replace('_', ' ', $allowed_entity))
+            ];
+        }
+    }
 
     // Get distinct users for filter
     $users_query = "
@@ -418,7 +498,7 @@ ob_start();
                 <option value="">All Actions</option>
                 <?php foreach ($actions as $action): ?>
                     <option value="<?php echo htmlspecialchars($action['action']); ?>">
-                        <?php echo htmlspecialchars(strtoupper($action['action'])); ?>
+                        <?php echo htmlspecialchars($action['label'] ?? strtoupper($action['action'])); ?>
                     </option>
                 <?php endforeach; ?>
             </select>
@@ -430,7 +510,7 @@ ob_start();
                 <option value="">All Entities</option>
                 <?php foreach ($entity_types as $entity): ?>
                     <option value="<?php echo htmlspecialchars($entity['entity_type']); ?>">
-                        <?php echo htmlspecialchars(ucfirst($entity['entity_type'])); ?>
+                        <?php echo htmlspecialchars($entity['label'] ?? ucwords(str_replace('_', ' ', $entity['entity_type']))); ?>
                     </option>
                 <?php endforeach; ?>
             </select>

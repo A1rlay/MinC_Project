@@ -34,6 +34,47 @@ try {
     // Start transaction
     $pdo->beginTransaction();
 
+    // Normalize legacy/misaligned role rows to canonical 4-role model.
+    $canonical_roles = [
+        1 => 'Admin',
+        2 => 'Employee',
+        3 => 'Supplier',
+        4 => 'Customer'
+    ];
+    foreach ($canonical_roles as $role_id => $role_name) {
+        $role_stmt = $pdo->prepare("SELECT user_level_id, user_type_name, user_type_status FROM user_levels WHERE user_level_id = :user_level_id LIMIT 1");
+        $role_stmt->execute([':user_level_id' => $role_id]);
+        $role_row = $role_stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($role_row) {
+            if (
+                strcasecmp((string)$role_row['user_type_name'], $role_name) !== 0 ||
+                strtolower((string)$role_row['user_type_status']) !== 'active'
+            ) {
+                $update_role_stmt = $pdo->prepare("
+                    UPDATE user_levels
+                    SET user_type_name = :user_type_name,
+                        user_type_status = 'active',
+                        updated_at = NOW()
+                    WHERE user_level_id = :user_level_id
+                ");
+                $update_role_stmt->execute([
+                    ':user_level_id' => $role_id,
+                    ':user_type_name' => $role_name
+                ]);
+            }
+        } else {
+            $insert_role_stmt = $pdo->prepare("
+                INSERT INTO user_levels (user_level_id, user_type_name, user_type_status, created_at, updated_at)
+                VALUES (:user_level_id, :user_type_name, 'active', NOW(), NOW())
+            ");
+            $insert_role_stmt->execute([
+                ':user_level_id' => $role_id,
+                ':user_type_name' => $role_name
+            ]);
+        }
+    }
+
     // Get and sanitize input data
     $fname = trim($_POST['fname'] ?? '');
     $lname = trim($_POST['lname'] ?? '');
@@ -46,6 +87,10 @@ try {
     // Validate required fields
     if (empty($fname) || empty($lname) || empty($email) || empty($password) || $user_level_id === 0) {
         throw new Exception('Please fill in all required fields.');
+    }
+
+    if (!in_array($user_level_id, [1, 2, 3, 4], true)) {
+        throw new Exception('Invalid user role selected.');
     }
 
     // Validate email format

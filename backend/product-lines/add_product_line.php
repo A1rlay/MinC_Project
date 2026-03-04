@@ -49,6 +49,86 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         };
 
+        $getFallbackSubcategories = static function ($categoryName, $categorySlug = '') {
+            $presets = [
+                'car parts' => ['Back & Head Lights'],
+                'external parts' => ['Side Mirrors', 'Wiper Blades', 'Door Handles & Locks', 'Truck Accessories', 'Window Visors'],
+                'internal parts' => ['Horns & Components', 'Mobile Electronics', 'Switches & Relays'],
+                'wheels & tyres' => ['Nuts', 'Tires', 'Wheel Accessories'],
+            ];
+
+            $normalize = static function ($value) {
+                $value = strtolower(trim((string)$value));
+                $value = str_replace(['-', '_'], ' ', $value);
+                $value = preg_replace('/\s+/', ' ', $value);
+                return $value;
+            };
+
+            $nameKey = $normalize($categoryName);
+            $slugKey = $normalize($categorySlug);
+
+            if (isset($presets[$nameKey])) {
+                return $presets[$nameKey];
+            }
+
+            if (isset($presets[$slugKey])) {
+                return $presets[$slugKey];
+            }
+
+            if (strpos($nameKey, 'external') !== false) {
+                return $presets['external parts'];
+            }
+            if (strpos($nameKey, 'internal') !== false) {
+                return $presets['internal parts'];
+            }
+            if (strpos($nameKey, 'wheel') !== false) {
+                return $presets['wheels & tyres'];
+            }
+            if (strpos($nameKey, 'car') !== false) {
+                return $presets['car parts'];
+            }
+
+            return [];
+        };
+
+        $getAllowedSubcategories = static function ($pdo, $categoryId, $categoryName, $categorySlug = '') use ($getFallbackSubcategories) {
+            static $hasPresetTable = null;
+
+            if ($hasPresetTable === null) {
+                try {
+                    $check = $pdo->query("SHOW TABLES LIKE 'product_line_presets'");
+                    $hasPresetTable = $check && (bool)$check->fetchColumn();
+                } catch (Exception $e) {
+                    $hasPresetTable = false;
+                }
+            }
+
+            if ($hasPresetTable) {
+                try {
+                    $presetQuery = $pdo->prepare("
+                        SELECT preset_name
+                        FROM product_line_presets
+                        WHERE category_id = :category_id
+                          AND status = 'active'
+                        ORDER BY display_order ASC, preset_name ASC
+                    ");
+                    $presetQuery->execute([':category_id' => (int)$categoryId]);
+                    $rows = $presetQuery->fetchAll(PDO::FETCH_COLUMN, 0);
+                    $rows = array_values(array_unique(array_filter(array_map(static function ($value) {
+                        return trim((string)$value);
+                    }, $rows))));
+
+                    if (!empty($rows)) {
+                        return $rows;
+                    }
+                } catch (Exception $e) {
+                    // Fall through to static fallback mapping.
+                }
+            }
+
+            return $getFallbackSubcategories($categoryName, $categorySlug);
+        };
+
         // Get form data
         $category_id = intval($_POST['category_id'] ?? 0);
         $product_line_name = trim($_POST['product_line_name'] ?? '');
@@ -68,10 +148,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $product_line_slug = $generateUniqueSlug($pdo, $baseSlug);
         
         // Validate category exists
-        $check_category = $pdo->prepare("SELECT category_id FROM categories WHERE category_id = ?");
+        $check_category = $pdo->prepare("SELECT category_id, category_name, category_slug FROM categories WHERE category_id = ?");
         $check_category->execute([$category_id]);
-        if (!$check_category->fetch()) {
+        $category_data = $check_category->fetch(PDO::FETCH_ASSOC);
+        if (!$category_data) {
             throw new Exception('Selected category does not exist.');
+        }
+
+        // Validate selected subcategory name against predefined options.
+        $allowed_subcategories = $getAllowedSubcategories(
+            $pdo,
+            $category_id,
+            $category_data['category_name'] ?? '',
+            $category_data['category_slug'] ?? ''
+        );
+        if (empty($allowed_subcategories)) {
+            throw new Exception('No predefined subcategories are configured for the selected category.');
+        }
+
+        $normalized_name = strtolower(trim($product_line_name));
+        $normalized_allowed = array_map(static function ($value) {
+            return strtolower(trim((string)$value));
+        }, $allowed_subcategories);
+
+        if (!in_array($normalized_name, $normalized_allowed, true)) {
+            throw new Exception('Please select a valid subcategory from the predefined list.');
+        }
+
+        // Prevent duplicate subcategory names per category.
+        $duplicate_check = $pdo->prepare("
+            SELECT product_line_id
+            FROM product_lines
+            WHERE category_id = :category_id AND LOWER(product_line_name) = :product_line_name
+            LIMIT 1
+        ");
+        $duplicate_check->execute([
+            ':category_id' => $category_id,
+            ':product_line_name' => $normalized_name
+        ]);
+        if ($duplicate_check->fetch()) {
+            throw new Exception('This subcategory already exists for the selected category.');
         }
         
         // Handle image upload
