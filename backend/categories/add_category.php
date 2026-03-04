@@ -25,9 +25,32 @@ if (!isManagementLevel()) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
+        $slugify = static function ($value) {
+            $slug = strtolower(trim((string)$value));
+            $slug = preg_replace('/[^a-z0-9]+/', '-', $slug);
+            $slug = trim($slug, '-');
+            return $slug !== '' ? $slug : 'category';
+        };
+
+        $generateUniqueSlug = static function ($pdo, $baseSlug) {
+            $slug = $baseSlug;
+            $counter = 2;
+            while (true) {
+                $check = $pdo->prepare("SELECT category_id FROM categories WHERE category_slug = ? LIMIT 1");
+                $check->execute([$slug]);
+                if (!$check->fetch()) {
+                    return $slug;
+                }
+                $slug = $baseSlug . '-' . $counter;
+                $counter++;
+                if ($counter > 9999) {
+                    throw new Exception('Unable to generate a unique category slug.');
+                }
+            }
+        };
+
         // Get form data
         $category_name = trim($_POST['category_name'] ?? '');
-        $category_slug = trim($_POST['category_slug'] ?? '');
         $category_description = trim($_POST['category_description'] ?? '');
         $display_order = intval($_POST['display_order'] ?? 0);
         
@@ -35,17 +58,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($category_name)) {
             throw new Exception('Category name is required.');
         }
-        
-        if (empty($category_slug)) {
-            throw new Exception('Category slug is required.');
-        }
-        
-        // Check if slug already exists
-        $check_slug = $pdo->prepare("SELECT category_id FROM categories WHERE category_slug = ?");
-        $check_slug->execute([$category_slug]);
-        if ($check_slug->fetch()) {
-            throw new Exception('Category slug already exists. Please use a different slug.');
-        }
+
+        $category_slug = $generateUniqueSlug($pdo, $slugify($category_name));
         
         // Handle image upload
         $category_image = null;

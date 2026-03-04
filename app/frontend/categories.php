@@ -48,7 +48,6 @@ try {
         SELECT 
             category_id,
             category_name,
-            category_slug,
             category_description,
             category_image,
             display_order,
@@ -426,7 +425,6 @@ ob_start();
                 <tr>
                     <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
                     <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Slug</th>
                     <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
                     <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -435,7 +433,7 @@ ob_start();
             <tbody class="bg-white divide-y divide-gray-200">
                 <?php if (empty($categories)): ?>
                     <tr>
-                        <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                        <td colspan="5" class="px-6 py-12 text-center text-gray-500">
                             <i class="fas fa-layer-group text-4xl mb-4 text-gray-300"></i>
                             <p>No categories found.</p>
                         </td>
@@ -461,11 +459,6 @@ ob_start();
                                 </div>
                                 <div class="text-sm text-gray-500">
                                     <?php echo htmlspecialchars(substr($category['category_description'] ?? 'No description', 0, 50)) . (strlen($category['category_description'] ?? '') > 50 ? '...' : ''); ?>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm text-gray-900">
-                                    <?php echo htmlspecialchars($category['category_slug']); ?>
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
@@ -537,7 +530,6 @@ ob_start();
                             <?php endif; ?>
                             <div>
                                 <h4 class="font-medium text-gray-900"><?php echo htmlspecialchars($category['category_name']); ?></h4>
-                                <p class="text-xs text-gray-500"><?php echo htmlspecialchars($category['category_slug']); ?></p>
                             </div>
                         </div>
                         <span class="status-badge status-<?php echo $category['status']; ?>">
@@ -599,12 +591,6 @@ ob_start();
                 </div>
                 
                 <div class="form-group">
-                    <label for="add_category_slug" class="form-label">Category Slug *</label>
-                    <input type="text" id="add_category_slug" name="category_slug" class="form-input" required>
-                    <p class="text-xs text-gray-500 mt-1">URL-friendly version (e.g., wheels-tyres)</p>
-                </div>
-                
-                <div class="form-group">
                     <label for="add_category_description" class="form-label">Description</label>
                     <textarea id="add_category_description" name="category_description" class="form-textarea"></textarea>
                 </div>
@@ -660,11 +646,6 @@ ob_start();
                     <label for="edit_category_name" class="form-label">Category Name *</label>
                     <input type="text" id="edit_category_name" name="category_name" class="form-input" required>
                 </div>
-                <div class="form-group">
-                <label for="edit_category_slug" class="form-label">Category Slug *</label>
-                <input type="text" id="edit_category_slug" name="category_slug" class="form-input" required>
-                <p class="text-xs text-gray-500 mt-1">URL-friendly version (e.g., wheels-tyres)</p>
-            </div>
             <div class="form-group">
                 <label for="edit_category_description" class="form-label">Description</label>
                 <textarea id="edit_category_description" name="category_description" class="form-textarea"></textarea>
@@ -725,7 +706,6 @@ document.addEventListener("DOMContentLoaded", function() {
     console.log("DOM loaded, initializing filters and pagination");
     initializeFilters();
     initializePagination();
-    initializeSlugGeneration();
     updateDisplay();
 });
 
@@ -768,22 +748,6 @@ function initializePagination() {
             recordsPerPage = parseInt(this.value);
             currentPage = 1;
             updateDisplay();
-        });
-    }
-}
-
-// Auto-generate slug from category name
-function initializeSlugGeneration() {
-    const addNameInput = document.getElementById("add_category_name");
-    const addSlugInput = document.getElementById("add_category_slug");
-    
-    if (addNameInput && addSlugInput) {
-        addNameInput.addEventListener("input", function() {
-            const slug = this.value
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/^-+|-+$/g, '');
-            addSlugInput.value = slug;
         });
     }
 }
@@ -997,7 +961,6 @@ function openEditModal(categoryId) {
                 
                 document.getElementById("edit_category_id").value = category.category_id || "";
                 document.getElementById("edit_category_name").value = category.category_name || "";
-                document.getElementById("edit_category_slug").value = category.category_slug || "";
                 document.getElementById("edit_category_description").value = category.category_description || "";
                 document.getElementById("edit_display_order").value = category.display_order || "0";
                 document.getElementById("edit_status").value = category.status || "active";

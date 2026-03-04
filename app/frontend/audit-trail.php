@@ -60,6 +60,15 @@ try {
         'update_order_state'
     ];
 
+    $allowed_entity_filters = [
+        'user',
+        'order',
+        'product',
+        'product_line',
+        'category',
+        'auth'
+    ];
+
     $action_label_map = [
         'create' => 'Create',
         'update' => 'Update',
@@ -75,6 +84,15 @@ try {
         'change_password' => 'Change Password',
         'deactivate_own_account' => 'Deactivate Own Account',
         'update_order_state' => 'Update Order State'
+    ];
+
+    $entity_label_map = [
+        'user' => 'User',
+        'order' => 'Order',
+        'product' => 'Product',
+        'product_line' => 'Product Line',
+        'category' => 'Category',
+        'auth' => 'Auth'
     ];
 
     // Get audit trail records with user information
@@ -124,6 +142,25 @@ try {
         }
     }
 
+    // Get distinct entity types for filter (whitelisted to MinC domain entities)
+    $entities_query = "SELECT DISTINCT LOWER(TRIM(entity_type)) AS entity_type FROM audit_trail WHERE entity_type IS NOT NULL AND TRIM(entity_type) != ''";
+    $entities_result = $pdo->query($entities_query);
+    $raw_entities = $entities_result->fetchAll(PDO::FETCH_COLUMN, 0);
+    $raw_entities = array_map(static function ($value) {
+        return strtolower(trim((string)$value));
+    }, $raw_entities);
+    $raw_entities = array_values(array_unique($raw_entities));
+
+    $entity_types = [];
+    foreach ($allowed_entity_filters as $allowed_entity) {
+        if (in_array($allowed_entity, $raw_entities, true)) {
+            $entity_types[] = [
+                'entity_type' => $allowed_entity,
+                'label' => $entity_label_map[$allowed_entity] ?? ucwords(str_replace('_', ' ', $allowed_entity))
+            ];
+        }
+    }
+
     // Get distinct users for filter
     $users_query = "
         SELECT DISTINCT 
@@ -138,7 +175,7 @@ try {
 
 } catch (Exception $e) {
     $_SESSION['error_message'] = 'Error loading audit trail data: ' . $e->getMessage();
-    $audit_records = $actions = $users_list = [];
+    $audit_records = $actions = $entity_types = $users_list = [];
 }
 
 // Additional styles for audit trail specific elements
@@ -433,11 +470,11 @@ ob_start();
 </div>
 <!-- Filters and Search -->
 <div class="professional-card rounded-xl p-6 mb-6 animate-fadeIn">
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div>
             <label for="search_audit" class="form-label">Search</label>
             <div class="relative">
-                <input type="text" id="search_audit" placeholder="Search ID, user, action, reason..." 
+                <input type="text" id="search_audit" placeholder="Search ID, user, action, entity, reason..." 
                        class="form-input input-with-icon">
                 <i class="fas fa-search input-icon absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
             </div>
@@ -466,7 +503,18 @@ ob_start();
                 <?php endforeach; ?>
             </select>
         </div>
-        
+
+        <div>
+            <label for="entity_filter" class="form-label">Entity Type</label>
+            <select id="entity_filter" class="form-input">
+                <option value="">All Entities</option>
+                <?php foreach ($entity_types as $entity): ?>
+                    <option value="<?php echo htmlspecialchars($entity['entity_type']); ?>">
+                        <?php echo htmlspecialchars($entity['label'] ?? ucwords(str_replace('_', ' ', $entity['entity_type']))); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
     </div>
 </div>
 
@@ -800,11 +848,13 @@ function initializeFilters() {
     const searchInput = document.getElementById("search_audit");
     const userFilter = document.getElementById("user_filter");
     const actionFilter = document.getElementById("action_filter");
+    const entityFilter = document.getElementById("entity_filter");
 
     function applyFilters() {
         const searchTerm = searchInput ? searchInput.value.toLowerCase() : "";
         const selectedUser = userFilter ? userFilter.value : "";
         const selectedAction = actionFilter ? actionFilter.value : "";
+        const selectedEntity = entityFilter ? entityFilter.value : "";
         
         filteredData = auditData.filter(record => {
             const user = (record.user_full_name || record.session_username || "");
@@ -827,8 +877,9 @@ function initializeFilters() {
             const matchesSearch = searchTerm === "" || searchData.includes(searchTerm);
             const matchesUser = selectedUser === "" || user === selectedUser;
             const matchesAction = selectedAction === "" || action.toLowerCase() === selectedAction.toLowerCase();
+            const matchesEntity = selectedEntity === "" || entity.toLowerCase() === selectedEntity.toLowerCase();
 
-            return matchesSearch && matchesUser && matchesAction;
+            return matchesSearch && matchesUser && matchesAction && matchesEntity;
         });
 
         currentPage = 1; // Reset to first page when filters change
@@ -839,6 +890,7 @@ function initializeFilters() {
     if (searchInput) searchInput.addEventListener("input", debouncedApplyFilters);
     if (userFilter) userFilter.addEventListener("change", applyFilters);
     if (actionFilter) actionFilter.addEventListener("change", applyFilters);
+    if (entityFilter) entityFilter.addEventListener("change", applyFilters);
 }
 
 function initializePagination() {

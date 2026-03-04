@@ -25,10 +25,33 @@ if (!isManagementLevel()) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
+        $slugify = static function ($value) {
+            $slug = strtolower(trim((string)$value));
+            $slug = preg_replace('/[^a-z0-9]+/', '-', $slug);
+            $slug = trim($slug, '-');
+            return $slug !== '' ? $slug : 'category';
+        };
+
+        $generateUniqueSlug = static function ($pdo, $baseSlug, $excludeId) {
+            $slug = $baseSlug;
+            $counter = 2;
+            while (true) {
+                $check = $pdo->prepare("SELECT category_id FROM categories WHERE category_slug = ? AND category_id != ? LIMIT 1");
+                $check->execute([$slug, $excludeId]);
+                if (!$check->fetch()) {
+                    return $slug;
+                }
+                $slug = $baseSlug . '-' . $counter;
+                $counter++;
+                if ($counter > 9999) {
+                    throw new Exception('Unable to generate a unique category slug.');
+                }
+            }
+        };
+
         // Get form data
         $category_id = intval($_POST['category_id'] ?? 0);
         $category_name = trim($_POST['category_name'] ?? '');
-        $category_slug = trim($_POST['category_slug'] ?? '');
         $category_description = trim($_POST['category_description'] ?? '');
         $display_order = intval($_POST['display_order'] ?? 0);
         $status = trim($_POST['status'] ?? 'active');
@@ -40,10 +63,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if (empty($category_name)) {
             throw new Exception('Category name is required.');
-        }
-        
-        if (empty($category_slug)) {
-            throw new Exception('Category slug is required.');
         }
         
         // Validate status
@@ -61,12 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception('Category not found.');
         }
         
-        // Check if slug already exists (excluding current category)
-        $check_slug = $pdo->prepare("SELECT category_id FROM categories WHERE category_slug = ? AND category_id != ?");
-        $check_slug->execute([$category_slug, $category_id]);
-        if ($check_slug->fetch()) {
-            throw new Exception('Category slug already exists. Please use a different slug.');
-        }
+        $category_slug = $generateUniqueSlug($pdo, $slugify($category_name), $category_id);
         
         // Handle image upload
         $category_image = $old_data['category_image'];

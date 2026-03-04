@@ -6,6 +6,7 @@
 
 include_once '../../backend/auth.php';
 include_once '../../database/connect_database.php';
+require_once '../../backend/purchase-order/purchase_order_schema.php';
 
 // Validate session
 $validation = validateSession();
@@ -31,34 +32,68 @@ $user_data = [
 // Set custom title
 $custom_title = 'Purchase Orders - MinC Project';
 
+// Ensure table exists for environments where schema is not yet applied.
+$po_table_ready = true;
+$po_table_error = null;
+try {
+    ensurePurchaseOrdersTable($pdo);
+} catch (PDOException $e) {
+    $po_table_ready = false;
+    $po_table_error = 'Purchase order table is unavailable: ' . $e->getMessage();
+}
+
+// Active suppliers list (used by PO create flow)
+try {
+    $supplier_query = "
+        SELECT supplier_id, supplier_name
+        FROM suppliers
+        WHERE status = 'active'
+        ORDER BY supplier_name ASC
+    ";
+    $supplier_result = $pdo->query($supplier_query);
+    $active_suppliers = $supplier_result ? $supplier_result->fetchAll(PDO::FETCH_ASSOC) : [];
+} catch (PDOException $e) {
+    $active_suppliers = [];
+}
+
 // Fetch purchase orders
 try {
+    if (!$po_table_ready) {
+        throw new PDOException('purchase_orders table not ready');
+    }
+
     $po_query = "
-        SELECT 
-            po_id,
-            po_number,
-            supplier_id,
-            order_date,
-            expected_delivery_date,
-            total_amount,
-            status,
-            created_at
-        FROM purchase_orders
-        ORDER BY order_date DESC
+        SELECT
+            po.po_id,
+            po.po_number,
+            po.supplier_id,
+            s.supplier_name,
+            po.order_date,
+            po.expected_delivery_date,
+            po.total_amount,
+            po.status,
+            po.created_at
+        FROM purchase_orders po
+        LEFT JOIN suppliers s ON s.supplier_id = po.supplier_id
+        ORDER BY po.order_date DESC, po.po_id DESC
         LIMIT 100
     ";
     $po_result = $pdo->query($po_query);
     $purchase_orders = $po_result ? $po_result->fetchAll(PDO::FETCH_ASSOC) : [];
 } catch (PDOException $e) {
-    // Table might not exist
     $purchase_orders = [];
 }
 
 // Get statistics
 $total_orders = count($purchase_orders);
-$pending_orders = count(array_filter($purchase_orders, function($o) { return $o['status'] === 'pending'; }));
-$completed_orders = count(array_filter($purchase_orders, function($o) { return $o['status'] === 'completed'; }));
+$pending_orders = count(array_filter($purchase_orders, static function ($o) {
+    return strtolower((string)($o['status'] ?? '')) === 'pending';
+}));
+$completed_orders = count(array_filter($purchase_orders, static function ($o) {
+    return strtolower((string)($o['status'] ?? '')) === 'completed';
+}));
 $total_po_amount = array_sum(array_column($purchase_orders, 'total_amount'));
+$has_active_suppliers = !empty($active_suppliers);
 
 // Custom styles
 $additional_styles = '
@@ -151,7 +186,7 @@ ob_start();
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-sm text-gray-600 mb-1">Total Amount</p>
-                <p class="text-2xl font-bold text-[#08415c]">₱<?= number_format($total_po_amount, 0) ?></p>
+                <p class="text-2xl font-bold text-[#08415c]">&#8369;<?= number_format($total_po_amount, 2) ?></p>
             </div>
             <div class="p-3 bg-gradient-to-br from-purple-500 to-purple-700 text-white rounded-lg">
                 <i class="fas fa-money-bill-wave text-xl"></i>
@@ -163,13 +198,26 @@ ob_start();
 <!-- Purchase Orders Table -->
 <div class="professional-card rounded-xl p-6">
     <h3 class="text-lg font-bold text-[#08415c] mb-4">Purchase Orders List</h3>
-    
+
+    <?php if (!$has_active_suppliers): ?>
+        <div class="mb-4 p-3 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 text-sm">
+            No active suppliers found. Add or activate a supplier first before creating purchase orders.
+        </div>
+    <?php endif; ?>
+
+    <?php if ($po_table_error !== null): ?>
+        <div class="mb-4 p-3 rounded-lg bg-red-50 text-red-700 border border-red-200 text-sm">
+            <?= htmlspecialchars($po_table_error) ?>
+        </div>
+    <?php endif; ?>
+
     <?php if (!empty($purchase_orders)): ?>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr class="po-header">
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">PO Number</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Supplier</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Order Date</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Expected Delivery</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Amount</th>
@@ -179,40 +227,39 @@ ob_start();
                 </thead>
                 <tbody class="divide-y divide-gray-200">
                     <?php foreach ($purchase_orders as $po): ?>
+                        <?php $status = strtolower((string)($po['status'] ?? 'pending')); ?>
                         <tr class="po-row hover:bg-gray-50 transition">
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <p class="text-sm font-medium text-[#08415c]"><?= htmlspecialchars($po['po_number']) ?></p>
+                                <p class="text-sm font-medium text-[#08415c]"><?= htmlspecialchars((string)$po['po_number']) ?></p>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <p class="text-sm text-gray-600"><?= date('M d, Y', strtotime($po['order_date'])) ?></p>
+                                <p class="text-sm text-gray-700 font-medium"><?= htmlspecialchars((string)($po['supplier_name'] ?: 'Unknown Supplier')) ?></p>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <p class="text-sm text-gray-600"><?= date('M d, Y', strtotime($po['expected_delivery_date'])) ?></p>
+                                <p class="text-sm text-gray-600"><?= strtotime((string)$po['order_date']) ? date('M d, Y', strtotime((string)$po['order_date'])) : 'N/A' ?></p>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <p class="text-sm font-semibold text-gray-900">₱<?= number_format($po['total_amount'], 2) ?></p>
+                                <p class="text-sm text-gray-600"><?= strtotime((string)$po['expected_delivery_date']) ? date('M d, Y', strtotime((string)$po['expected_delivery_date'])) : 'N/A' ?></p>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <p class="text-sm font-semibold text-gray-900">&#8369;<?= number_format((float)$po['total_amount'], 2) ?></p>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="px-3 py-1 rounded-full text-xs font-medium
                                     <?php
-                                    if ($po['status'] === 'pending') {
+                                    if ($status === 'pending') {
                                         echo 'po-status-pending';
-                                    } elseif ($po['status'] === 'completed') {
+                                    } elseif ($status === 'completed') {
                                         echo 'po-status-completed';
                                     } else {
                                         echo 'po-status-cancelled';
                                     }
                                     ?>">
-                                    <?= ucfirst($po['status']) ?>
+                                    <?= ucfirst($status) ?>
                                 </span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm space-x-2">
-                                <button class="text-blue-600 hover:text-blue-900 transition">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                                <button class="text-green-600 hover:text-green-900 transition">
-                                    <i class="fas fa-edit"></i>
-                                </button>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <span class="text-gray-400">-</span>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -234,24 +281,31 @@ ob_start();
 <div id="createPOModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
     <div class="bg-white rounded-xl p-6 max-w-lg w-full mx-4 max-h-96 overflow-y-auto">
         <h3 class="text-lg font-bold text-[#08415c] mb-4">Create Purchase Order</h3>
-        <form id="createPOForm" class="space-y-4">
+        <form id="createPOForm" class="space-y-4" action="../../backend/purchase-order/create_purchase_order.php" method="POST">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Supplier *</label>
                 <select name="supplier_id" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" required>
                     <option value="">Select a supplier...</option>
+                    <?php foreach ($active_suppliers as $supplier): ?>
+                        <option value="<?= (int)$supplier['supplier_id'] ?>"><?= htmlspecialchars((string)$supplier['supplier_name']) ?></option>
+                    <?php endforeach; ?>
                 </select>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Order Date *</label>
-                <input type="date" name="order_date" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" required>
+                <input type="date" id="po_order_date" name="order_date" value="<?= htmlspecialchars(date('Y-m-d')) ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" required>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Expected Delivery Date *</label>
-                <input type="date" name="delivery_date" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" required>
+                <input type="date" id="po_expected_delivery_date" name="expected_delivery_date" value="<?= htmlspecialchars(date('Y-m-d', strtotime('+7 days'))) ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" required>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Total Amount *</label>
                 <input type="number" name="total_amount" step="0.01" min="0" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea name="notes" rows="3" maxlength="2000" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" placeholder="Optional purchase order notes"></textarea>
             </div>
             <div class="flex space-x-3 justify-end mt-6">
                 <button type="button" onclick="closeCreatePOModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
@@ -266,7 +320,31 @@ ob_start();
 </div>
 
 <script>
+    const HAS_ACTIVE_SUPPLIERS = <?= $has_active_suppliers ? 'true' : 'false' ?>;
+
     function openCreatePOModal() {
+        if (!HAS_ACTIVE_SUPPLIERS) {
+            showAlertModal('No active suppliers available. Add or activate a supplier first.', 'warning', 'Suppliers Required');
+            return;
+        }
+
+        const orderDateInput = document.getElementById('po_order_date');
+        const deliveryDateInput = document.getElementById('po_expected_delivery_date');
+
+        if (orderDateInput) {
+            orderDateInput.min = '<?= htmlspecialchars(date('Y-m-d')) ?>';
+            if (!orderDateInput.value) {
+                orderDateInput.value = '<?= htmlspecialchars(date('Y-m-d')) ?>';
+            }
+        }
+
+        if (deliveryDateInput && orderDateInput) {
+            deliveryDateInput.min = orderDateInput.value || '<?= htmlspecialchars(date('Y-m-d')) ?>';
+            if (!deliveryDateInput.value || deliveryDateInput.value < deliveryDateInput.min) {
+                deliveryDateInput.value = '<?= htmlspecialchars(date('Y-m-d', strtotime('+7 days'))) ?>';
+            }
+        }
+
         document.getElementById('createPOModal').classList.remove('hidden');
     }
 
@@ -274,10 +352,15 @@ ob_start();
         document.getElementById('createPOModal').classList.add('hidden');
     }
 
-    document.getElementById('createPOForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        showAlertModal('Purchase order creation is ready. Backend API endpoints need to be created for full functionality.', 'info', 'Purchase Order');
-        closeCreatePOModal();
+    document.getElementById('po_order_date')?.addEventListener('change', function () {
+        const deliveryDateInput = document.getElementById('po_expected_delivery_date');
+        if (!deliveryDateInput) {
+            return;
+        }
+        deliveryDateInput.min = this.value;
+        if (deliveryDateInput.value < this.value) {
+            deliveryDateInput.value = this.value;
+        }
     });
 </script>
 

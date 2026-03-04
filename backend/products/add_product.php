@@ -26,10 +26,33 @@ if (!isManagementLevel()) {
 // Check if form is submitted
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
+        $slugify = static function ($value) {
+            $slug = strtolower(trim((string)$value));
+            $slug = preg_replace('/[^a-z0-9]+/', '-', $slug);
+            $slug = trim($slug, '-');
+            return $slug !== '' ? $slug : 'product';
+        };
+
+        $generateUniqueSlug = static function ($pdo, $baseSlug) {
+            $slug = $baseSlug;
+            $counter = 2;
+            while (true) {
+                $check = $pdo->prepare("SELECT product_id FROM products WHERE product_slug = ? LIMIT 1");
+                $check->execute([$slug]);
+                if (!$check->fetch()) {
+                    return $slug;
+                }
+                $slug = $baseSlug . '-' . $counter;
+                $counter++;
+                if ($counter > 9999) {
+                    throw new Exception('Unable to generate a unique product slug.');
+                }
+            }
+        };
+
         // Get form data
         $product_line_id = $_POST['product_line_id'] ?? null;
         $product_name = trim($_POST['product_name'] ?? '');
-        $product_slug = trim($_POST['product_slug'] ?? '');
         $product_code = trim($_POST['product_code'] ?? '');
         $product_description = trim($_POST['product_description'] ?? '');
         $price = floatval($_POST['price'] ?? 0);
@@ -46,9 +69,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($product_name)) {
             throw new Exception('Product name is required.');
         }
-        if (empty($product_slug)) {
-            throw new Exception('Product slug is required.');
-        }
         if (empty($product_code)) {
             throw new Exception('Product code is required.');
         }
@@ -62,14 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception('Product code already exists. Please use a unique code.');
         }
 
-        // Check if product slug already exists
-        $check_slug_query = "SELECT product_id FROM products WHERE product_slug = :product_slug";
-        $check_slug_stmt = $pdo->prepare($check_slug_query);
-        $check_slug_stmt->execute(['product_slug' => $product_slug]);
-        
-        if ($check_slug_stmt->rowCount() > 0) {
-            throw new Exception('Product slug already exists. Please use a unique slug.');
-        }
+        $product_slug = $generateUniqueSlug($pdo, $slugify($product_name));
 
         // Handle image upload
         $product_image = null;

@@ -1,11 +1,11 @@
 <?php
 /**
  * Suppliers Management Frontend
- * File: d:\XAMPP\htdocs\pages\MinC_Project\app\frontend\suppliers.php
  */
 
 include_once '../../backend/auth.php';
 include_once '../../database/connect_database.php';
+require_once '../../backend/suppliers/province_options.php';
 
 // Validate session
 $validation = validateSession();
@@ -21,17 +21,11 @@ if (!isITStaff() && !isOwner()) {
     exit;
 }
 
-// Get current user data
-$user_data = [
-    'id' => $_SESSION['user_id'] ?? null,
-    'name' => $_SESSION['full_name'] ?? $_SESSION['fname'] ?? 'Guest User',
-    'user_type' => $_SESSION['user_type_name'] ?? 'User'
-];
+$province_options = getSupplierProvinceOptions();
 
 // Set custom title
 $custom_title = 'Suppliers Management - MinC Project';
 
-// Check if suppliers table exists, if not create mock data
 try {
     $suppliers_query = "
         SELECT 
@@ -46,30 +40,24 @@ try {
             status,
             created_at
         FROM suppliers
-        WHERE status = 'active'
-        ORDER BY supplier_name ASC
+        ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, supplier_name ASC
     ";
     $suppliers_result = $pdo->query($suppliers_query);
     $suppliers = $suppliers_result ? $suppliers_result->fetchAll(PDO::FETCH_ASSOC) : [];
 } catch (PDOException $e) {
-    // Table might not exist, use empty array
     $suppliers = [];
 }
 
-// Custom styles
+$total_suppliers = count($suppliers);
+$active_suppliers = count(array_filter($suppliers, static function ($supplier) {
+    return strtolower((string)($supplier['status'] ?? '')) === 'active';
+}));
+$unique_cities = count(array_unique(array_filter(array_map(static function ($supplier) {
+    return trim((string)($supplier['city'] ?? ''));
+}, $suppliers))));
+
 $additional_styles = '
 <style>
-    .supplier-card {
-        transition: all 0.3s ease;
-        border: 2px solid transparent;
-    }
-
-    .supplier-card:hover {
-        border-color: #08415c;
-        box-shadow: 0 8px 20px rgba(8, 65, 92, 0.15);
-        transform: translateY(-2px);
-    }
-
     .supplier-row:hover {
         background-color: rgba(8, 65, 92, 0.05);
     }
@@ -79,11 +67,15 @@ $additional_styles = '
     }
 
     .action-btn:hover {
-        transform: scale(1.1);
+        transform: scale(1.08);
+    }
+
+    .supplier-modal {
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
     }
 </style>';
 
-// Suppliers management content
 ob_start();
 ?>
 
@@ -99,7 +91,7 @@ ob_start();
                 Manage supplier information and contacts
             </p>
         </div>
-        <button onclick="openAddSupplierModal()" class="px-4 py-2 bg-gradient-to-r from-[#08415c] to-[#0a5273] text-white rounded-lg hover:shadow-lg transition flex items-center">
+        <button type="button" onclick="openAddSupplierModal()" class="px-4 py-2 bg-gradient-to-r from-[#08415c] to-[#0a5273] text-white rounded-lg hover:shadow-lg transition flex items-center">
             <i class="fas fa-plus mr-2"></i>Add Supplier
         </button>
     </div>
@@ -111,7 +103,7 @@ ob_start();
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-sm text-gray-600 mb-1">Total Suppliers</p>
-                <p class="text-2xl font-bold text-[#08415c]"><?= count($suppliers) ?></p>
+                <p class="text-2xl font-bold text-[#08415c]"><?php echo $total_suppliers; ?></p>
             </div>
             <div class="p-3 bg-gradient-to-br from-[#08415c] to-[#0a5273] text-white rounded-lg">
                 <i class="fas fa-people-carry text-xl"></i>
@@ -123,7 +115,7 @@ ob_start();
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-sm text-gray-600 mb-1">Active Suppliers</p>
-                <p class="text-2xl font-bold text-green-600"><?= count(array_filter($suppliers, function($s) { return $s['status'] === 'active'; })) ?></p>
+                <p class="text-2xl font-bold text-green-600"><?php echo $active_suppliers; ?></p>
             </div>
             <div class="p-3 bg-gradient-to-br from-green-500 to-green-700 text-white rounded-lg">
                 <i class="fas fa-check-circle text-xl"></i>
@@ -135,7 +127,7 @@ ob_start();
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-sm text-gray-600 mb-1">Suppliers in City</p>
-                <p class="text-2xl font-bold text-blue-600"><?= count(array_unique(array_column($suppliers, 'city'))) ?></p>
+                <p class="text-2xl font-bold text-blue-600"><?php echo $unique_cities; ?></p>
             </div>
             <div class="p-3 bg-gradient-to-br from-blue-500 to-blue-700 text-white rounded-lg">
                 <i class="fas fa-map-marker-alt text-xl"></i>
@@ -147,7 +139,7 @@ ob_start();
 <!-- Suppliers List -->
 <div class="professional-card rounded-xl p-6">
     <h3 class="text-lg font-bold text-[#08415c] mb-4">Supplier Directory</h3>
-    
+
     <?php if (!empty($suppliers)): ?>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
@@ -164,34 +156,72 @@ ob_start();
                 </thead>
                 <tbody class="divide-y divide-gray-200">
                     <?php foreach ($suppliers as $supplier): ?>
-                        <tr class="supplier-row hover:bg-gray-50 transition">
+                        <?php
+                        $status = strtolower((string)($supplier['status'] ?? 'inactive'));
+                        $is_active = $status === 'active';
+                        $address_text = trim((string)($supplier['address'] ?? ''));
+                        $city_text = trim((string)($supplier['city'] ?? ''));
+                        $province_text = trim((string)($supplier['province'] ?? ''));
+                        $location_parts = array_filter([$address_text, $city_text, $province_text], static function ($value) {
+                            return $value !== '';
+                        });
+                        $location_display = !empty($location_parts) ? implode(', ', $location_parts) : 'N/A';
+                        ?>
+                        <tr class="supplier-row transition">
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <p class="text-sm font-medium text-gray-900"><?= htmlspecialchars($supplier['supplier_name']) ?></p>
+                                <p class="text-sm font-medium text-gray-900"><?php echo htmlspecialchars($supplier['supplier_name']); ?></p>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <p class="text-sm text-gray-600"><?= htmlspecialchars($supplier['contact_person'] ?? 'N/A') ?></p>
+                                <p class="text-sm text-gray-600"><?php echo htmlspecialchars($supplier['contact_person'] ?: 'N/A'); ?></p>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <p class="text-sm text-gray-600"><?= htmlspecialchars($supplier['email'] ?? 'N/A') ?></p>
+                                <p class="text-sm text-gray-600"><?php echo htmlspecialchars($supplier['email'] ?: 'N/A'); ?></p>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <p class="text-sm text-gray-600"><?= htmlspecialchars($supplier['phone'] ?? 'N/A') ?></p>
+                                <p class="text-sm text-gray-600"><?php echo htmlspecialchars($supplier['phone'] ?: 'N/A'); ?></p>
+                            </td>
+                            <td class="px-6 py-4">
+                                <p class="text-sm text-gray-600"><?php echo htmlspecialchars($location_display); ?></p>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <p class="text-sm text-gray-600"><?= htmlspecialchars($supplier['city'] ?? 'N/A') ?>, <?= htmlspecialchars($supplier['province'] ?? 'N/A') ?></p>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-3 py-1 rounded-full text-xs font-medium <?= $supplier['status'] === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' ?>">
-                                    <?= ucfirst($supplier['status']) ?>
+                                <span class="px-3 py-1 rounded-full text-xs font-medium <?php echo $is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'; ?>">
+                                    <?php echo ucfirst($status); ?>
                                 </span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm space-x-2">
-                                <button class="action-btn text-blue-600 hover:text-blue-900 transition">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button class="action-btn text-red-600 hover:text-red-900 transition">
-                                    <i class="fas fa-trash"></i>
-                                </button>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <div class="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        class="action-btn text-blue-600 hover:text-blue-900"
+                                        title="Edit Supplier"
+                                        onclick="openEditSupplierModal(this)"
+                                        data-id="<?php echo (int)$supplier['supplier_id']; ?>"
+                                        data-name="<?php echo htmlspecialchars((string)$supplier['supplier_name'], ENT_QUOTES); ?>"
+                                        data-contact="<?php echo htmlspecialchars((string)$supplier['contact_person'], ENT_QUOTES); ?>"
+                                        data-email="<?php echo htmlspecialchars((string)$supplier['email'], ENT_QUOTES); ?>"
+                                        data-phone="<?php echo htmlspecialchars((string)$supplier['phone'], ENT_QUOTES); ?>"
+                                        data-address="<?php echo htmlspecialchars((string)$supplier['address'], ENT_QUOTES); ?>"
+                                        data-city="<?php echo htmlspecialchars((string)$supplier['city'], ENT_QUOTES); ?>"
+                                        data-province="<?php echo htmlspecialchars((string)$supplier['province'], ENT_QUOTES); ?>"
+                                    >
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+
+                                    <form method="POST" action="../../backend/suppliers/toggle_supplier_status.php" class="inline" onsubmit="return confirm('Change supplier status?');">
+                                        <input type="hidden" name="supplier_id" value="<?php echo (int)$supplier['supplier_id']; ?>">
+                                        <input type="hidden" name="current_status" value="<?php echo htmlspecialchars($status); ?>">
+                                        <button type="submit" class="action-btn <?php echo $is_active ? 'text-amber-600 hover:text-amber-900' : 'text-green-600 hover:text-green-900'; ?>" title="<?php echo $is_active ? 'Deactivate' : 'Activate'; ?> Supplier">
+                                            <i class="fas fa-<?php echo $is_active ? 'ban' : 'check-circle'; ?>"></i>
+                                        </button>
+                                    </form>
+
+                                    <form method="POST" action="../../backend/suppliers/delete_supplier.php" class="inline" onsubmit="return confirm('Delete this supplier? This action cannot be undone.');">
+                                        <input type="hidden" name="supplier_id" value="<?php echo (int)$supplier['supplier_id']; ?>">
+                                        <button type="submit" class="action-btn text-red-600 hover:text-red-900" title="Delete Supplier">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -202,7 +232,7 @@ ob_start();
         <div class="text-center py-12">
             <i class="fas fa-inbox text-gray-300 text-5xl mb-4"></i>
             <p class="text-gray-500">No suppliers added yet</p>
-            <button onclick="openAddSupplierModal()" class="mt-4 px-4 py-2 bg-[#08415c] text-white rounded-lg hover:bg-[#0a5273] transition">
+            <button type="button" onclick="openAddSupplierModal()" class="mt-4 px-4 py-2 bg-[#08415c] text-white rounded-lg hover:bg-[#0a5273] transition">
                 Add First Supplier
             </button>
         </div>
@@ -210,8 +240,8 @@ ob_start();
 </div>
 
 <!-- Add Supplier Modal -->
-<div id="addSupplierModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-    <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+<div id="addSupplierModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 supplier-modal p-4">
+    <div class="bg-white rounded-xl p-6 max-w-lg w-full max-h-screen overflow-y-auto">
         <h3 class="text-lg font-bold text-[#08415c] mb-4">Add New Supplier</h3>
         <form id="addSupplierForm" class="space-y-4" action="../../backend/suppliers/add_supplier.php" method="POST">
             <div>
@@ -231,12 +261,25 @@ ob_start();
                 <input type="tel" name="phone" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" maxlength="50">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
-                <input type="text" name="city" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" maxlength="100">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                <input type="text" name="address" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" maxlength="255">
             </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Province</label>
-                <input type="text" name="province" value="Pampanga" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" maxlength="100">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+                    <input type="text" name="city" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" maxlength="100">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Province *</label>
+                    <select name="province" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" required>
+                        <option value="">Select Province</option>
+                        <?php foreach ($province_options as $province_option): ?>
+                            <option value="<?php echo htmlspecialchars($province_option); ?>">
+                                <?php echo htmlspecialchars($province_option); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
             </div>
             <div class="flex space-x-3 justify-end mt-6">
                 <button type="button" onclick="closeAddSupplierModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
@@ -250,15 +293,89 @@ ob_start();
     </div>
 </div>
 
+<!-- Edit Supplier Modal -->
+<div id="editSupplierModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 supplier-modal p-4">
+    <div class="bg-white rounded-xl p-6 max-w-lg w-full max-h-screen overflow-y-auto">
+        <h3 class="text-lg font-bold text-[#08415c] mb-4">Edit Supplier</h3>
+        <form id="editSupplierForm" class="space-y-4" action="../../backend/suppliers/update_supplier.php" method="POST">
+            <input type="hidden" name="supplier_id" id="edit_supplier_id">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Supplier Name *</label>
+                <input type="text" name="supplier_name" id="edit_supplier_name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" minlength="2" maxlength="255" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Contact Person</label>
+                <input type="text" name="contact_person" id="edit_contact_person" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" maxlength="255">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input type="email" name="email" id="edit_email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" maxlength="255">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                <input type="tel" name="phone" id="edit_phone" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" maxlength="50">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                <input type="text" name="address" id="edit_address" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" maxlength="255">
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+                    <input type="text" name="city" id="edit_city" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" maxlength="100">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Province *</label>
+                    <select name="province" id="edit_province" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#08415c] focus:border-transparent" required>
+                        <?php foreach ($province_options as $province_option): ?>
+                            <option value="<?php echo htmlspecialchars($province_option); ?>">
+                                <?php echo htmlspecialchars($province_option); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
+            <div class="flex space-x-3 justify-end mt-6">
+                <button type="button" onclick="closeEditSupplierModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 bg-[#08415c] text-white rounded-lg hover:bg-[#0a5273] transition">
+                    Update Supplier
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
-    function openAddSupplierModal() {
-        document.getElementById('addSupplierModal').classList.remove('hidden');
+function openAddSupplierModal() {
+    const addForm = document.getElementById('addSupplierForm');
+    if (addForm) {
+        addForm.reset();
     }
+    document.getElementById('addSupplierModal').classList.remove('hidden');
+}
 
-    function closeAddSupplierModal() {
-        document.getElementById('addSupplierModal').classList.add('hidden');
-    }
+function closeAddSupplierModal() {
+    document.getElementById('addSupplierModal').classList.add('hidden');
+}
 
+function openEditSupplierModal(button) {
+    document.getElementById('edit_supplier_id').value = button.dataset.id || '';
+    document.getElementById('edit_supplier_name').value = button.dataset.name || '';
+    document.getElementById('edit_contact_person').value = button.dataset.contact || '';
+    document.getElementById('edit_email').value = button.dataset.email || '';
+    document.getElementById('edit_phone').value = button.dataset.phone || '';
+    document.getElementById('edit_address').value = button.dataset.address || '';
+    document.getElementById('edit_city').value = button.dataset.city || '';
+    document.getElementById('edit_province').value = button.dataset.province || 'Pampanga';
+
+    document.getElementById('editSupplierModal').classList.remove('hidden');
+}
+
+function closeEditSupplierModal() {
+    document.getElementById('editSupplierModal').classList.add('hidden');
+}
 </script>
 
 <?php

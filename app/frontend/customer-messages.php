@@ -302,37 +302,27 @@ $additional_styles = <<<CSS
 
 .chat-row {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     margin-bottom: 14px;
     justify-content: flex-start;
 }
 
-.chat-avatar {
-    width: 34px;
-    height: 34px;
-    border-radius: 9999px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    font-size: 0.78rem;
-    font-weight: 700;
+.chat-row.outgoing {
+    justify-content: flex-end;
 }
 
-.chat-avatar.customer {
-    background: #cbd5e1;
-    color: #334155;
+.chat-row.outgoing .chat-stack {
+    align-items: flex-end;
 }
 
-.chat-avatar.agent {
-    background: #08415c;
-    color: #fff;
+.chat-row.outgoing .chat-meta {
+    justify-content: flex-end;
 }
 
 .chat-stack {
     display: flex;
     flex-direction: column;
-    max-width: min(74%, 720px);
+    max-width: min(78%, 420px);
     align-items: flex-start;
 }
 
@@ -359,7 +349,6 @@ $additional_styles = <<<CSS
     font-size: 0.72rem;
     color: #64748b;
     margin-top: 4px;
-    margin-left: 4px;
     display: inline-block;
 }
 
@@ -381,6 +370,24 @@ $additional_styles = <<<CSS
 .chat-bubble.agent {
     background: linear-gradient(135deg, #08415c 0%, #0a5273 100%);
     color: #fff;
+}
+
+.chat-start-marker {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 16px;
+}
+
+.chat-start-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 9999px;
+    border: 1px solid #dbe3ee;
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 0.75rem;
+    line-height: 1;
+    padding: 0.35rem 0.8rem;
 }
 
 .chat-input-wrap {
@@ -546,6 +553,9 @@ ob_start();
                                 </div>
                             </div>
                         <?php else: ?>
+                            <div class="chat-start-marker">
+                                <span class="chat-start-pill">Chat started</span>
+                            </div>
                             <?php foreach ($current_messages as $msg): ?>
                                 <?php
                                 $isAdminMessage = (($msg['sender_type'] ?? '') === 'admin');
@@ -553,29 +563,17 @@ ob_start();
                                 $msgEmailRaw = trim((string)($msg['sender_email'] ?? ''));
 
                                 if ($isAdminMessage) {
-                                    $msgDisplayName = 'MinC Support';
-                                    $msgAvatar = 'M';
+                                    $msgDisplayName = 'You';
                                 } else {
                                     $msgDisplayName = $resolveDisplayName($msgNameRaw, $msgEmailRaw, $current_session ?? '');
-                                    $msgAvatar = strtoupper(substr($msgDisplayName, 0, 1));
-                                }
-
-                                if ($msgAvatar === '') {
-                                    $msgAvatar = 'U';
                                 }
 
                                 $messageBody = htmlspecialchars_decode((string)($msg['message_content'] ?? ''), ENT_QUOTES);
                                 ?>
                                 <article class="chat-row <?php echo $isAdminMessage ? 'outgoing' : 'incoming'; ?>">
-                                    <span class="chat-avatar <?php echo $isAdminMessage ? 'agent' : 'customer'; ?>">
-                                        <?php echo htmlspecialchars($msgAvatar); ?>
-                                    </span>
                                     <div class="chat-stack">
                                         <div class="chat-meta">
                                             <span class="chat-name"><?php echo htmlspecialchars($msgDisplayName); ?></span>
-                                            <?php if (!$isAdminMessage && $msgEmailRaw !== ''): ?>
-                                                <span class="chat-email"><?php echo htmlspecialchars($msgEmailRaw); ?></span>
-                                            <?php endif; ?>
                                         </div>
                                         <div class="chat-bubble <?php echo $isAdminMessage ? 'agent' : 'customer'; ?>">
                                             <?php echo nl2br(htmlspecialchars($messageBody)); ?>
@@ -642,10 +640,9 @@ function appendAgentMessage(message) {
     const timeText = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
     row.innerHTML = `
-        <span class="chat-avatar agent">M</span>
         <div class="chat-stack">
             <div class="chat-meta">
-                <span class="chat-name">MinC Support</span>
+                <span class="chat-name">You</span>
             </div>
             <div class="chat-bubble agent"></div>
             <span class="chat-time">${timeText}</span>

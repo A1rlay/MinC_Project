@@ -49,7 +49,6 @@ try {
             p.product_id,
             p.product_line_id,
             p.product_name,
-            p.product_slug,
             p.product_code,
             p.product_description,
             p.product_image,
@@ -63,10 +62,8 @@ try {
             p.created_at,
             p.updated_at,
             pl.product_line_name,
-            pl.product_line_slug,
             pl.category_id,
-            c.category_name,
-            c.category_slug
+            c.category_name
         FROM products p
         INNER JOIN product_lines pl ON p.product_line_id = pl.product_line_id
         INNER JOIN categories c ON pl.category_id = c.category_id
@@ -853,11 +850,6 @@ data-product-id="<?php echo $product['product_id']; ?>">
                 <p class="text-xs text-gray-500 mt-1">Unique identifier (e.g., WA-001)</p>
             </div>
             <div class="form-group">
-                <label for="add_product_slug" class="form-label">Product Slug *</label>
-                <input type="text" id="add_product_slug" name="product_slug" class="form-input" required>
-                <p class="text-xs text-gray-500 mt-1">URL-friendly version (auto-generated)</p>
-            </div>
-            <div class="form-group">
                 <label for="add_display_order" class="form-label">Display Order *</label>
                 <input type="number" id="add_display_order" name="display_order" class="form-input" min="0" value="0" required>
                 <p class="text-xs text-gray-500 mt-1">Lower numbers appear first</p>
@@ -982,11 +974,6 @@ data-product-id="<?php echo $product['product_id']; ?>">
             </div>
             
             <div class="form-group">
-                <label for="edit_product_slug" class="form-label">Product Slug *</label>
-                <input type="text" id="edit_product_slug" name="product_slug" class="form-input" required>
-            </div>
-            
-            <div class="form-group">
                 <label for="edit_display_order" class="form-label">Display Order *</label>
                 <input type="number" id="edit_display_order" name="display_order" class="form-input" min="0" required>
             </div>
@@ -1084,7 +1071,6 @@ document.addEventListener("DOMContentLoaded", function() {
     console.log("DOM loaded, initializing filters and pagination");
     initializeFilters();
     initializePagination();
-    initializeSlugGeneration();
     updateDisplay();
 });
 
@@ -1139,22 +1125,6 @@ function initializePagination() {
             recordsPerPage = parseInt(this.value);
             currentPage = 1;
             updateDisplay();
-        });
-    }
-}
-
-// Auto-generate slug from product name
-function initializeSlugGeneration() {
-    const addNameInput = document.getElementById("add_product_name");
-    const addSlugInput = document.getElementById("add_product_slug");
-    
-    if (addNameInput && addSlugInput) {
-        addNameInput.addEventListener("input", function() {
-            const slug = this.value
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/^-+|-+$/g, '');
-            addSlugInput.value = slug;
         });
     }
 }
@@ -1407,7 +1377,6 @@ function openEditModal(productId) {
                 
                 document.getElementById("edit_product_name").value = product.product_name || "";
                 document.getElementById("edit_product_code").value = product.product_code || "";
-                document.getElementById("edit_product_slug").value = product.product_slug || "";
                 document.getElementById("edit_product_description").value = product.product_description || "";
                 document.getElementById("edit_price").value = product.price || "0.00";
                 document.getElementById("edit_stock_quantity").value = product.stock_quantity || "0";
