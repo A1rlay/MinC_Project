@@ -8,6 +8,14 @@ header('Content-Type: application/json');
 require_once '../../database/connect_database.php';
 
 try {
+    $normalizeMessageBody = static function ($message) {
+        $message = html_entity_decode((string)$message, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $message = str_replace(["\r\n", "\r"], "\n", $message);
+        $message = preg_replace('/[ \t]+\n/', "\n", $message);
+        $message = preg_replace("/\n{3,}/", "\n\n", $message);
+        return trim((string)$message);
+    };
+
     // Get the request method
     $method = $_SERVER['REQUEST_METHOD'];
     
@@ -23,13 +31,15 @@ try {
             'message_length' => strlen($data['message_content'] ?? '')
         ]));
         
-        if (!isset($data['message_content']) || empty(trim($data['message_content']))) {
+        $normalizedMessage = $normalizeMessageBody($data['message_content'] ?? '');
+
+        if (!isset($data['message_content']) || $normalizedMessage === '') {
             throw new Exception('Message content is required');
         }
         
         $sender_name = $data['sender_name'] ?? 'Anonymous Customer';
         $sender_email = $data['sender_email'] ?? null;
-        $message_content = htmlspecialchars($data['message_content']);
+        $message_content = htmlspecialchars($normalizedMessage, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $sender_id = isset($data['sender_id']) ? intval($data['sender_id']) : null;
         $sender_type = isset($data['sender_type']) && $data['sender_type'] === 'admin' ? 'admin' : 'customer';
         

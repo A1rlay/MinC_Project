@@ -108,6 +108,14 @@ $formatConversationTime = static function ($timestamp) {
     return date('M d', $time);
 };
 
+$normalizeMessageBody = static function ($content) {
+    $content = html_entity_decode((string)$content, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $content = str_replace(["\r\n", "\r"], "\n", $content);
+    $content = preg_replace('/[ \t]+\n/', "\n", $content);
+    $content = preg_replace("/\n{3,}/", "\n\n", $content);
+    return trim((string)$content);
+};
+
 $current_session = isset($_GET['session_id']) && trim((string)$_GET['session_id']) !== ''
     ? trim((string)$_GET['session_id'])
     : null;
@@ -568,7 +576,10 @@ ob_start();
                                     $msgDisplayName = $resolveDisplayName($msgNameRaw, $msgEmailRaw, $current_session ?? '');
                                 }
 
-                                $messageBody = htmlspecialchars_decode((string)($msg['message_content'] ?? ''), ENT_QUOTES);
+                                $messageBody = $normalizeMessageBody($msg['message_content'] ?? '');
+                                if ($messageBody === '') {
+                                    continue;
+                                }
                                 ?>
                                 <article class="chat-row <?php echo $isAdminMessage ? 'outgoing' : 'incoming'; ?>">
                                     <div class="chat-stack">
@@ -619,6 +630,14 @@ const messageForm = document.getElementById('messageForm');
 const messageText = document.getElementById('messageText');
 const messagesContainer = document.getElementById('messages');
 
+function normalizeMessageBody(text) {
+    return String(text || '')
+        .replace(/\r\n?/g, '\n')
+        .replace(/[ \t]+\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
 function scrollMessagesToBottom() {
     if (!messagesContainer) return;
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -632,6 +651,9 @@ function autoResizeTextarea(textarea) {
 
 function appendAgentMessage(message) {
     if (!messagesContainer) return;
+
+    const normalizedMessage = normalizeMessageBody(message);
+    if (!normalizedMessage) return;
 
     const row = document.createElement('article');
     row.className = 'chat-row outgoing';
@@ -650,7 +672,7 @@ function appendAgentMessage(message) {
     `;
 
     const bubble = row.querySelector('.chat-bubble.agent');
-    bubble.textContent = message;
+    bubble.textContent = normalizedMessage;
 
     messagesContainer.appendChild(row);
     scrollMessagesToBottom();
@@ -678,7 +700,7 @@ if (messageForm) {
 
         const sessionField = this.querySelector('input[name="session_id"]');
         const sessionId = sessionField ? sessionField.value : '';
-        const message = messageText ? messageText.value.trim() : '';
+        const message = normalizeMessageBody(messageText ? messageText.value : '');
         if (!sessionId || !message) {
             return;
         }

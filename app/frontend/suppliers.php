@@ -207,7 +207,13 @@ ob_start();
                                         <i class="fas fa-edit"></i>
                                     </button>
 
-                                    <form method="POST" action="../../backend/suppliers/toggle_supplier_status.php" class="inline" onsubmit="return confirm('Change supplier status?');">
+                                    <form
+                                        method="POST"
+                                        action="../../backend/suppliers/toggle_supplier_status.php"
+                                        class="inline supplier-action-form"
+                                        data-confirm-title="<?php echo $is_active ? 'Deactivate Supplier' : 'Activate Supplier'; ?>"
+                                        data-confirm-message="<?php echo $is_active ? 'Are you sure you want to deactivate this supplier?' : 'Are you sure you want to activate this supplier?'; ?>"
+                                    >
                                         <input type="hidden" name="supplier_id" value="<?php echo (int)$supplier['supplier_id']; ?>">
                                         <input type="hidden" name="current_status" value="<?php echo htmlspecialchars($status); ?>">
                                         <button type="submit" class="action-btn <?php echo $is_active ? 'text-amber-600 hover:text-amber-900' : 'text-green-600 hover:text-green-900'; ?>" title="<?php echo $is_active ? 'Deactivate' : 'Activate'; ?> Supplier">
@@ -215,7 +221,13 @@ ob_start();
                                         </button>
                                     </form>
 
-                                    <form method="POST" action="../../backend/suppliers/delete_supplier.php" class="inline" onsubmit="return confirm('Delete this supplier? This action cannot be undone.');">
+                                    <form
+                                        method="POST"
+                                        action="../../backend/suppliers/delete_supplier.php"
+                                        class="inline supplier-action-form"
+                                        data-confirm-title="Delete Supplier"
+                                        data-confirm-message="Delete this supplier? This action cannot be undone."
+                                    >
                                         <input type="hidden" name="supplier_id" value="<?php echo (int)$supplier['supplier_id']; ?>">
                                         <button type="submit" class="action-btn text-red-600 hover:text-red-900" title="Delete Supplier">
                                             <i class="fas fa-trash"></i>
@@ -376,6 +388,34 @@ function openEditSupplierModal(button) {
 function closeEditSupplierModal() {
     document.getElementById('editSupplierModal').classList.add('hidden');
 }
+
+async function handleSupplierActionSubmit(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    if (!form) {
+        return;
+    }
+
+    const confirmMessage = (form.dataset.confirmMessage || 'Are you sure?').trim();
+    const confirmTitle = (form.dataset.confirmTitle || 'Please Confirm').trim();
+
+    let confirmed = false;
+    if (typeof window.showConfirmModal === 'function') {
+        confirmed = await window.showConfirmModal(confirmMessage, confirmTitle);
+    } else {
+        confirmed = window.confirm(confirmMessage);
+    }
+
+    if (!confirmed) {
+        return;
+    }
+
+    HTMLFormElement.prototype.submit.call(form);
+}
+
+document.querySelectorAll('.supplier-action-form').forEach((form) => {
+    form.addEventListener('submit', handleSupplierActionSubmit);
+});
 </script>
 
 <?php
