@@ -67,13 +67,17 @@ try {
     // Get all categories for the dropdown
     $categories_query = "
         SELECT 
-            category_id,
-            category_name,
-            category_slug,
-            status
-        FROM categories
-        WHERE status = 'active'
-        ORDER BY display_order ASC, category_name ASC
+            c.category_id,
+            c.category_name,
+            c.category_slug,
+            c.status
+        FROM categories c
+        WHERE c.status = 'active'
+           OR c.category_id IN (SELECT DISTINCT category_id FROM product_lines)
+        ORDER BY
+            CASE WHEN c.status = 'active' THEN 0 ELSE 1 END,
+            c.display_order ASC,
+            c.category_name ASC
     ";
     $categories_result = $pdo->query($categories_query);
     $categories = $categories_result->fetchAll(PDO::FETCH_ASSOC);
@@ -138,16 +142,47 @@ $resolve_default_subcategories = static function ($categoryName, $categorySlug =
     return [];
 };
 
-// Default map by category ID (fallback when preset table is unavailable/empty)
+// Build subcategory suggestion map by category.
+// Merge order: DB presets -> existing product lines -> static fallback defaults.
 $subcategory_presets_by_category = [];
+$append_subcategory_options = static function (&$targetMap, $categoryId, array $options) {
+    $categoryKey = (string)$categoryId;
+    if ($categoryKey === '') {
+        return;
+    }
+
+    if (!isset($targetMap[$categoryKey]) || !is_array($targetMap[$categoryKey])) {
+        $targetMap[$categoryKey] = [];
+    }
+
+    $normalized_existing = array_map(static function ($value) {
+        return strtolower(trim((string)$value));
+    }, $targetMap[$categoryKey]);
+
+    foreach ($options as $option) {
+        $label = trim((string)$option);
+        if ($label === '') {
+            continue;
+        }
+
+        $normalized_label = strtolower($label);
+        if (in_array($normalized_label, $normalized_existing, true)) {
+            continue;
+        }
+
+        $targetMap[$categoryKey][] = $label;
+        $normalized_existing[] = $normalized_label;
+    }
+};
+
 foreach ($categories as $category) {
-    $defaults = $resolve_default_subcategories($category['category_name'] ?? '', $category['category_slug'] ?? '');
-    if (!empty($defaults)) {
-        $subcategory_presets_by_category[(string)$category['category_id']] = array_values($defaults);
+    $category_key = (string)($category['category_id'] ?? '');
+    if ($category_key !== '' && !isset($subcategory_presets_by_category[$category_key])) {
+        $subcategory_presets_by_category[$category_key] = [];
     }
 }
 
-// Load DB-defined presets if the table exists and has rows.
+// Load DB-defined presets if the table exists.
 try {
     $table_check = $pdo->query("SHOW TABLES LIKE 'product_line_presets'");
     $has_preset_table = $table_check && (bool)$table_check->fetchColumn();
@@ -163,29 +198,54 @@ try {
         $preset_result = $pdo->query($preset_query);
         $preset_rows = $preset_result->fetchAll(PDO::FETCH_ASSOC);
 
-        if (!empty($preset_rows)) {
-            $db_map = [];
-            foreach ($preset_rows as $row) {
-                $category_key = (string)($row['category_id'] ?? '');
-                $preset_name = trim((string)($row['preset_name'] ?? ''));
-                if ($category_key === '' || $preset_name === '') {
-                    continue;
-                }
-                if (!isset($db_map[$category_key])) {
-                    $db_map[$category_key] = [];
-                }
-                if (!in_array($preset_name, $db_map[$category_key], true)) {
-                    $db_map[$category_key][] = $preset_name;
-                }
-            }
-
-            if (!empty($db_map)) {
-                $subcategory_presets_by_category = $db_map;
-            }
+        foreach ($preset_rows as $row) {
+            $append_subcategory_options(
+                $subcategory_presets_by_category,
+                $row['category_id'] ?? '',
+                [$row['preset_name'] ?? '']
+            );
         }
     }
 } catch (Exception $e) {
     error_log('Subcategory preset table load failed in product-lines.php: ' . $e->getMessage());
+}
+
+// Include existing product line names as suggestions (keeps edit flow resilient).
+try {
+    $existing_names_query = "
+        SELECT category_id, product_line_name
+        FROM product_lines
+        WHERE product_line_name IS NOT NULL
+          AND TRIM(product_line_name) != ''
+        ORDER BY category_id ASC, display_order ASC, product_line_name ASC
+    ";
+    $existing_names_result = $pdo->query($existing_names_query);
+    $existing_name_rows = $existing_names_result->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($existing_name_rows as $row) {
+        $append_subcategory_options(
+            $subcategory_presets_by_category,
+            $row['category_id'] ?? '',
+            [$row['product_line_name'] ?? '']
+        );
+    }
+} catch (Exception $e) {
+    error_log('Product line name suggestion load failed in product-lines.php: ' . $e->getMessage());
+}
+
+// Fill remaining empty categories with static fallback defaults.
+foreach ($categories as $category) {
+    $category_key = (string)($category['category_id'] ?? '');
+    if ($category_key === '') {
+        continue;
+    }
+
+    if (!empty($subcategory_presets_by_category[$category_key])) {
+        continue;
+    }
+
+    $defaults = $resolve_default_subcategories($category['category_name'] ?? '', $category['category_slug'] ?? '');
+    $append_subcategory_options($subcategory_presets_by_category, $category_key, $defaults);
 }
 
 // Additional styles for product lines management specific elements
@@ -510,7 +570,7 @@ ob_start();
                 <option value="">All Categories</option>
                 <?php foreach ($categories as $category): ?>
                     <option value="<?php echo htmlspecialchars($category['category_id']); ?>">
-                        <?php echo htmlspecialchars($category['category_name']); ?>
+                        <?php echo htmlspecialchars($category['category_name'] . (($category['status'] ?? 'active') === 'active' ? '' : ' (Inactive)')); ?>
                     </option>
                 <?php endforeach; ?>
             </select>
@@ -755,17 +815,24 @@ ob_start();
                     <option value="">Select Category</option>
                     <?php foreach ($categories as $category): ?>
                         <option value="<?php echo htmlspecialchars($category['category_id']); ?>">
-                            <?php echo htmlspecialchars($category['category_name']); ?>
+                            <?php echo htmlspecialchars($category['category_name'] . (($category['status'] ?? 'active') === 'active' ? '' : ' (Inactive)')); ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
             </div>
             <div class="form-group">
                 <label for="add_product_line_name" class="form-label">Subcategory *</label>
-                <select id="add_product_line_name" name="product_line_name" class="form-select" required>
-                    <option value="">Select category first</option>
-                </select>
-                <p class="text-xs text-gray-500 mt-1">Subcategory options are predefined by category.</p>
+                <input type="text"
+                       id="add_product_line_name"
+                       name="product_line_name"
+                       class="form-input"
+                       list="add_product_line_name_suggestions"
+                       placeholder="Select or type a subcategory"
+                       maxlength="255"
+                       autocomplete="off"
+                       required>
+                <datalist id="add_product_line_name_suggestions"></datalist>
+                <p class="text-xs text-gray-500 mt-1">Suggestions update by category. You can type a new subcategory if needed.</p>
             </div>
             <div class="form-group">
                 <label for="add_product_line_description" class="form-label">Description</label>
@@ -822,7 +889,7 @@ ob_start();
                     <option value="">Select Category</option>
                     <?php foreach ($categories as $category): ?>
                         <option value="<?php echo htmlspecialchars($category['category_id']); ?>">
-                            <?php echo htmlspecialchars($category['category_name']); ?>
+                            <?php echo htmlspecialchars($category['category_name'] . (($category['status'] ?? 'active') === 'active' ? '' : ' (Inactive)')); ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -830,10 +897,17 @@ ob_start();
 
             <div class="form-group">
                 <label for="edit_product_line_name" class="form-label">Subcategory *</label>
-                <select id="edit_product_line_name" name="product_line_name" class="form-select" required>
-                    <option value="">Select category first</option>
-                </select>
-                <p class="text-xs text-gray-500 mt-1">Subcategory options are predefined by category.</p>
+                <input type="text"
+                       id="edit_product_line_name"
+                       name="product_line_name"
+                       class="form-input"
+                       list="edit_product_line_name_suggestions"
+                       placeholder="Select or type a subcategory"
+                       maxlength="255"
+                       autocomplete="off"
+                       required>
+                <datalist id="edit_product_line_name_suggestions"></datalist>
+                <p class="text-xs text-gray-500 mt-1">Suggestions update by category. You can type a new subcategory if needed.</p>
             </div>
             
             <div class="form-group">
@@ -904,34 +978,16 @@ function getSubcategoryOptionsByCategoryId(categoryId) {
     return Array.isArray(options) ? options : [];
 }
 
-function renderSubcategorySelectOptions(selectElement, categoryId, selectedValue = '') {
-    if (!selectElement) return;
+function renderSubcategorySuggestions(datalistElement, categoryId) {
+    if (!datalistElement) return;
 
-    const targetId = Number(categoryId || 0);
-    if (!targetId) {
-        selectElement.innerHTML = '<option value="">Select category first</option>';
-        selectElement.value = '';
-        return;
-    }
-
+    datalistElement.innerHTML = '';
     const options = getSubcategoryOptionsByCategoryId(categoryId);
-    const normalizedSelected = String(selectedValue || '').toLowerCase().trim();
 
-    if (!options.length) {
-        selectElement.innerHTML = '<option value="">No predefined subcategories for this category</option>';
-        selectElement.value = '';
-        return;
-    }
-
-    selectElement.innerHTML = '<option value="">Select Subcategory</option>';
     options.forEach(optionName => {
         const option = document.createElement('option');
         option.value = optionName;
-        option.textContent = optionName;
-        if (optionName.toLowerCase().trim() === normalizedSelected) {
-            option.selected = true;
-        }
-        selectElement.appendChild(option);
+        datalistElement.appendChild(option);
     });
 }
 
@@ -946,22 +1002,30 @@ document.addEventListener("DOMContentLoaded", function() {
 
 function initializeSubcategorySelectors() {
     const addCategorySelect = document.getElementById("add_category_id");
-    const addSubcategorySelect = document.getElementById("add_product_line_name");
+    const addSubcategoryInput = document.getElementById("add_product_line_name");
+    const addSubcategoryDatalist = document.getElementById("add_product_line_name_suggestions");
     const editCategorySelect = document.getElementById("edit_category_id");
-    const editSubcategorySelect = document.getElementById("edit_product_line_name");
+    const editSubcategoryInput = document.getElementById("edit_product_line_name");
+    const editSubcategoryDatalist = document.getElementById("edit_product_line_name_suggestions");
 
-    if (addCategorySelect && addSubcategorySelect) {
+    if (addCategorySelect && addSubcategoryDatalist) {
         addCategorySelect.addEventListener("change", function() {
-            renderSubcategorySelectOptions(addSubcategorySelect, this.value);
+            renderSubcategorySuggestions(addSubcategoryDatalist, this.value);
+            if (addSubcategoryInput) {
+                addSubcategoryInput.value = '';
+            }
         });
-        renderSubcategorySelectOptions(addSubcategorySelect, addCategorySelect.value);
+        renderSubcategorySuggestions(addSubcategoryDatalist, addCategorySelect.value);
     }
 
-    if (editCategorySelect && editSubcategorySelect) {
+    if (editCategorySelect && editSubcategoryDatalist) {
         editCategorySelect.addEventListener("change", function() {
-            renderSubcategorySelectOptions(editSubcategorySelect, this.value);
+            renderSubcategorySuggestions(editSubcategoryDatalist, this.value);
+            if (editSubcategoryInput) {
+                editSubcategoryInput.value = '';
+            }
         });
-        renderSubcategorySelectOptions(editSubcategorySelect, editCategorySelect.value);
+        renderSubcategorySuggestions(editSubcategoryDatalist, editCategorySelect.value);
     }
 }
 
@@ -1170,9 +1234,13 @@ function openAddModal() {
         if (container) container.classList.remove('has-image');
 
         const addCategorySelect = document.getElementById("add_category_id");
-        const addSubcategorySelect = document.getElementById("add_product_line_name");
-        if (addCategorySelect && addSubcategorySelect) {
-            renderSubcategorySelectOptions(addSubcategorySelect, addCategorySelect.value);
+        const addSubcategoryInput = document.getElementById("add_product_line_name");
+        const addSubcategoryDatalist = document.getElementById("add_product_line_name_suggestions");
+        if (addCategorySelect && addSubcategoryDatalist) {
+            renderSubcategorySuggestions(addSubcategoryDatalist, addCategorySelect.value);
+        }
+        if (addSubcategoryInput) {
+            addSubcategoryInput.value = '';
         }
         
         console.log("Add modal opened");
@@ -1228,11 +1296,11 @@ function openEditModal(productLineId) {
                 
                 document.getElementById("edit_product_line_id").value = productLine.product_line_id || "";
                 document.getElementById("edit_category_id").value = productLine.category_id || "";
-                renderSubcategorySelectOptions(
-                    document.getElementById("edit_product_line_name"),
-                    productLine.category_id || "",
-                    productLine.product_line_name || ""
+                renderSubcategorySuggestions(
+                    document.getElementById("edit_product_line_name_suggestions"),
+                    productLine.category_id || ""
                 );
+                document.getElementById("edit_product_line_name").value = productLine.product_line_name || "";
                 document.getElementById("edit_product_line_description").value = productLine.product_line_description || "";
                 document.getElementById("edit_display_order").value = productLine.display_order || "0";
                 document.getElementById("edit_status").value = productLine.status || "active";

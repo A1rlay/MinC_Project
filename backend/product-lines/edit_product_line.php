@@ -96,8 +96,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             return [];
         };
 
-        $getAllowedSubcategories = static function ($pdo, $categoryId, $categoryName, $categorySlug = '') use ($getFallbackSubcategories) {
+        $appendUniqueValues = static function (array &$target, array $values) {
+            $normalizedExisting = array_map(static function ($value) {
+                return strtolower(trim((string)$value));
+            }, $target);
+
+            foreach ($values as $value) {
+                $label = trim((string)$value);
+                if ($label === '') {
+                    continue;
+                }
+
+                $normalizedLabel = strtolower($label);
+                if (in_array($normalizedLabel, $normalizedExisting, true)) {
+                    continue;
+                }
+
+                $target[] = $label;
+                $normalizedExisting[] = $normalizedLabel;
+            }
+        };
+
+        $getSuggestedSubcategories = static function ($pdo, $categoryId, $categoryName, $categorySlug = '') use ($getFallbackSubcategories, $appendUniqueValues) {
             static $hasPresetTable = null;
+            $suggestions = [];
 
             if ($hasPresetTable === null) {
                 try {
@@ -119,19 +141,117 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ");
                     $presetQuery->execute([':category_id' => (int)$categoryId]);
                     $rows = $presetQuery->fetchAll(PDO::FETCH_COLUMN, 0);
-                    $rows = array_values(array_unique(array_filter(array_map(static function ($value) {
-                        return trim((string)$value);
-                    }, $rows))));
-
-                    if (!empty($rows)) {
-                        return $rows;
-                    }
+                    $appendUniqueValues($suggestions, $rows);
                 } catch (Exception $e) {
-                    // Fall through to static fallback mapping.
+                    // Fall through to the remaining suggestion sources.
                 }
             }
 
-            return $getFallbackSubcategories($categoryName, $categorySlug);
+            try {
+                $existingQuery = $pdo->prepare("
+                    SELECT product_line_name
+                    FROM product_lines
+                    WHERE category_id = :category_id
+                      AND product_line_name IS NOT NULL
+                      AND TRIM(product_line_name) != ''
+                    ORDER BY display_order ASC, product_line_name ASC
+                ");
+                $existingQuery->execute([':category_id' => (int)$categoryId]);
+                $rows = $existingQuery->fetchAll(PDO::FETCH_COLUMN, 0);
+                $appendUniqueValues($suggestions, $rows);
+            } catch (Exception $e) {
+                // Non-fatal, keep other sources.
+            }
+
+            if (empty($suggestions)) {
+                $appendUniqueValues($suggestions, $getFallbackSubcategories($categoryName, $categorySlug));
+            }
+
+            return $suggestions;
+        };
+
+        $syncPresetName = static function ($pdo, $categoryId, $subcategoryName) {
+            static $hasPresetTable = null;
+
+            if ($hasPresetTable === null) {
+                try {
+                    $check = $pdo->query("SHOW TABLES LIKE 'product_line_presets'");
+                    $hasPresetTable = $check && (bool)$check->fetchColumn();
+                } catch (Exception $e) {
+                    $hasPresetTable = false;
+                }
+            }
+
+            if (!$hasPresetTable) {
+                return;
+            }
+
+            $cleanName = trim((string)$subcategoryName);
+            if ($cleanName === '') {
+                return;
+            }
+
+            $lookup = $pdo->prepare("
+                SELECT preset_id
+                FROM product_line_presets
+                WHERE category_id = :category_id
+                  AND LOWER(TRIM(preset_name)) = :preset_name
+                LIMIT 1
+            ");
+            $lookup->execute([
+                ':category_id' => (int)$categoryId,
+                ':preset_name' => strtolower($cleanName)
+            ]);
+            $existingPresetId = $lookup->fetchColumn();
+
+            if ($existingPresetId) {
+                $update = $pdo->prepare("
+                    UPDATE product_line_presets
+                    SET preset_name = :preset_name,
+                        status = 'active',
+                        updated_at = NOW()
+                    WHERE preset_id = :preset_id
+                ");
+                $update->execute([
+                    ':preset_name' => $cleanName,
+                    ':preset_id' => (int)$existingPresetId
+                ]);
+                return;
+            }
+
+            $orderQuery = $pdo->prepare("
+                SELECT COALESCE(MAX(display_order), 0) + 1
+                FROM product_line_presets
+                WHERE category_id = :category_id
+            ");
+            $orderQuery->execute([':category_id' => (int)$categoryId]);
+            $nextOrder = (int)$orderQuery->fetchColumn();
+            if ($nextOrder <= 0) {
+                $nextOrder = 1;
+            }
+
+            $insert = $pdo->prepare("
+                INSERT INTO product_line_presets (
+                    category_id,
+                    preset_name,
+                    display_order,
+                    status,
+                    created_at,
+                    updated_at
+                ) VALUES (
+                    :category_id,
+                    :preset_name,
+                    :display_order,
+                    'active',
+                    NOW(),
+                    NOW()
+                )
+            ");
+            $insert->execute([
+                ':category_id' => (int)$categoryId,
+                ':preset_name' => $cleanName,
+                ':display_order' => $nextOrder
+            ]);
         };
 
         // Get form data
@@ -152,7 +272,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         if (empty($product_line_name)) {
-            throw new Exception('Product line name is required.');
+            throw new Exception('Subcategory is required.');
+        }
+
+        if (strlen($product_line_name) > 255) {
+            throw new Exception('Subcategory must be 255 characters or fewer.');
         }
 
         $baseSlug = $slugify($product_line_name);
@@ -176,23 +300,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception('Selected category does not exist.');
         }
 
-        // Validate selected subcategory against predefined options.
-        $allowed_subcategories = $getAllowedSubcategories(
+        // Normalize to a suggested display label when it already exists.
+        $suggested_subcategories = $getSuggestedSubcategories(
             $pdo,
             $category_id,
             $category_data['category_name'] ?? '',
             $category_data['category_slug'] ?? ''
         );
-        if (empty($allowed_subcategories)) {
-            throw new Exception('No predefined subcategories are configured for the selected category.');
-        }
-
         $normalized_name = strtolower(trim($product_line_name));
-        $normalized_allowed = array_map(static function ($value) {
-            return strtolower(trim((string)$value));
-        }, $allowed_subcategories);
-        if (!in_array($normalized_name, $normalized_allowed, true)) {
-            throw new Exception('Please select a valid subcategory from the predefined list.');
+        foreach ($suggested_subcategories as $suggested_name) {
+            if (strtolower(trim((string)$suggested_name)) === $normalized_name) {
+                $product_line_name = trim((string)$suggested_name);
+                break;
+            }
         }
 
         // Prevent duplicate names within the same category (excluding current record).
@@ -284,6 +404,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $status,
             $product_line_id
         ]);
+
+        try {
+            $syncPresetName($pdo, $category_id, $product_line_name);
+        } catch (Exception $e) {
+            error_log('Failed to sync product line preset on edit: ' . $e->getMessage());
+        }
         
         // Delete old image if new one was uploaded
         if ($old_image_path && file_exists($old_image_path)) {
