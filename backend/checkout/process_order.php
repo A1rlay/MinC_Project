@@ -115,8 +115,11 @@ if (!in_array($delivery_method, ['shipping', 'pickup'], true)) {
     checkoutJsonError('Invalid delivery method.');
 }
 
-$payment_method = strtolower(trim((string)$data['payment_method']));
-$validPaymentMethods = ['cod', 'bank_transfer', 'gcash', 'paymaya'];
+$payment_method = mincNormalizePaymentMethodKey($data['payment_method'] ?? '');
+if ($payment_method === 'bank_transfer') {
+    $payment_method = 'bpi';
+}
+$validPaymentMethods = ['cod', 'bpi', 'gcash', 'paymaya'];
 if (!in_array($payment_method, $validPaymentMethods, true)) {
     checkoutJsonError('Invalid payment method.');
 }
@@ -581,12 +584,6 @@ try {
 
     try {
         $emailService = new EmailService();
-        $paymentLabelMap = [
-            'cod' => 'Cash on Delivery',
-            'bank_transfer' => 'Bank Transfer',
-            'gcash' => 'GCash',
-            'paymaya' => 'PayMaya'
-        ];
         $deliveryLabel = $delivery_method === 'pickup' ? 'Store Pickup' : 'Shipping';
         $proofMessage = $requiresPaymentProof
             ? 'Your payment proof has been attached. An admin account will verify it before your order is confirmed.'
@@ -602,7 +599,7 @@ try {
                 'order_number' => $order_number,
                 'total_amount' => $total_amount,
                 'delivery_method_label' => $deliveryLabel,
-                'payment_method_label' => $paymentLabelMap[$payment_method] ?? strtoupper($payment_method),
+                'payment_method_label' => mincDescribePaymentMethod($payment_method),
                 'proof_message' => $proofMessage,
                 'status_message' => $statusMessage,
                 'payment_reference' => $payment_reference

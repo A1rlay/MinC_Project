@@ -51,13 +51,7 @@ $delivery_method = strtolower(trim((string)($order['delivery_method'] ?? 'shippi
 $payment_method = strtolower(trim((string)($order['payment_method'] ?? 'cod')));
 $order_status_label = mincDescribeOrderStatus($order['order_status'] ?? '', $delivery_method);
 $payment_status_label = mincDescribePaymentStatus($order['payment_status'] ?? '', $payment_method, $order['payment_proof_path'] ?? '');
-$payment_method_labels = [
-    'cod' => 'Cash on Delivery',
-    'bank_transfer' => 'Bank Transfer',
-    'gcash' => 'GCash',
-    'paymaya' => 'PayMaya'
-];
-$payment_method_label = $payment_method_labels[$payment_method] ?? strtoupper($payment_method);
+$payment_method_label = mincDescribePaymentMethod($payment_method);
 $proof_url = !empty($order['payment_proof_path']) ? mincPublicAssetUrl($order['payment_proof_path']) : '';
 $receipt_url = !empty($order['receipt_path'])
     ? (preg_match('/^(https?:)?\//i', (string)$order['receipt_path']) ? $order['receipt_path'] : mincPublicAssetUrl($order['receipt_path']))

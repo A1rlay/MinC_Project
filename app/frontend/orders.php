@@ -427,9 +427,9 @@ ob_start();
             <select id="payment_method_filter" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600">
                 <option value="">All Methods</option>
                 <option value="cod">Cash on Delivery</option>
-                <option value="bank_transfer">Bank Transfer</option>
+                <option value="bpi">BPI Bank Transfer</option>
                 <option value="gcash">GCash</option>
-                <option value="paymaya">PayMaya</option>
+                <option value="paymaya">PayMaya (Legacy)</option>
             </select>
         </div>
     </div>
@@ -467,7 +467,7 @@ ob_start();
                             data-customer="<?php echo strtolower($order['customer_name']); ?>"
                             data-status="<?php echo $order['order_status']; ?>"
                             data-payment-status="<?php echo $order['payment_status']; ?>"
-                            data-payment-method="<?php echo $order['payment_method']; ?>">
+                            data-payment-method="<?php echo in_array($order['payment_method'], ['bpi', 'bank_transfer'], true) ? 'bpi' : $order['payment_method']; ?>">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm font-medium text-gray-900">
                                     #<?php echo htmlspecialchars($order['order_number']); ?>
@@ -507,9 +507,10 @@ ob_start();
                                         <?php 
                                         $payment_methods = [
                                             'cod' => 'COD',
-                                            'bank_transfer' => 'Bank Transfer',
+                                            'bpi' => 'BPI Bank Transfer',
+                                            'bank_transfer' => 'BPI Bank Transfer',
                                             'gcash' => 'GCash',
-                                            'paymaya' => 'PayMaya'
+                                            'paymaya' => 'PayMaya (Legacy)'
                                         ];
                                         echo $payment_methods[$order['payment_method']] ?? ucfirst($order['payment_method']);
                                         ?>
@@ -559,7 +560,7 @@ ob_start();
                      data-customer="<?php echo strtolower($order['customer_name']); ?>"
                      data-status="<?php echo $order['order_status']; ?>"
                      data-payment-status="<?php echo $order['payment_status']; ?>"
-                     data-payment-method="<?php echo $order['payment_method']; ?>">
+                     data-payment-method="<?php echo in_array($order['payment_method'], ['bpi', 'bank_transfer'], true) ? 'bpi' : $order['payment_method']; ?>">
                     <div class="flex items-start justify-between mb-3">
                         <div>
                             <h4 class="font-medium text-gray-900">#<?php echo htmlspecialchars($order['order_number']); ?></h4>
@@ -584,15 +585,16 @@ ob_start();
                         <div>
                             <p class="text-xs text-gray-500 mb-1">Payment Method</p>
                             <span class="payment-method-badge">
-                                <?php 
-                                $payment_methods = [
-                                    'cod' => 'COD',
-                                    'bank_transfer' => 'Bank Transfer',
-                                    'gcash' => 'GCash',
-                                    'paymaya' => 'PayMaya'
-                                ];
-                                echo $payment_methods[$order['payment_method']] ?? ucfirst($order['payment_method']);
-                                ?>
+                                 <?php 
+                                 $payment_methods = [
+                                     'cod' => 'COD',
+                                     'bpi' => 'BPI Bank Transfer',
+                                     'bank_transfer' => 'BPI Bank Transfer',
+                                     'gcash' => 'GCash',
+                                     'paymaya' => 'PayMaya (Legacy)'
+                                 ];
+                                 echo $payment_methods[$order['payment_method']] ?? ucfirst($order['payment_method']);
+                                 ?>
                             </span>
                         </div>
                         <div>
@@ -1182,7 +1184,7 @@ function capitalizeFirst(string) {
 }
 
 function requiresPaymentProof(method) {
-    return ['bank_transfer', 'gcash', 'paymaya'].includes(String(method || '').toLowerCase());
+    return ['bpi', 'bank_transfer', 'gcash', 'paymaya'].includes(String(method || '').toLowerCase());
 }
 
 function getDisplayOrderStatus(order) {
@@ -1225,9 +1227,10 @@ function resolveOrderAssetUrl(path) {
 function getPaymentMethodLabel(method) {
     const methods = {
         'cod': 'Cash on Delivery',
-        'bank_transfer': 'Bank Transfer',
+        'bpi': 'BPI Bank Transfer',
+        'bank_transfer': 'BPI Bank Transfer',
         'gcash': 'GCash',
-        'paymaya': 'PayMaya'
+        'paymaya': 'PayMaya (Legacy)'
     };
     return methods[method] || capitalizeFirst(method);
 }

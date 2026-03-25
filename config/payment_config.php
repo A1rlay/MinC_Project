@@ -14,25 +14,29 @@ if (!function_exists('getMincPaymentConfig')) {
                 'coverage_label' => 'Angeles City, Pampanga',
                 'coverage_note' => 'Shipping is currently available only within Angeles City, Pampanga. Delivery-app handling such as Grab or Lalamove is managed manually when needed.'
             ],
-            'bank_transfer' => [
+            'bpi' => [
                 'enabled' => true,
-                'bank_name' => 'Update Bank Name',
-                'account_name' => 'Update Account Name',
-                'account_number' => 'Update Account Number',
-                'branch' => 'Update Branch',
-                'reference_label' => 'Bank Reference / Transaction ID'
+                'label' => 'BPI Bank Transfer',
+                'bank_name' => 'BPI',
+                'account_name' => 'RITZMONCAR',
+                'account_number' => 'Update BPI Account Number',
+                'branch' => 'Update BPI Branch',
+                'reference_label' => 'BPI Reference Number',
+                'instructions' => 'Scan the BPI QR code or transfer to the BPI account shown below, then upload your proof of payment.',
+                'qr_image' => 'Assets/images/payments/bpi-qr.png',
+                'qr_link' => '',
+                'qr_link_label' => 'Open BPI Payment Link'
             ],
             'gcash' => [
                 'enabled' => true,
-                'account_name' => 'Update GCash Account Name',
+                'label' => 'GCash',
+                'account_name' => 'RITZMONCAR',
                 'account_number' => 'Update GCash Number',
-                'reference_label' => 'GCash Reference Number'
-            ],
-            'paymaya' => [
-                'enabled' => true,
-                'account_name' => 'Update Maya Account Name',
-                'account_number' => 'Update Maya Number',
-                'reference_label' => 'Maya Reference Number'
+                'reference_label' => 'GCash Reference Number',
+                'instructions' => 'Scan the GCash QR code or send payment to the GCash number shown below, then upload your proof of payment.',
+                'qr_image' => 'Assets/images/payments/gcash-qr.png',
+                'qr_link' => '',
+                'qr_link_label' => 'Open GCash Payment Link'
             ]
         ];
     }

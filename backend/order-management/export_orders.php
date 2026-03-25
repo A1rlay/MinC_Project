@@ -6,6 +6,7 @@
 
 include_once '../auth.php';
 include_once '../../database/connect_database.php';
+include_once 'order_workflow_helper.php';
 
 // Validate session
 $validation = validateSession();
@@ -95,7 +96,7 @@ try {
             number_format($order['subtotal'], 2),
             number_format($order['shipping_fee'], 2),
             number_format($order['total_amount'], 2),
-            strtoupper($order['payment_method']),
+            mincDescribePaymentMethod($order['payment_method']),
             ucfirst($order['payment_status']),
             ucfirst($order['order_status']),
             $order['full_address'],

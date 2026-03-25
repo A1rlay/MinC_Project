@@ -87,7 +87,7 @@ if (!isset($_SESSION['user_id'])) {
         }
 
         function requiresPaymentProof(method) {
-            return ['bank_transfer', 'gcash', 'paymaya'].includes(String(method || '').toLowerCase());
+            return ['bpi', 'bank_transfer', 'gcash', 'paymaya'].includes(String(method || '').toLowerCase());
         }
 
         function displayOrderStatus(order) {
@@ -125,9 +125,10 @@ if (!isset($_SESSION['user_id'])) {
             const normalized = String(method || '').toLowerCase();
             const labels = {
                 cod: 'Cash on Delivery',
-                bank_transfer: 'Bank Transfer',
+                bpi: 'BPI Bank Transfer',
+                bank_transfer: 'BPI Bank Transfer',
                 gcash: 'GCash',
-                paymaya: 'PayMaya'
+                paymaya: 'PayMaya (Legacy)'
             };
             return labels[normalized] || normalized.replace(/_/g, ' ');
         }

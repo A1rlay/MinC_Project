@@ -184,8 +184,30 @@ function mincBuildShippingData($address, $fallbackBarangay = '', $fallbackCity =
     ];
 }
 
+function mincNormalizePaymentMethodKey($paymentMethod) {
+    return strtolower(trim((string)$paymentMethod));
+}
+
+function mincDescribePaymentMethod($paymentMethod) {
+    $paymentMethod = mincNormalizePaymentMethodKey($paymentMethod);
+
+    switch ($paymentMethod) {
+        case 'cod':
+            return 'Cash on Delivery';
+        case 'bpi':
+        case 'bank_transfer':
+            return 'BPI Bank Transfer';
+        case 'gcash':
+            return 'GCash';
+        case 'paymaya':
+            return 'PayMaya (Legacy)';
+        default:
+            return ucwords(str_replace('_', ' ', $paymentMethod));
+    }
+}
+
 function mincPaymentMethodRequiresProof($paymentMethod) {
-    return in_array(strtolower(trim((string)$paymentMethod)), ['bank_transfer', 'gcash', 'paymaya'], true);
+    return in_array(mincNormalizePaymentMethodKey($paymentMethod), ['bpi', 'bank_transfer', 'gcash', 'paymaya'], true);
 }
 
 function mincGetPaymentConfigValue() {

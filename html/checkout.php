@@ -16,6 +16,29 @@ $standard_shipping_fee = (float)($shipping_config['standard_fee'] ?? 150);
 $free_shipping_threshold = (float)($shipping_config['free_threshold'] ?? 1000);
 $shipping_coverage_note = (string)($shipping_config['coverage_note'] ?? 'Shipping is currently available only within Angeles City, Pampanga.');
 
+if (!function_exists('mincResolveConfiguredAssetUrl')) {
+    function mincResolveConfiguredAssetUrl($assetPath) {
+        $assetPath = trim((string)$assetPath);
+        if ($assetPath === '') {
+            return '';
+        }
+
+        if (preg_match('/^(https?:)?\/\//i', $assetPath)) {
+            return $assetPath;
+        }
+
+        $absolutePath = mincProjectRootPath() . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, ltrim($assetPath, '/'));
+        if (!file_exists($absolutePath)) {
+            return '';
+        }
+
+        return mincPublicAssetUrl($assetPath);
+    }
+}
+
+$payment_config['bpi']['qr_image_url'] = mincResolveConfiguredAssetUrl($payment_config['bpi']['qr_image'] ?? '');
+$payment_config['gcash']['qr_image_url'] = mincResolveConfiguredAssetUrl($payment_config['gcash']['qr_image'] ?? '');
+
 if ($is_buy_now) {
     $buy_now_product_id = isset($_GET['product_id']) ? (int)$_GET['product_id'] : 0;
     $buy_now_quantity = isset($_GET['quantity']) ? (int)$_GET['quantity'] : 1;
@@ -554,23 +577,21 @@ if (is_array($saved_shipping_info)) {
                                 <p class="text-sm text-gray-600 ml-8 mt-1">Pay when you receive your order</p>
                             </label>
 
-                            <label id="bankTransferOptionLabel" class="block p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-[#08415c] transition">
-                                <input type="radio" name="paymentMethod" value="bank_transfer" class="mr-3">
-                                <span class="font-semibold"><i class="fas fa-university text-blue-600 mr-2"></i>Bank Transfer</span>
-                                <p class="text-sm text-gray-600 ml-8 mt-1">Transfer to our bank account</p>
+                            <?php if (!empty($payment_config['bpi']['enabled'])): ?>
+                            <label id="bpiOptionLabel" class="block p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-[#08415c] transition">
+                                <input type="radio" name="paymentMethod" value="bpi" class="mr-3">
+                                <span class="font-semibold"><i class="fas fa-building-columns text-rose-600 mr-2"></i>BPI Bank Transfer</span>
+                                <p class="text-sm text-gray-600 ml-8 mt-1">Scan the BPI QR code or transfer manually to the BPI account</p>
                             </label>
+                            <?php endif; ?>
 
+                            <?php if (!empty($payment_config['gcash']['enabled'])): ?>
                             <label id="gcashOptionLabel" class="block p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-[#08415c] transition">
                                 <input type="radio" name="paymentMethod" value="gcash" class="mr-3">
-                                <span class="font-semibold"><i class="fas fa-mobile-alt text-blue-500 mr-2"></i>GCash</span>
-                                <p class="text-sm text-gray-600 ml-8 mt-1">Pay via GCash mobile wallet</p>
+                                <span class="font-semibold"><i class="fas fa-mobile-screen-button text-blue-500 mr-2"></i>GCash</span>
+                                <p class="text-sm text-gray-600 ml-8 mt-1">Scan the GCash QR code or send to the GCash wallet</p>
                             </label>
-
-                            <label id="paymayaOptionLabel" class="block p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-[#08415c] transition">
-                                <input type="radio" name="paymentMethod" value="paymaya" class="mr-3">
-                                <span class="font-semibold"><i class="fas fa-credit-card text-green-500 mr-2"></i>PayMaya</span>
-                                <p class="text-sm text-gray-600 ml-8 mt-1">Pay via PayMaya digital wallet</p>
-                            </label>
+                            <?php endif; ?>
                         </div>
 
                         <div id="electronicPaymentPanel" class="hidden mt-6 p-5 bg-slate-50 border border-slate-200 rounded-xl">
@@ -580,27 +601,99 @@ if (is_array($saved_shipping_info)) {
                                 </div>
                                 <div class="flex-1">
                                     <h3 class="text-lg font-bold text-[#08415c]">Complete Payment Before Confirmation</h3>
-                                    <p class="text-sm text-gray-600 mt-1">Bank transfer and wallet payments require a payment reference and proof of payment before the order can be confirmed by the admin account.</p>
+                                    <p class="text-sm text-gray-600 mt-1">BPI and GCash payments require a payment reference and proof of payment before the order can be confirmed by the admin account.</p>
                                 </div>
                             </div>
 
-                            <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div class="payment-method-card hidden rounded-lg border border-slate-200 bg-white p-4" data-payment-card="bank_transfer">
-                                    <p class="text-xs uppercase tracking-wide text-slate-500 mb-2">MNC Bank Account</p>
-                                    <p class="font-semibold text-gray-900"><?php echo htmlspecialchars($payment_config['bank_transfer']['bank_name'] ?? 'Update Bank Name'); ?></p>
-                                    <p class="text-sm text-gray-700 mt-1">Account Name: <?php echo htmlspecialchars($payment_config['bank_transfer']['account_name'] ?? 'Update Account Name'); ?></p>
-                                    <p class="text-sm text-gray-700">Account Number: <?php echo htmlspecialchars($payment_config['bank_transfer']['account_number'] ?? 'Update Account Number'); ?></p>
-                                    <p class="text-sm text-gray-700">Branch: <?php echo htmlspecialchars($payment_config['bank_transfer']['branch'] ?? 'Update Branch'); ?></p>
+                            <div class="mt-4 grid grid-cols-1 gap-4">
+                                <div class="payment-method-card hidden rounded-xl border border-slate-200 bg-white p-5" data-payment-card="bpi">
+                                    <div class="flex flex-wrap items-center justify-between gap-3">
+                                        <div>
+                                            <p class="text-xs uppercase tracking-wide text-slate-500 mb-1">BPI Payment</p>
+                                            <p class="text-xl font-bold text-gray-900"><?php echo htmlspecialchars($payment_config['bpi']['label'] ?? 'BPI Bank Transfer'); ?></p>
+                                        </div>
+                                        <span class="inline-flex items-center rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700 border border-rose-100">Scan QR or Transfer</span>
+                                    </div>
+                                    <p class="mt-3 text-sm text-gray-600"><?php echo htmlspecialchars($payment_config['bpi']['instructions'] ?? 'Scan the BPI QR code or transfer manually, then upload your proof of payment.'); ?></p>
+                                    <div class="mt-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_220px] gap-5 items-start">
+                                        <div class="space-y-3">
+                                            <div class="rounded-lg bg-slate-50 border border-slate-200 p-4">
+                                                <p class="text-xs uppercase tracking-wide text-slate-500 mb-2">Account Details</p>
+                                                <p class="font-semibold text-gray-900"><?php echo htmlspecialchars($payment_config['bpi']['bank_name'] ?? 'BPI'); ?></p>
+                                                <p class="text-sm text-gray-700 mt-1">Account Name: <?php echo htmlspecialchars($payment_config['bpi']['account_name'] ?? 'Update BPI Account Name'); ?></p>
+                                                <div class="flex flex-wrap items-center gap-2 mt-1">
+                                                    <p class="text-sm text-gray-700">Account Number: <span class="font-semibold"><?php echo htmlspecialchars($payment_config['bpi']['account_number'] ?? 'Update BPI Account Number'); ?></span></p>
+                                                    <button type="button" class="inline-flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 transition" data-copy-value="<?php echo htmlspecialchars($payment_config['bpi']['account_number'] ?? '', ENT_QUOTES); ?>">
+                                                        <i class="fas fa-copy"></i>Copy
+                                                    </button>
+                                                </div>
+                                                <p class="text-sm text-gray-700 mt-1">Branch: <?php echo htmlspecialchars($payment_config['bpi']['branch'] ?? 'Update BPI Branch'); ?></p>
+                                            </div>
+                                            <?php if (!empty($payment_config['bpi']['qr_link'])): ?>
+                                                <a href="<?php echo htmlspecialchars($payment_config['bpi']['qr_link']); ?>" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 text-sm font-semibold text-[#08415c] hover:text-[#0a5273]">
+                                                    <i class="fas fa-arrow-up-right-from-square"></i>
+                                                    <?php echo htmlspecialchars($payment_config['bpi']['qr_link_label'] ?? 'Open BPI Payment Link'); ?>
+                                                </a>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div>
+                                            <?php if (!empty($payment_config['bpi']['qr_image_url'])): ?>
+                                                <button type="button" class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 hover:border-[#08415c] transition text-left" data-qr-preview-url="<?php echo htmlspecialchars($payment_config['bpi']['qr_image_url']); ?>" data-qr-preview-title="BPI QR Code">
+                                                    <img src="<?php echo htmlspecialchars($payment_config['bpi']['qr_image_url']); ?>" alt="BPI QR Code" class="w-full rounded-lg bg-white object-contain">
+                                                    <p class="mt-3 text-xs text-slate-500">Tap to enlarge. If you are paying on the same phone, open the full image and use your banking app's scan-from-gallery feature.</p>
+                                                </button>
+                                            <?php else: ?>
+                                                <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                                                    <p class="font-semibold text-slate-800">BPI QR image not configured yet</p>
+                                                    <p class="mt-2">Add your QR image file at <span class="font-mono text-xs">Assets/images/payments/bpi-qr.png</span> or update <span class="font-mono text-xs">config/payment_config.php</span>.</p>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="payment-method-card hidden rounded-lg border border-slate-200 bg-white p-4" data-payment-card="gcash">
-                                    <p class="text-xs uppercase tracking-wide text-slate-500 mb-2">GCash Details</p>
-                                    <p class="font-semibold text-gray-900"><?php echo htmlspecialchars($payment_config['gcash']['account_name'] ?? 'Update GCash Account Name'); ?></p>
-                                    <p class="text-sm text-gray-700 mt-1">Number: <?php echo htmlspecialchars($payment_config['gcash']['account_number'] ?? 'Update GCash Number'); ?></p>
-                                </div>
-                                <div class="payment-method-card hidden rounded-lg border border-slate-200 bg-white p-4" data-payment-card="paymaya">
-                                    <p class="text-xs uppercase tracking-wide text-slate-500 mb-2">Maya Details</p>
-                                    <p class="font-semibold text-gray-900"><?php echo htmlspecialchars($payment_config['paymaya']['account_name'] ?? 'Update Maya Account Name'); ?></p>
-                                    <p class="text-sm text-gray-700 mt-1">Number: <?php echo htmlspecialchars($payment_config['paymaya']['account_number'] ?? 'Update Maya Number'); ?></p>
+
+                                <div class="payment-method-card hidden rounded-xl border border-slate-200 bg-white p-5" data-payment-card="gcash">
+                                    <div class="flex flex-wrap items-center justify-between gap-3">
+                                        <div>
+                                            <p class="text-xs uppercase tracking-wide text-slate-500 mb-1">GCash Payment</p>
+                                            <p class="text-xl font-bold text-gray-900"><?php echo htmlspecialchars($payment_config['gcash']['label'] ?? 'GCash'); ?></p>
+                                        </div>
+                                        <span class="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 border border-blue-100">Scan QR or Send</span>
+                                    </div>
+                                    <p class="mt-3 text-sm text-gray-600"><?php echo htmlspecialchars($payment_config['gcash']['instructions'] ?? 'Scan the GCash QR code or send payment manually, then upload your proof of payment.'); ?></p>
+                                    <div class="mt-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_220px] gap-5 items-start">
+                                        <div class="space-y-3">
+                                            <div class="rounded-lg bg-slate-50 border border-slate-200 p-4">
+                                                <p class="text-xs uppercase tracking-wide text-slate-500 mb-2">Wallet Details</p>
+                                                <p class="font-semibold text-gray-900"><?php echo htmlspecialchars($payment_config['gcash']['account_name'] ?? 'Update GCash Account Name'); ?></p>
+                                                <div class="flex flex-wrap items-center gap-2 mt-1">
+                                                    <p class="text-sm text-gray-700">Number: <span class="font-semibold"><?php echo htmlspecialchars($payment_config['gcash']['account_number'] ?? 'Update GCash Number'); ?></span></p>
+                                                    <button type="button" class="inline-flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 transition" data-copy-value="<?php echo htmlspecialchars($payment_config['gcash']['account_number'] ?? '', ENT_QUOTES); ?>">
+                                                        <i class="fas fa-copy"></i>Copy
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <?php if (!empty($payment_config['gcash']['qr_link'])): ?>
+                                                <a href="<?php echo htmlspecialchars($payment_config['gcash']['qr_link']); ?>" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 text-sm font-semibold text-[#08415c] hover:text-[#0a5273]">
+                                                    <i class="fas fa-arrow-up-right-from-square"></i>
+                                                    <?php echo htmlspecialchars($payment_config['gcash']['qr_link_label'] ?? 'Open GCash Payment Link'); ?>
+                                                </a>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div>
+                                            <?php if (!empty($payment_config['gcash']['qr_image_url'])): ?>
+                                                <button type="button" class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 hover:border-[#08415c] transition text-left" data-qr-preview-url="<?php echo htmlspecialchars($payment_config['gcash']['qr_image_url']); ?>" data-qr-preview-title="GCash QR Code">
+                                                    <img src="<?php echo htmlspecialchars($payment_config['gcash']['qr_image_url']); ?>" alt="GCash QR Code" class="w-full rounded-lg bg-white object-contain">
+                                                    <p class="mt-3 text-xs text-slate-500">Tap to enlarge. If you are paying on the same phone, open the full image and use GCash scan-from-gallery.</p>
+                                                </button>
+                                            <?php else: ?>
+                                                <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                                                    <p class="font-semibold text-slate-800">GCash QR image not configured yet</p>
+                                                    <p class="mt-2">Add your QR image file at <span class="font-mono text-xs">Assets/images/payments/gcash-qr.png</span> or update <span class="font-mono text-xs">config/payment_config.php</span>.</p>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -620,7 +713,7 @@ if (is_array($saved_shipping_info)) {
                             <p><i class="fas fa-info-circle text-yellow-600 mr-2"></i><strong>Confirm Order</strong> means the admin reviewed your payment proof and approved the order for processing.</p>
                             <p><i class="fas fa-money-check text-yellow-600 mr-2"></i><strong>Complete Payment</strong> is used by staff when recording final payment collection, typically for COD.</p>
                             <p><i class="fas fa-times-circle text-yellow-600 mr-2"></i><strong>Cancel</strong> in the order confirmation window just closes the prompt so you can keep editing checkout details.</p>
-                            <p><i class="fas fa-arrow-right-arrow-left text-yellow-600 mr-2"></i>Bank transfer flow: Place order with proof attached -> admin confirms payment -> order is prepared -> order is completed with receipt attached.</p>
+                            <p><i class="fas fa-arrow-right-arrow-left text-yellow-600 mr-2"></i>BPI / GCash flow: Scan QR or send payment -> enter the payment reference -> attach proof -> submit order -> admin confirms payment -> order is prepared -> order is completed with receipt attached.</p>
                         </div>
 
                         <div class="mt-6 flex justify-between">
@@ -671,6 +764,27 @@ if (is_array($saved_shipping_info)) {
                             Your payment information is secure
                         </p>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="qrPreviewModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/80 p-4">
+        <div class="w-full max-w-xl rounded-2xl bg-white p-4 shadow-2xl">
+            <div class="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                <h3 id="qrPreviewTitle" class="text-lg font-bold text-[#08415c]">Payment QR Code</h3>
+                <button type="button" id="closeQrPreviewModal" class="inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="pt-4">
+                <img id="qrPreviewImage" src="" alt="Payment QR code" class="mx-auto max-h-[70vh] w-full rounded-xl bg-slate-50 object-contain">
+                <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+                    <p class="text-sm text-slate-600">Open this image full-screen if you need to scan it from another device or import it from your gallery.</p>
+                    <a id="qrPreviewOpenLink" href="#" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+                        <i class="fas fa-arrow-up-right-from-square"></i>
+                        Open Image
+                    </a>
                 </div>
             </div>
         </div>
@@ -769,7 +883,7 @@ if (is_array($saved_shipping_info)) {
         }
 
         function paymentMethodRequiresProof(paymentMethod) {
-            return ['bank_transfer', 'gcash', 'paymaya'].includes(String(paymentMethod || '').toLowerCase());
+            return ['bpi', 'bank_transfer', 'gcash', 'paymaya'].includes(String(paymentMethod || '').toLowerCase());
         }
 
         function getShippingParser() {
@@ -785,16 +899,145 @@ if (is_array($saved_shipping_info)) {
 
         function getPaymentReferenceLabel(paymentMethod) {
             const method = String(paymentMethod || '').toLowerCase();
-            if (method === 'bank_transfer') {
-                return PAYMENT_CONFIG?.bank_transfer?.reference_label || 'Payment Reference';
+            if (method === 'bpi' || method === 'bank_transfer') {
+                return PAYMENT_CONFIG?.bpi?.reference_label || 'BPI Reference Number';
             }
             if (method === 'gcash') {
-                return PAYMENT_CONFIG?.gcash?.reference_label || 'Payment Reference';
+                return PAYMENT_CONFIG?.gcash?.reference_label || 'GCash Reference Number';
             }
             if (method === 'paymaya') {
-                return PAYMENT_CONFIG?.paymaya?.reference_label || 'Payment Reference';
+                return 'Maya Reference Number';
             }
             return 'Payment Reference';
+        }
+
+        function getPaymentMethodLabel(method) {
+            const normalized = String(method || '').toLowerCase();
+            const labels = {
+                cod: 'Cash on Delivery',
+                bpi: 'BPI Bank Transfer',
+                bank_transfer: 'BPI Bank Transfer',
+                gcash: 'GCash',
+                paymaya: 'PayMaya (Legacy)'
+            };
+            return labels[normalized] || normalized.replace(/_/g, ' ');
+        }
+
+        async function copyPaymentValue(value, successLabel) {
+            const trimmedValue = String(value || '').trim();
+            if (!trimmedValue || /^update /i.test(trimmedValue)) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Payment Detail Not Configured',
+                    text: 'Update the payment account details first before using copy.',
+                    confirmButtonColor: '#08415c'
+                });
+                return;
+            }
+
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(trimmedValue);
+                } else {
+                    const tempInput = document.createElement('input');
+                    tempInput.value = trimmedValue;
+                    document.body.appendChild(tempInput);
+                    tempInput.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(tempInput);
+                }
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Copied',
+                    text: `${successLabel} copied to clipboard.`,
+                    timer: 1400,
+                    showConfirmButton: false
+                });
+            } catch (error) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Copy Failed',
+                    text: 'Unable to copy the payment detail on this browser.',
+                    confirmButtonColor: '#08415c'
+                });
+            }
+        }
+
+        function openQrPreviewModal(imageUrl, title) {
+            const modal = document.getElementById('qrPreviewModal');
+            const image = document.getElementById('qrPreviewImage');
+            const titleNode = document.getElementById('qrPreviewTitle');
+            const openLink = document.getElementById('qrPreviewOpenLink');
+
+            if (!modal || !image || !titleNode || !openLink || !imageUrl) {
+                return;
+            }
+
+            image.src = imageUrl;
+            image.alt = title || 'Payment QR code';
+            titleNode.textContent = title || 'Payment QR Code';
+            openLink.href = imageUrl;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.body.classList.add('overflow-hidden');
+        }
+
+        function closeQrPreviewModal() {
+            const modal = document.getElementById('qrPreviewModal');
+            const image = document.getElementById('qrPreviewImage');
+            const openLink = document.getElementById('qrPreviewOpenLink');
+
+            if (!modal) {
+                return;
+            }
+
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.body.classList.remove('overflow-hidden');
+
+            if (image) {
+                image.src = '';
+            }
+            if (openLink) {
+                openLink.href = '#';
+            }
+        }
+
+        function initializePaymentActionButtons() {
+            document.querySelectorAll('[data-copy-value]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    copyPaymentValue(button.getAttribute('data-copy-value') || '', 'Payment detail');
+                });
+            });
+
+            document.querySelectorAll('[data-qr-preview-url]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    openQrPreviewModal(
+                        button.getAttribute('data-qr-preview-url') || '',
+                        button.getAttribute('data-qr-preview-title') || 'Payment QR Code'
+                    );
+                });
+            });
+
+            const closeButton = document.getElementById('closeQrPreviewModal');
+            const modal = document.getElementById('qrPreviewModal');
+
+            if (closeButton) {
+                closeButton.addEventListener('click', closeQrPreviewModal);
+            }
+            if (modal) {
+                modal.addEventListener('click', (event) => {
+                    if (event.target === modal) {
+                        closeQrPreviewModal();
+                    }
+                });
+            }
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    closeQrPreviewModal();
+                }
+            });
         }
 
         function updatePaymentGuidance() {
@@ -1214,13 +1457,6 @@ if (is_array($saved_shipping_info)) {
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             const cleanedPhone = phone.replace(/[\s\-\(\)]/g, '');
             const phoneRegex = /^(09\d{9}|(\+?63)\d{10})$/;
-            const paymentLabelMap = {
-                cod: 'Cash on Delivery',
-                bank_transfer: 'Bank Transfer',
-                gcash: 'GCash',
-                paymaya: 'PayMaya'
-            };
-
             if (!firstName || !lastName || !email || !phone) {
                 Swal.fire({
                     icon: 'error',
@@ -1482,7 +1718,7 @@ if (is_array($saved_shipping_info)) {
                 }
 
                 orderData.payment_reference = paymentReference;
-                orderDetails += `<p><strong>Payment Method:</strong> ${escapeHtml(paymentLabelMap[paymentMethod] || paymentMethod)}</p>`;
+                orderDetails += `<p><strong>Payment Method:</strong> ${escapeHtml(getPaymentMethodLabel(paymentMethod))}</p>`;
                 orderDetails += `<p><strong>Payment Reference:</strong> ${escapeHtml(paymentReference)}</p>`;
                 orderDetails += `<p><strong>Proof of Payment:</strong> Attached for admin review</p>`;
             } else {
@@ -1636,17 +1872,16 @@ if (is_array($saved_shipping_info)) {
         }
     }
 
-    function applyGuestCheckoutRestrictions() {
-        if (!IS_GUEST_CHECKOUT) return;
+        function applyGuestCheckoutRestrictions() {
+            if (!IS_GUEST_CHECKOUT) return;
 
         const shippingRadio = document.querySelector('input[name="deliveryMethod"][value="shipping"]');
         const pickupRadio = document.querySelector('input[name="deliveryMethod"][value="pickup"]');
         const nonCodPaymentMethods = document.querySelectorAll('input[name="paymentMethod"]:not([value="cod"])');
         const shippingLabel = document.getElementById('shippingOptionLabel');
         const nonCodLabels = [
-            document.getElementById('bankTransferOptionLabel'),
+            document.getElementById('bpiOptionLabel'),
             document.getElementById('gcashOptionLabel'),
-            document.getElementById('paymayaOptionLabel')
         ];
 
         if (shippingRadio) {
@@ -1698,6 +1933,7 @@ if (is_array($saved_shipping_info)) {
             document.querySelectorAll('input[name="paymentMethod"]').forEach((input) => {
                 input.addEventListener('change', updatePaymentGuidance);
             });
+            initializePaymentActionButtons();
             initializeShippingAddressChooser();
             loadCart();
             updatePaymentGuidance();
