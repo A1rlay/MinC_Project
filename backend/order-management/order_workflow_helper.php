@@ -31,6 +31,159 @@ function mincNormalizePhilippineMobile($value) {
     return null;
 }
 
+function mincAllowedShippingBarangays() {
+    static $barangays = [
+        'Agapito del Rosario',
+        'Amsic',
+        'Balibago',
+        'Capaya',
+        'Claro M. Recto',
+        'Cuayan',
+        'Lourdes North-West',
+        'Lourdes Sur (South)',
+        'Lourdes Sur-East',
+        'Malabanas',
+        'Margot',
+        'Mining',
+        'Ninoy Aquino',
+        'Pampang',
+        'Pandan',
+        'Pulungbulu',
+        'Pulung Cacutud',
+        'Pulung Maragul',
+        'Pulungbato',
+        'Salapungan',
+        'San Jose',
+        'San Nicolas',
+        'Santa Teresita',
+        'Santa Trinidad',
+        'Santo Cristo',
+        'Santo Domingo',
+        'Sapangbato'
+    ];
+
+    return $barangays;
+}
+
+function mincNormalizeAddressToken($value) {
+    $value = mincNormalizeWhitespace($value);
+    if ($value === '') {
+        return '';
+    }
+
+    if (function_exists('iconv')) {
+        $transliterated = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
+        if ($transliterated !== false && $transliterated !== '') {
+            $value = $transliterated;
+        }
+    }
+
+    $value = strtolower($value);
+    $value = preg_replace('/[^a-z0-9]+/', ' ', $value);
+
+    return trim(preg_replace('/\s+/', ' ', $value));
+}
+
+function mincNormalizedTokenExists($haystack, $needle) {
+    $haystack = trim((string)$haystack);
+    $needle = trim((string)$needle);
+
+    if ($haystack === '' || $needle === '') {
+        return false;
+    }
+
+    return strpos(' ' . $haystack . ' ', ' ' . $needle . ' ') !== false;
+}
+
+function mincParseShippingAddress($address, $fallbackCity = 'Angeles City', $fallbackProvince = 'Pampanga') {
+    $address = mincNormalizeWhitespace($address);
+    $normalizedAddress = mincNormalizeAddressToken($address);
+    $fallbackCity = mincNormalizeWhitespace($fallbackCity);
+    $fallbackProvince = mincNormalizeWhitespace($fallbackProvince);
+
+    $matchedBarangay = '';
+    foreach (mincAllowedShippingBarangays() as $barangay) {
+        if (mincNormalizedTokenExists($normalizedAddress, mincNormalizeAddressToken($barangay))) {
+            $matchedBarangay = $barangay;
+            break;
+        }
+    }
+
+    $city = $address !== '' ? $fallbackCity : '';
+    $province = $address !== '' ? $fallbackProvince : '';
+
+    return [
+        'address' => $address,
+        'barangay' => $matchedBarangay,
+        'city' => $city,
+        'province' => $province,
+        'has_valid_barangay' => $matchedBarangay !== ''
+    ];
+}
+
+function mincComposeShippingAddress($address, $barangay = '', $city = 'Angeles City', $province = 'Pampanga') {
+    $address = mincNormalizeWhitespace($address);
+    $components = [
+        mincNormalizeWhitespace($barangay),
+        mincNormalizeWhitespace($city),
+        mincNormalizeWhitespace($province)
+    ];
+
+    $result = $address;
+    $normalizedResult = mincNormalizeAddressToken($result);
+
+    foreach ($components as $component) {
+        if ($component === '') {
+            continue;
+        }
+
+        $normalizedComponent = mincNormalizeAddressToken($component);
+        if ($normalizedComponent !== '' && mincNormalizedTokenExists($normalizedResult, $normalizedComponent)) {
+            continue;
+        }
+
+        $result = $result !== '' ? $result . ', ' . $component : $component;
+        $normalizedResult = mincNormalizeAddressToken($result);
+    }
+
+    return $result;
+}
+
+function mincBuildShippingData($address, $fallbackBarangay = '', $fallbackCity = 'Angeles City', $fallbackProvince = 'Pampanga', $postalCode = null) {
+    $parsed = mincParseShippingAddress($address, $fallbackCity, $fallbackProvince);
+    $fallbackBarangay = mincNormalizeWhitespace($fallbackBarangay);
+    $fallbackCity = mincNormalizeWhitespace($fallbackCity);
+    $fallbackProvince = mincNormalizeWhitespace($fallbackProvince);
+    $postalCode = trim((string)$postalCode);
+
+    if ($parsed['address'] === '' && $fallbackBarangay === '') {
+        return [
+            'address' => '',
+            'street_address' => '',
+            'barangay' => '',
+            'city' => '',
+            'province' => '',
+            'postal_code' => $postalCode !== '' ? $postalCode : null,
+            'has_valid_barangay' => false
+        ];
+    }
+
+    $barangay = $parsed['barangay'] !== '' ? $parsed['barangay'] : $fallbackBarangay;
+    $city = $parsed['city'] !== '' ? $parsed['city'] : $fallbackCity;
+    $province = $parsed['province'] !== '' ? $parsed['province'] : $fallbackProvince;
+    $fullAddress = mincComposeShippingAddress($parsed['address'], $barangay, $city, $province);
+
+    return [
+        'address' => $fullAddress,
+        'street_address' => $parsed['address'],
+        'barangay' => $barangay,
+        'city' => $city,
+        'province' => $province,
+        'postal_code' => $postalCode !== '' ? $postalCode : null,
+        'has_valid_barangay' => in_array($barangay, mincAllowedShippingBarangays(), true)
+    ];
+}
+
 function mincPaymentMethodRequiresProof($paymentMethod) {
     return in_array(strtolower(trim((string)$paymentMethod)), ['bank_transfer', 'gcash', 'paymaya'], true);
 }

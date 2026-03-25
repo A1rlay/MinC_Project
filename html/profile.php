@@ -201,61 +201,27 @@ if (!isset($_SESSION['user_id'])) {
                     <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
                         <i class="fas fa-truck-fast text-[#08415c] mr-2"></i>Default Shipping Address
                     </h3>
-                    <p class="text-sm text-gray-600 mb-4">This saved delivery info is required and reused in checkout.</p>
+                    <p class="text-sm text-gray-600 mb-4">This saved delivery info is required and reused in checkout. Enter the complete address in one field and we will detect the delivery area automatically.</p>
                     <div class="mb-4">
                         <label for="address" class="block text-sm font-semibold text-gray-700 mb-2">Complete Address *</label>
                         <textarea id="address" name="address" rows="3" required
                                    minlength="10" maxlength="255"
-                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition"
-                                   placeholder="House/Unit No., Street Name"></textarea>
+                                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition"
+                                   placeholder="House/Unit No., Street, Barangay, Angeles City, Pampanga"></textarea>
+                        <p class="text-xs text-gray-500 mt-2">Example: Blk 10 Lot 4, Balibago, Angeles City, Pampanga</p>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label for="barangay" class="block text-sm font-semibold text-gray-700 mb-2">Barangay *</label>
-                            <select id="barangay" name="barangay" required class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition">
-                                <option value="">Select Barangay</option>
-                                <option value="Agapito del Rosario">Agapito del Rosario</option>
-                                <option value="Amsic">Amsic</option>
-                                <option value="Balibago">Balibago</option>
-                                <option value="Capaya">Capaya</option>
-                                <option value="Claro M. Recto">Claro M. Recto</option>
-                                <option value="Cuayan">Cuayan</option>
-                                <option value="Lourdes North-West">Lourdes North-West</option>
-                                <option value="Lourdes Sur (South)">Lourdes Sur (South)</option>
-                                <option value="Lourdes Sur-East">Lourdes Sur-East</option>
-                                <option value="Malabanas">Malabanas</option>
-                                <option value="Margot">Margot</option>
-                                <option value="Mining">Mining</option>
-                                <option value="Ninoy Aquino">Ninoy Aquino</option>
-                                <option value="Pampang">Pampang</option>
-                                <option value="Pandan">Pandan</option>
-                                <option value="Pulungbulu">Pulungbulu</option>
-                                <option value="Pulung Cacutud">Pulung Cacutud</option>
-                                <option value="Pulung Maragul">Pulung Maragul</option>
-                                <option value="Pulungbato">Pulungbato</option>
-                                <option value="Salapungan">Salapungan</option>
-                                <option value="San Jose">San Jose</option>
-                                <option value="San Nicolas">San Nicolas</option>
-                                <option value="Santa Teresita">Santa Teresita</option>
-                                <option value="Santa Trinidad">Santa Trinidad</option>
-                                <option value="Santo Cristo">Santo Cristo</option>
-                                <option value="Santo Domingo">Santo Domingo</option>
-                                <option value="Sapangbato">Sapangbato</option>
-                            </select>
+                    <div id="shippingAddressPreview" class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Detected Barangay</p>
+                            <p id="shippingPreviewBarangay" class="mt-1 text-sm font-semibold text-gray-800">Add your barangay to the address</p>
                         </div>
-                        <div>
-                            <label for="city" class="block text-sm font-semibold text-gray-700 mb-2">City *</label>
-                            <select id="city" name="city" required class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition">
-                                <option value="">Select City</option>
-                                <option value="Angeles City">Angeles City</option>
-                            </select>
+                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">City</p>
+                            <p id="shippingPreviewCity" class="mt-1 text-sm font-semibold text-gray-800">Angeles City</p>
                         </div>
-                        <div>
-                            <label for="province" class="block text-sm font-semibold text-gray-700 mb-2">Province *</label>
-                            <select id="province" name="province" required class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition">
-                                <option value="">Select Province</option>
-                                <option value="Pampanga">Pampanga</option>
-                            </select>
+                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Province</p>
+                            <p id="shippingPreviewProvince" class="mt-1 text-sm font-semibold text-gray-800">Pampanga</p>
                         </div>
                     </div>
                     <div class="mt-4">
@@ -299,30 +265,6 @@ if (!isset($_SESSION['user_id'])) {
                                 <i class="fas fa-key mr-2"></i>Update Password
                             </button>
                         </div>
-                    </div>
-                </div>
-
-                <div class="grid md:grid-cols-2 gap-6 mb-8">
-                    <div class="border-2 border-gray-100 rounded-xl p-6 bg-white">
-                        <h3 class="text-xl font-bold text-gray-900 mb-2 flex items-center">
-                            <i class="fas fa-house text-[#08415c] mr-2"></i>Home Address
-                        </h3>
-                        <p class="text-sm text-gray-600 mb-4">Optional. Save this if your home address is different from your shipping address.</p>
-                        <textarea id="home_address" name="home_address" rows="4"
-                                  minlength="10" maxlength="255"
-                                  class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition"
-                                  placeholder="Home address"></textarea>
-                    </div>
-
-                    <div class="border-2 border-gray-100 rounded-xl p-6 bg-white">
-                        <h3 class="text-xl font-bold text-gray-900 mb-2 flex items-center">
-                            <i class="fas fa-file-invoice text-[#08415c] mr-2"></i>Billing Address
-                        </h3>
-                        <p class="text-sm text-gray-600 mb-4">Optional. Save this if invoices should use a different billing location.</p>
-                        <textarea id="billing_address" name="billing_address" rows="4"
-                                  minlength="10" maxlength="255"
-                                  class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition"
-                                  placeholder="Billing address"></textarea>
                     </div>
                 </div>
 
@@ -395,11 +337,7 @@ if (!isset($_SESSION['user_id'])) {
             firstName: { min: 2, max: 50 },
             lastName: { min: 2, max: 50 },
             address: { min: 10, max: 255 },
-            homeAddress: { min: 10, max: 255 },
-            billingAddress: { min: 10, max: 255 },
-            barangay: { min: 2, max: 120 },
-            city: { min: 2, max: 100 },
-            province: { min: 2, max: 100 }
+            postalCode: { max: 4 }
         };
         
         // Load profile data on page load
@@ -412,6 +350,7 @@ if (!isset($_SESSION['user_id'])) {
             document.getElementById('deactivateAccountBtn').addEventListener('click', handleDeactivateAccount);
             document.getElementById('fname').addEventListener('blur', function() { capitalizeNameInput(this); });
             document.getElementById('lname').addEventListener('blur', function() { capitalizeNameInput(this); });
+            document.getElementById('address').addEventListener('input', updateShippingAddressPreview);
         });
 
         function toTitleCaseName(value) {
@@ -438,6 +377,24 @@ if (!isset($_SESSION['user_id'])) {
             if (!/^\d{4}$/.test(value)) return false;
             const numeric = Number(value);
             return numeric >= 2000 && numeric <= 2100;
+        }
+
+        function updateShippingAddressPreview() {
+            const previewBarangay = document.getElementById('shippingPreviewBarangay');
+            const previewCity = document.getElementById('shippingPreviewCity');
+            const previewProvince = document.getElementById('shippingPreviewProvince');
+            const parseAddress = typeof window.mincParseShippingAddress === 'function'
+                ? window.mincParseShippingAddress
+                : null;
+
+            if (!previewBarangay || !previewCity || !previewProvince || !parseAddress) {
+                return;
+            }
+
+            const shippingLocation = parseAddress(document.getElementById('address').value);
+            previewBarangay.textContent = shippingLocation.barangay || 'Add your barangay to the address';
+            previewCity.textContent = shippingLocation.city || 'Angeles City';
+            previewProvince.textContent = shippingLocation.province || 'Pampanga';
         }
 
         function toggleFieldVisibility(inputId, buttonEl) {
@@ -498,12 +455,8 @@ if (!isset($_SESSION['user_id'])) {
                         document.getElementById('email').value = user.email;
                         document.getElementById('contact_num').value = user.contact_num || '';
                         document.getElementById('address').value = user.address || '';
-                        document.getElementById('home_address').value = user.home_address || '';
-                        document.getElementById('billing_address').value = user.billing_address || '';
-                        document.getElementById('barangay').value = user.barangay || '';
-                        document.getElementById('city').value = user.city || '';
-                        document.getElementById('province').value = user.province || '';
                         document.getElementById('postal_code').value = user.postal_code || '';
+                        updateShippingAddressPreview();
 
                         if (user.profile_picture_url) {
                             document.getElementById('profilePictureDisplay').src = user.profile_picture_url;
@@ -534,12 +487,11 @@ if (!isset($_SESSION['user_id'])) {
             const lname = document.getElementById('lname').value.trim();
             const contact_num = document.getElementById('contact_num').value.trim();
             const address = document.getElementById('address').value.trim();
-            const home_address = document.getElementById('home_address').value.trim();
-            const billing_address = document.getElementById('billing_address').value.trim();
-            const barangay = document.getElementById('barangay').value.trim();
-            const city = document.getElementById('city').value.trim();
-            const province = document.getElementById('province').value.trim();
             const postal_code = document.getElementById('postal_code').value.trim();
+            const parseAddress = typeof window.mincParseShippingAddress === 'function'
+                ? window.mincParseShippingAddress
+                : null;
+            const shippingLocation = parseAddress ? parseAddress(address) : { hasValidBarangay: false };
 
             if (!fname || !lname) {
                 showAlert('First name and last name are required', 'error');
@@ -568,8 +520,8 @@ if (!isset($_SESSION['user_id'])) {
                 return;
             }
 
-            if (!address || !barangay || !city || !province) {
-                showAlert('Default shipping address, barangay, city, and province are required', 'error');
+            if (!address) {
+                showAlert('Default shipping address is required', 'error');
                 return;
             }
 
@@ -578,28 +530,8 @@ if (!isset($_SESSION['user_id'])) {
                 return;
             }
 
-            if (!isWithinLength(barangay, PROFILE_RULES.barangay.min, PROFILE_RULES.barangay.max)) {
-                showAlert('Barangay must be between 2 and 120 characters', 'error');
-                return;
-            }
-
-            if (!isWithinLength(city, PROFILE_RULES.city.min, PROFILE_RULES.city.max)) {
-                showAlert('City must be between 2 and 100 characters', 'error');
-                return;
-            }
-
-            if (!isWithinLength(province, PROFILE_RULES.province.min, PROFILE_RULES.province.max)) {
-                showAlert('Province must be between 2 and 100 characters', 'error');
-                return;
-            }
-
-            if (home_address && !isWithinLength(home_address, PROFILE_RULES.homeAddress.min, PROFILE_RULES.homeAddress.max)) {
-                showAlert('Home address must be between 10 and 255 characters', 'error');
-                return;
-            }
-
-            if (billing_address && !isWithinLength(billing_address, PROFILE_RULES.billingAddress.min, PROFILE_RULES.billingAddress.max)) {
-                showAlert('Billing address must be between 10 and 255 characters', 'error');
+            if (!shippingLocation.hasValidBarangay) {
+                showAlert('Include a valid Angeles City barangay in the shipping address', 'error');
                 return;
             }
 
@@ -620,11 +552,6 @@ if (!isset($_SESSION['user_id'])) {
                     lname: lname,
                     contact_num: contact_num,
                     address: address,
-                    home_address: home_address || null,
-                    billing_address: billing_address || null,
-                    barangay: barangay,
-                    city: city,
-                    province: province,
                     postal_code: postal_code || null
                 })
             })

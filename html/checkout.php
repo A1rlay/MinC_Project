@@ -2,6 +2,7 @@
 session_start();
 require_once '../database/connect_database.php';
 require_once '../config/payment_config.php';
+require_once '../backend/order-management/order_workflow_helper.php';
 
 // Buy Now mode (checkout only one selected product)
 $is_buy_now = isset($_GET['buy_now']) && $_GET['buy_now'] === '1';
@@ -131,27 +132,22 @@ if ($user_id) {
     $user_data = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt));
 
     if ($user_data) {
-        $saved_shipping_info = [
-            'address' => trim((string)($user_data['address'] ?? '')),
-            'barangay' => trim((string)($user_data['barangay'] ?? '')),
-            'city' => trim((string)($user_data['city'] ?? '')),
-            'province' => trim((string)($user_data['province'] ?? '')),
-            'postal_code' => trim((string)($user_data['postal_code'] ?? ''))
-        ];
+        $saved_shipping_info = mincBuildShippingData(
+            $user_data['address'] ?? '',
+            $user_data['barangay'] ?? '',
+            $user_data['city'] ?? 'Angeles City',
+            $user_data['province'] ?? 'Pampanga',
+            $user_data['postal_code'] ?? null
+        );
     }
 }
 
 $has_saved_shipping_info = false;
 if (is_array($saved_shipping_info)) {
     $has_saved_shipping_info =
-        $saved_shipping_info['address'] !== '' &&
-        $saved_shipping_info['barangay'] !== '' &&
-        $saved_shipping_info['city'] !== '' &&
-        $saved_shipping_info['province'] !== '';
+        mb_strlen((string)$saved_shipping_info['address']) >= 10 &&
+        !empty($saved_shipping_info['has_valid_barangay']);
 }
-
-$saved_home_address = trim((string)($user_data['home_address'] ?? ''));
-$saved_billing_address = trim((string)($user_data['billing_address'] ?? ''));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -433,8 +429,10 @@ $saved_billing_address = trim((string)($user_data['billing_address'] ?? ''));
                                         <div>
                                             <p class="font-semibold text-gray-900"><?php echo htmlspecialchars(($user_data['fname'] ?? '') . ' ' . ($user_data['lname'] ?? '')); ?></p>
                                             <p class="text-gray-700"><?php echo htmlspecialchars($saved_shipping_info['address'] ?? ''); ?></p>
-                                            <p class="text-gray-700"><?php echo htmlspecialchars($saved_shipping_info['barangay'] ?? ''); ?>, <?php echo htmlspecialchars($saved_shipping_info['city'] ?? ''); ?></p>
-                                            <p class="text-gray-700"><?php echo htmlspecialchars($saved_shipping_info['province'] ?? ''); ?><?php echo !empty($saved_shipping_info['postal_code']) ? ', ' . htmlspecialchars($saved_shipping_info['postal_code']) : ''; ?></p>
+                                            <p class="text-sm text-gray-500 mt-2">Detected delivery area: <?php echo htmlspecialchars(($saved_shipping_info['barangay'] ?? '') . ', ' . ($saved_shipping_info['city'] ?? '') . ', ' . ($saved_shipping_info['province'] ?? '')); ?></p>
+                                            <?php if (!empty($saved_shipping_info['postal_code'])): ?>
+                                            <p class="text-sm text-gray-500">Postal code: <?php echo htmlspecialchars($saved_shipping_info['postal_code']); ?></p>
+                                            <?php endif; ?>
                                         </div>
                                         <button type="button" id="changeShippingInfoBtn" class="text-[#08415c] text-sm font-semibold hover:underline">Change</button>
                                     </div>
@@ -453,58 +451,23 @@ $saved_billing_address = trim((string)($user_data['billing_address'] ?? ''));
                                     <label class="block text-gray-700 font-medium mb-2">Complete Address *</label>
                                     <textarea id="address" rows="3"
                                               minlength="10" maxlength="255"
-                                              placeholder="House/Unit No., Street Name"
+                                              placeholder="House/Unit No., Street, Barangay, Angeles City, Pampanga"
                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]"></textarea>
+                                    <p class="mt-2 text-xs text-gray-500">Write the full delivery address in one field. Include your Angeles City barangay so shipping coverage can be validated automatically.</p>
                                 </div>
 
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div>
-                                        <label class="block text-gray-700 font-medium mb-2">Barangay *</label>
-                                        <select id="barangay"
-                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
-                                            <option value="">Select Barangay</option>
-                                            <option value="Agapito del Rosario">Agapito del Rosario</option>
-                                            <option value="Amsic">Amsic</option>
-                                            <option value="Balibago">Balibago</option>
-                                            <option value="Capaya">Capaya</option>
-                                            <option value="Claro M. Recto">Claro M. Recto</option>
-                                            <option value="Cuayan">Cuayan</option>
-                                            <option value="Lourdes North-West">Lourdes North-West</option>
-                                            <option value="Lourdes Sur (South)">Lourdes Sur (South)</option>
-                                            <option value="Lourdes Sur-East">Lourdes Sur-East</option>
-                                            <option value="Malabanas">Malaba&ntilde;as</option>
-                                            <option value="Margot">Margot</option>
-                                            <option value="Mining">Mining</option>
-                                            <option value="Ninoy Aquino">Ninoy Aquino</option>
-                                            <option value="Pampang">Pampang</option>
-                                            <option value="Pandan">Pandan</option>
-                                            <option value="Pulungbulu">Pulungbulu</option>
-                                            <option value="Pulung Cacutud">Pulung Cacutud</option>
-                                            <option value="Pulung Maragul">Pulung Maragul</option>
-                                            <option value="Pulungbato">Pulungbato</option>
-                                            <option value="Salapungan">Salapungan</option>
-                                            <option value="San Jose">San Jose</option>
-                                            <option value="San Nicolas">San Nicolas</option>
-                                            <option value="Santa Teresita">Santa Teresita</option>
-                                            <option value="Santa Trinidad">Santa Trinidad</option>
-                                            <option value="Santo Cristo">Santo Cristo</option>
-                                            <option value="Santo Domingo">Santo Domingo</option>
-                                            <option value="Sapangbato">Sapangbato</option>
-                                        </select>
+                                    <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Detected Barangay</p>
+                                        <p id="shippingPreviewBarangay" class="mt-1 text-sm font-semibold text-gray-800">Add your barangay to the address</p>
                                     </div>
-                                    <div>
-                                        <label class="block text-gray-700 font-medium mb-2">City *</label>
-                                        <select id="city"
-                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
-                                            <option value="Angeles City">Angeles City</option>
-                                        </select>
+                                    <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">City</p>
+                                        <p id="shippingPreviewCity" class="mt-1 text-sm font-semibold text-gray-800">Angeles City</p>
                                     </div>
-                                    <div>
-                                        <label class="block text-gray-700 font-medium mb-2">Province *</label>
-                                        <select id="province" 
-                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
-                                            <option value="Pampanga">Pampanga</option>
-                                        </select>
+                                    <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Province</p>
+                                        <p id="shippingPreviewProvince" class="mt-1 text-sm font-semibold text-gray-800">Pampanga</p>
                                     </div>
                                 </div>
 
@@ -740,14 +703,7 @@ $saved_billing_address = trim((string)($user_data['billing_address'] ?? ''));
         const SAVED_SHIPPING = <?php echo $saved_shipping_info ? json_encode($saved_shipping_info, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : 'null'; ?>;
         const HAS_SAVED_SHIPPING = <?php echo $has_saved_shipping_info ? 'true' : 'false'; ?>;
         const PAYMENT_CONFIG = <?php echo json_encode($payment_config, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
-        const ANGELES_CITY_BARANGAYS = [
-            'Agapito del Rosario', 'Amsic', 'Balibago', 'Capaya', 'Claro M. Recto', 'Cuayan',
-            'Lourdes North-West', 'Lourdes Sur (South)', 'Lourdes Sur-East', 'Malabanas',
-            'Margot', 'Mining', 'Ninoy Aquino', 'Pampang', 'Pandan', 'Pulungbulu',
-            'Pulung Cacutud', 'Pulung Maragul', 'Pulungbato', 'Salapungan', 'San Jose',
-            'San Nicolas', 'Santa Teresita', 'Santa Trinidad', 'Santo Cristo', 'Santo Domingo',
-            'Sapangbato'
-        ];
+        const ANGELES_CITY_BARANGAYS = Array.isArray(window.MINC_ALLOWED_BARANGAYS) ? window.MINC_ALLOWED_BARANGAYS.slice() : [];
         const FIELD_LIMITS = {
             firstName: { min: 2, max: 50 },
             lastName: { min: 2, max: 50 },
@@ -806,6 +762,12 @@ $saved_billing_address = trim((string)($user_data['billing_address'] ?? ''));
             return ['bank_transfer', 'gcash', 'paymaya'].includes(String(paymentMethod || '').toLowerCase());
         }
 
+        function getShippingParser() {
+            return typeof window.mincParseShippingAddress === 'function'
+                ? window.mincParseShippingAddress
+                : null;
+        }
+
         function getCurrentPaymentMethod() {
             const selected = document.querySelector('input[name="paymentMethod"]:checked');
             return selected ? selected.value : 'cod';
@@ -855,11 +817,18 @@ $saved_billing_address = trim((string)($user_data['billing_address'] ?? ''));
         }
 
         function getShippingDataFromForm() {
+            const parseAddress = getShippingParser();
+            const rawAddress = document.getElementById('address').value.trim();
+            const parsedAddress = parseAddress
+                ? parseAddress(rawAddress)
+                : { address: rawAddress, barangay: '', city: 'Angeles City', province: 'Pampanga', hasValidBarangay: false };
+
             return {
-                address: document.getElementById('address').value.trim(),
-                barangay: document.getElementById('barangay').value.trim(),
-                city: document.getElementById('city').value.trim(),
-                province: document.getElementById('province').value.trim(),
+                address: parsedAddress.address || rawAddress,
+                barangay: parsedAddress.barangay || '',
+                city: parsedAddress.city || 'Angeles City',
+                province: parsedAddress.province || 'Pampanga',
+                hasValidBarangay: Boolean(parsedAddress.hasValidBarangay),
                 postal_code: document.getElementById('postalCode').value.trim()
             };
         }
@@ -871,10 +840,28 @@ $saved_billing_address = trim((string)($user_data['billing_address'] ?? ''));
                     barangay: (SAVED_SHIPPING.barangay || '').trim(),
                     city: (SAVED_SHIPPING.city || '').trim(),
                     province: (SAVED_SHIPPING.province || '').trim(),
+                    hasValidBarangay: Boolean(SAVED_SHIPPING.has_valid_barangay || SAVED_SHIPPING.barangay),
                     postal_code: (SAVED_SHIPPING.postal_code || '').trim()
                 };
             }
             return getShippingDataFromForm();
+        }
+
+        function updateShippingAddressPreview() {
+            const shippingData = getShippingDataFromForm();
+            const previewBarangay = document.getElementById('shippingPreviewBarangay');
+            const previewCity = document.getElementById('shippingPreviewCity');
+            const previewProvince = document.getElementById('shippingPreviewProvince');
+
+            if (previewBarangay) {
+                previewBarangay.textContent = shippingData.barangay || 'Add your barangay to the address';
+            }
+            if (previewCity) {
+                previewCity.textContent = shippingData.city || 'Angeles City';
+            }
+            if (previewProvince) {
+                previewProvince.textContent = shippingData.province || 'Pampanga';
+            }
         }
 
         function applyShippingInfoMode() {
@@ -887,6 +874,10 @@ $saved_billing_address = trim((string)($user_data['billing_address'] ?? ''));
             }
             if (savedCard) {
                 savedCard.classList.toggle('hidden', !useSaved);
+            }
+
+            if (!useSaved) {
+                updateShippingAddressPreview();
             }
         }
 
@@ -1058,11 +1049,11 @@ $saved_billing_address = trim((string)($user_data['billing_address'] ?? ''));
                     const barangay = shippingData.barangay;
                     const postalCode = shippingData.postal_code;
 
-                    if (!address || !city || !province || !barangay) {
+                    if (!address) {
                         Swal.fire({
                             icon: 'error',
                             title: 'Missing Information',
-                            text: 'Please fill in all required shipping fields',
+                            text: 'Please enter your shipping address.',
                             confirmButtonColor: '#08415c'
                         });
                         return;
@@ -1073,6 +1064,16 @@ $saved_billing_address = trim((string)($user_data['billing_address'] ?? ''));
                             icon: 'error',
                             title: 'Invalid Address',
                             text: 'Complete address must be between 10 and 255 characters.',
+                            confirmButtonColor: '#08415c'
+                        });
+                        return;
+                    }
+
+                    if (!shippingData.hasValidBarangay) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Incomplete Shipping Address',
+                            text: 'Include a valid Angeles City barangay in the shipping address.',
                             confirmButtonColor: '#08415c'
                         });
                         return;
@@ -1182,9 +1183,8 @@ $saved_billing_address = trim((string)($user_data['billing_address'] ?? ''));
             } else {
                 shippingFields.classList.remove('hidden');
                 pickupFields.classList.add('hidden');
-                document.getElementById('city').value = 'Angeles City';
-                document.getElementById('province').value = 'Pampanga';
                 applyShippingInfoMode();
+                updateShippingAddressPreview();
                 // Clear pickup validation
                 document.getElementById('pickupDate').value = '';
                 document.getElementById('pickupTime').value = '';
@@ -1308,11 +1308,11 @@ $saved_billing_address = trim((string)($user_data['billing_address'] ?? ''));
                 const postalCode = shippingData.postal_code;
                 const notes = document.getElementById('notes').value.trim();
 
-                if (!address || !barangay || !city || !province) {
+                if (!address) {
                     Swal.fire({
                         icon: 'error',
                         title: 'Missing Shipping Information',
-                        text: 'Complete shipping address, barangay, city, and province are required.',
+                        text: 'Complete shipping address is required.',
                         confirmButtonColor: '#08415c'
                     });
                     return;
@@ -1323,6 +1323,16 @@ $saved_billing_address = trim((string)($user_data['billing_address'] ?? ''));
                         icon: 'error',
                         title: 'Invalid Address',
                         text: 'Complete address must be between 10 and 255 characters.',
+                        confirmButtonColor: '#08415c'
+                    });
+                    return;
+                }
+
+                if (!shippingData.hasValidBarangay) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Incomplete Shipping Address',
+                        text: 'Include a valid Angeles City barangay in the shipping address.',
                         confirmButtonColor: '#08415c'
                     });
                     return;
@@ -1358,21 +1368,21 @@ $saved_billing_address = trim((string)($user_data['billing_address'] ?? ''));
                     return;
                 }
 
-                if (province !== 'Pampanga' || city !== 'Angeles City' || !ANGELES_CITY_BARANGAYS.includes(barangay)) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Invalid Shipping Location',
-                        text: 'Shipping is only available in Angeles City, Pampanga barangays.',
-                        confirmButtonColor: '#08415c'
-                    });
-                    return;
-                }
-
                 if (!validatePostalCode(postalCode)) {
                     Swal.fire({
                         icon: 'error',
                         title: 'Invalid Postal Code',
                         text: 'Postal code must be a 4-digit value between 2000 and 2100.',
+                        confirmButtonColor: '#08415c'
+                    });
+                    return;
+                }
+
+                if (province !== 'Pampanga' || city !== 'Angeles City' || !ANGELES_CITY_BARANGAYS.includes(barangay)) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Invalid Shipping Location',
+                        text: 'Shipping is only available in Angeles City, Pampanga barangays.',
                         confirmButtonColor: '#08415c'
                     });
                     return;
@@ -1397,7 +1407,7 @@ $saved_billing_address = trim((string)($user_data['billing_address'] ?? ''));
                 };
                 orderData.notes = notes;
 
-                orderDetails += `<p><strong>Shipping Address:</strong> ${escapeHtml(address)}, ${escapeHtml(barangay)}, ${escapeHtml(city)}, ${escapeHtml(province)}${postalCode ? ` ${escapeHtml(postalCode)}` : ''}</p>`;
+                orderDetails += `<p><strong>Shipping Address:</strong> ${escapeHtml(address)}${postalCode ? ` ${escapeHtml(postalCode)}` : ''}</p>`;
                 orderDetails += `<p><strong>Shipping Fee:</strong> ${document.getElementById('summaryShipping').textContent === 'FREE' ? 'FREE' : `PHP ${document.getElementById('summaryShipping').textContent}`}</p>`;
                 if (notes) {
                     orderDetails += `<p><strong>Delivery Notes:</strong> ${escapeHtml(notes)}</p>`;
@@ -1667,21 +1677,20 @@ $saved_billing_address = trim((string)($user_data['billing_address'] ?? ''));
         updateSummary();
     }
 
-    // Initialize on page load
+        // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
             if (hasSavedShippingData()) {
                 document.getElementById('address').value = SAVED_SHIPPING.address || '';
-                document.getElementById('barangay').value = SAVED_SHIPPING.barangay || '';
-                document.getElementById('city').value = SAVED_SHIPPING.city || 'Angeles City';
-                document.getElementById('province').value = SAVED_SHIPPING.province || 'Pampanga';
                 document.getElementById('postalCode').value = SAVED_SHIPPING.postal_code || '';
             }
+            document.getElementById('address').addEventListener('input', updateShippingAddressPreview);
             document.querySelectorAll('input[name="paymentMethod"]').forEach((input) => {
                 input.addEventListener('change', updatePaymentGuidance);
             });
             initializeShippingAddressChooser();
             loadCart();
             updatePaymentGuidance();
+            updateShippingAddressPreview();
             applyGuestCheckoutRestrictions();
         });
 </script>

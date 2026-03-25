@@ -27,6 +27,7 @@ try {
     // Include files
     require_once '../database/connect_database.php';
     require_once 'auth.php';
+    require_once 'order-management/order_workflow_helper.php';
 
     $columnsStmt = $pdo->query("SHOW COLUMNS FROM users");
     $columns = array_column($columnsStmt->fetchAll(PDO::FETCH_ASSOC), 'Field');
@@ -106,6 +107,7 @@ try {
     $city = $hasCityKey ? preg_replace('/\s+/', ' ', trim((string)$input['city'])) : null;
     $province = $hasProvinceKey ? preg_replace('/\s+/', ' ', trim((string)$input['province'])) : null;
     $postal_code = $hasPostalCodeKey ? trim((string)$input['postal_code']) : null;
+    $shippingData = null;
 
     $normalizeName = function ($value) {
         $value = preg_replace('/\s+/', ' ', trim((string)$value));
@@ -211,26 +213,27 @@ try {
         $postal_code = null;
     }
 
+    if ($hasAddressKey && $address !== null) {
+        $shippingData = mincBuildShippingData(
+            $address,
+            $barangay ?? '',
+            $city ?? 'Angeles City',
+            $province ?? 'Pampanga',
+            $postal_code
+        );
+        $address = $shippingData['address'];
+        $home_address = $address;
+        $billing_address = $address;
+        $barangay = $shippingData['barangay'];
+        $city = $shippingData['city'];
+        $province = $shippingData['province'];
+        $postal_code = $shippingData['postal_code'];
+    }
+
     if ($address !== null && (mb_strlen($address) < 10 || mb_strlen($address) > 255)) {
         echo json_encode([
             'success' => false,
             'message' => 'Complete address must be between 10 and 255 characters'
-        ]);
-        exit;
-    }
-
-    if ($home_address !== null && (mb_strlen($home_address) < 10 || mb_strlen($home_address) > 255)) {
-        echo json_encode([
-            'success' => false,
-            'message' => 'Home address must be between 10 and 255 characters'
-        ]);
-        exit;
-    }
-
-    if ($billing_address !== null && (mb_strlen($billing_address) < 10 || mb_strlen($billing_address) > 255)) {
-        echo json_encode([
-            'success' => false,
-            'message' => 'Billing address must be between 10 and 255 characters'
         ]);
         exit;
     }
@@ -273,14 +276,14 @@ try {
         }
     }
 
-    $deliveryInputTouched = $hasAddressKey || $hasBarangayKey || $hasCityKey || $hasProvinceKey || $hasPostalCodeKey;
-    $hasAnyDeliveryValue = ($address !== null) || ($barangay !== null) || ($city !== null) || ($province !== null) || ($postal_code !== null);
+    $deliveryInputTouched = $hasAddressKey || $hasPostalCodeKey || $hasBarangayKey || $hasCityKey || $hasProvinceKey;
+    $hasAnyDeliveryValue = ($address !== null) || ($postal_code !== null) || ($barangay !== null) || ($city !== null) || ($province !== null);
 
     if ($deliveryInputTouched && $hasAnyDeliveryValue) {
-        if (!$address || !$barangay || !$city || !$province) {
+        if (!$address) {
             echo json_encode([
                 'success' => false,
-                'message' => 'Complete address, barangay, city, and province are required when saving delivery information'
+                'message' => 'Default shipping address is required when saving delivery information'
             ]);
             exit;
         }
@@ -294,26 +297,10 @@ try {
         exit;
     }
 
-    if ($hasBarangayKey && !$barangay) {
+    if ($hasAddressKey && $shippingData !== null && !$shippingData['has_valid_barangay']) {
         echo json_encode([
             'success' => false,
-            'message' => 'Barangay is required'
-        ]);
-        exit;
-    }
-
-    if ($hasCityKey && !$city) {
-        echo json_encode([
-            'success' => false,
-            'message' => 'City is required'
-        ]);
-        exit;
-    }
-
-    if ($hasProvinceKey && !$province) {
-        echo json_encode([
-            'success' => false,
-            'message' => 'Province is required'
+            'message' => 'Include a valid Angeles City barangay in the shipping address'
         ]);
         exit;
     }
@@ -361,23 +348,23 @@ try {
         $updateQuery .= ", address = :address";
         $params[':address'] = $address;
     }
-    if ($hasHomeAddressKey && in_array('home_address', $columns, true)) {
+    if (($hasAddressKey || $hasHomeAddressKey) && in_array('home_address', $columns, true)) {
         $updateQuery .= ", home_address = :home_address";
-        $params[':home_address'] = $home_address;
+        $params[':home_address'] = $hasAddressKey ? $address : $home_address;
     }
-    if ($hasBillingAddressKey && in_array('billing_address', $columns, true)) {
+    if (($hasAddressKey || $hasBillingAddressKey) && in_array('billing_address', $columns, true)) {
         $updateQuery .= ", billing_address = :billing_address";
-        $params[':billing_address'] = $billing_address;
+        $params[':billing_address'] = $hasAddressKey ? $address : $billing_address;
     }
-    if ($hasBarangayKey) {
+    if ($hasAddressKey || $hasBarangayKey) {
         $updateQuery .= ", barangay = :barangay";
         $params[':barangay'] = $barangay;
     }
-    if ($hasCityKey) {
+    if ($hasAddressKey || $hasCityKey) {
         $updateQuery .= ", city = :city";
         $params[':city'] = $city;
     }
-    if ($hasProvinceKey) {
+    if ($hasAddressKey || $hasProvinceKey) {
         $updateQuery .= ", province = :province";
         $params[':province'] = $province;
     }

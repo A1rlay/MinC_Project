@@ -68,10 +68,7 @@ if (
     !isset($input['lname']) ||
     !isset($input['email']) ||
     !isset($input['contact_num']) ||
-    !isset($input['address']) ||
-    !isset($input['barangay']) ||
-    !isset($input['city']) ||
-    !isset($input['province'])
+    !isset($input['address'])
 ) {
     echo json_encode([
         'success' => false,
@@ -84,13 +81,21 @@ $fname = trim($input['fname']);
 $lname = trim($input['lname']);
 $email = filter_var($input['email'], FILTER_SANITIZE_EMAIL);
 $contact_num = trim((string)($input['contact_num'] ?? ''));
-$address = mincNormalizeWhitespace($input['address'] ?? '');
-$home_address = mincNormalizeWhitespace($input['home_address'] ?? '');
-$billing_address = mincNormalizeWhitespace($input['billing_address'] ?? '');
-$barangay = mincNormalizeWhitespace($input['barangay'] ?? '');
-$city = mincNormalizeWhitespace($input['city'] ?? '');
-$province = mincNormalizeWhitespace($input['province'] ?? '');
 $postal_code = trim((string)($input['postal_code'] ?? ''));
+$shippingData = mincBuildShippingData(
+    $input['address'] ?? '',
+    $input['barangay'] ?? '',
+    $input['city'] ?? 'Angeles City',
+    $input['province'] ?? 'Pampanga',
+    $postal_code
+);
+$address = $shippingData['address'];
+$home_address = $address;
+$billing_address = $address;
+$barangay = $shippingData['barangay'];
+$city = $shippingData['city'];
+$province = $shippingData['province'];
+$postal_code = $shippingData['postal_code'];
 
 // Validate email format
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -138,10 +143,10 @@ if (mb_strlen($address) < 10 || mb_strlen($address) > 255) {
     exit;
 }
 
-if ($barangay === '' || mb_strlen($barangay) < 2 || mb_strlen($barangay) > 120) {
+if (!$shippingData['has_valid_barangay']) {
     echo json_encode([
         'success' => false,
-        'message' => 'Barangay must be between 2 and 120 characters'
+        'message' => 'Include a valid Angeles City barangay in the shipping address'
     ]);
     exit;
 }
@@ -162,7 +167,7 @@ if ($province === '' || mb_strlen($province) < 2 || mb_strlen($province) > 100) 
     exit;
 }
 
-if ($postal_code !== '') {
+if ($postal_code !== null && $postal_code !== '') {
     $postalCodeInt = (int)$postal_code;
     $postalCodeValid = preg_match('/^\d{4}$/', $postal_code) === 1
         && $postalCodeInt >= 2000
@@ -176,22 +181,6 @@ if ($postal_code !== '') {
     }
 } else {
     $postal_code = null;
-}
-
-if ($home_address !== '' && (mb_strlen($home_address) < 10 || mb_strlen($home_address) > 255)) {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Home address must be between 10 and 255 characters'
-    ]);
-    exit;
-}
-
-if ($billing_address !== '' && (mb_strlen($billing_address) < 10 || mb_strlen($billing_address) > 255)) {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Billing address must be between 10 and 255 characters'
-    ]);
-    exit;
 }
 
 try {

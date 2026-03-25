@@ -27,6 +27,7 @@ try {
     // Include files
     require_once '../database/connect_database.php';
     require_once 'auth.php';
+    require_once 'order-management/order_workflow_helper.php';
 
     // Validate session
     $validation = validateSession(false);
@@ -96,6 +97,21 @@ try {
         ]);
         exit;
     }
+
+    $shippingData = mincBuildShippingData(
+        $user['address'] ?? '',
+        $user['barangay'] ?? '',
+        $user['city'] ?? 'Angeles City',
+        $user['province'] ?? 'Pampanga',
+        $user['postal_code'] ?? null
+    );
+    $user['address'] = $shippingData['address'];
+    $user['barangay'] = $shippingData['barangay'];
+    $user['city'] = $shippingData['city'];
+    $user['province'] = $shippingData['province'];
+    $user['home_address'] = $shippingData['address'];
+    $user['billing_address'] = $shippingData['address'];
+    $user['postal_code'] = $shippingData['postal_code'];
 
     // Build profile picture URL relative to the project base path.
     $projectBase = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/backend/get_profile.php', 2)), '/');

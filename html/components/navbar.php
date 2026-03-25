@@ -56,7 +56,7 @@ $html_path = $is_in_html ? '' : 'html/';
     
     <!-- Login Modal -->
     <div id="loginModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 relative">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[92vh] overflow-y-auto p-6 sm:p-8 relative">
             <button onclick="closeLoginModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
                 <i class="fas fa-times text-2xl"></i>
             </button>
@@ -93,51 +93,34 @@ $html_path = $is_in_html ? '' : 'html/';
 
                 <form id="registerFormElement" onsubmit="handleRegister(event)">
                     <p class="text-sm text-gray-600 mb-4">Required fields: first name, last name, email, contact number, and default shipping address.</p>
-                    <div class="mb-4">
-                        <label class="block text-gray-700 font-medium mb-2">First Name</label>
-                        <input type="text" id="registerFname" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
-                    </div>
-                    <div class="mb-4">
-                        <label class="block text-gray-700 font-medium mb-2">Last Name</label>
-                        <input type="text" id="registerLname" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-2">First Name</label>
+                            <input type="text" id="registerFname" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-2">Last Name</label>
+                            <input type="text" id="registerLname" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                        </div>
                     </div>
                     <div class="mb-4">
                         <label class="block text-gray-700 font-medium mb-2">Email</label>
                         <input type="email" id="registerEmail" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
                     </div>
-                    <div class="mb-4">
-                        <label class="block text-gray-700 font-medium mb-2">Contact Number</label>
-                        <input type="tel" id="registerContact" required maxlength="13" placeholder="09XXXXXXXXX or +63XXXXXXXXXX" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
-                    </div>
-                    <div class="mb-4">
-                        <label class="block text-gray-700 font-medium mb-2">Default Shipping Address</label>
-                        <textarea id="registerAddress" required rows="2" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]" placeholder="House/Unit No., Street Name"></textarea>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-[2fr_1fr] gap-4 mb-4">
                         <div>
-                            <label class="block text-gray-700 font-medium mb-2">Barangay</label>
-                            <input type="text" id="registerBarangay" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]" placeholder="Barangay">
+                            <label class="block text-gray-700 font-medium mb-2">Contact Number</label>
+                            <input type="tel" id="registerContact" required maxlength="13" placeholder="09XXXXXXXXX or +63XXXXXXXXXX" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
                         </div>
                         <div>
-                            <label class="block text-gray-700 font-medium mb-2">City</label>
-                            <input type="text" id="registerCity" required value="Angeles City" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                            <label class="block text-gray-700 font-medium mb-2">Postal Code</label>
+                            <input type="text" id="registerPostalCode" inputmode="numeric" maxlength="4" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]" placeholder="2019">
                         </div>
-                        <div>
-                            <label class="block text-gray-700 font-medium mb-2">Province</label>
-                            <input type="text" id="registerProvince" required value="Pampanga" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
-                        </div>
-                    </div>
-                    <div class="mb-4">
-                        <label class="block text-gray-700 font-medium mb-2">Postal Code</label>
-                        <input type="text" id="registerPostalCode" inputmode="numeric" maxlength="4" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]" placeholder="2019">
-                    </div>
-                    <div class="mb-4">
-                        <label class="block text-gray-700 font-medium mb-2">Home Address <span class="text-gray-400">(Optional)</span></label>
-                        <textarea id="registerHomeAddress" rows="2" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]" placeholder="Leave blank to use shipping address"></textarea>
                     </div>
                     <div class="mb-6">
-                        <label class="block text-gray-700 font-medium mb-2">Billing Address <span class="text-gray-400">(Optional)</span></label>
-                        <textarea id="registerBillingAddress" rows="2" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]" placeholder="Leave blank to use shipping address"></textarea>
+                        <label class="block text-gray-700 font-medium mb-2">Default Shipping Address</label>
+                        <textarea id="registerAddress" required rows="3" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]" placeholder="House/Unit No., Street, Barangay, Angeles City, Pampanga"></textarea>
+                        <p class="mt-2 text-xs text-gray-500">Write the full delivery address in one field. We will detect the barangay, city, and province from this address automatically.</p>
                     </div>
                     <button type="submit" class="w-full btn-primary-custom text-white py-3 rounded-lg font-semibold">
                         Continue
@@ -308,6 +291,59 @@ $html_path = $is_in_html ? '' : 'html/';
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     const BASE_PATH = '<?php echo $base_path; ?>';
+    const MINC_DEFAULT_CITY = 'Angeles City';
+    const MINC_DEFAULT_PROVINCE = 'Pampanga';
+    const MINC_ALLOWED_BARANGAYS = [
+        'Agapito del Rosario', 'Amsic', 'Balibago', 'Capaya', 'Claro M. Recto', 'Cuayan',
+        'Lourdes North-West', 'Lourdes Sur (South)', 'Lourdes Sur-East', 'Malabanas',
+        'Margot', 'Mining', 'Ninoy Aquino', 'Pampang', 'Pandan', 'Pulungbulu',
+        'Pulung Cacutud', 'Pulung Maragul', 'Pulungbato', 'Salapungan', 'San Jose',
+        'San Nicolas', 'Santa Teresita', 'Santa Trinidad', 'Santo Cristo', 'Santo Domingo',
+        'Sapangbato'
+    ];
+
+    function normalizeShippingToken(value) {
+        const baseValue = String(value || '').trim();
+        const normalized = typeof baseValue.normalize === 'function'
+            ? baseValue.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            : baseValue;
+
+        return normalized
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function normalizedTokenExists(haystack, needle) {
+        const normalizedHaystack = normalizeShippingToken(haystack);
+        const normalizedNeedle = normalizeShippingToken(needle);
+        if (!normalizedHaystack || !normalizedNeedle) return false;
+        return (` ${normalizedHaystack} `).includes(` ${normalizedNeedle} `);
+    }
+
+    function parseShippingAddress(address, fallbackCity = MINC_DEFAULT_CITY, fallbackProvince = MINC_DEFAULT_PROVINCE) {
+        const trimmedAddress = String(address || '').trim().replace(/\s+/g, ' ');
+        let barangay = '';
+
+        for (const candidate of MINC_ALLOWED_BARANGAYS) {
+            if (normalizedTokenExists(trimmedAddress, candidate)) {
+                barangay = candidate;
+                break;
+            }
+        }
+
+        return {
+            address: trimmedAddress,
+            barangay,
+            city: trimmedAddress ? fallbackCity : '',
+            province: trimmedAddress ? fallbackProvince : '',
+            hasValidBarangay: Boolean(barangay)
+        };
+    }
+
+    window.mincParseShippingAddress = parseShippingAddress;
+    window.MINC_ALLOWED_BARANGAYS = MINC_ALLOWED_BARANGAYS.slice();
 
     function resolveToastVariant(icon) {
         const value = String(icon || 'info').toLowerCase();
@@ -705,12 +741,7 @@ $html_path = $is_in_html ? '' : 'html/';
             'registerEmail',
             'registerContact',
             'registerAddress',
-            'registerBarangay',
-            'registerCity',
-            'registerProvince',
-            'registerPostalCode',
-            'registerHomeAddress',
-            'registerBillingAddress'
+            'registerPostalCode'
         ];
 
         if (registerForm) registerForm.classList.remove('hidden');
@@ -768,20 +799,26 @@ $html_path = $is_in_html ? '' : 'html/';
         const contact = document.getElementById('registerContact').value.trim();
         const addressInput = document.getElementById('registerAddress');
         const address = addressInput ? addressInput.value.trim() : '';
-        const barangay = (document.getElementById('registerBarangay').value || '').trim();
-        const city = (document.getElementById('registerCity').value || '').trim();
-        const province = (document.getElementById('registerProvince').value || '').trim();
         const postalCode = (document.getElementById('registerPostalCode').value || '').trim();
-        const homeAddress = (document.getElementById('registerHomeAddress').value || '').trim();
-        const billingAddress = (document.getElementById('registerBillingAddress').value || '').trim();
+        const shippingLocation = parseShippingAddress(address);
 
         if (!contact) {
             showAlertModal('Contact number is required.', 'warning', 'Missing Contact Number');
             return;
         }
 
-        if (!address || !barangay || !city || !province) {
-            showAlertModal('Default shipping address, barangay, city, and province are required.', 'warning', 'Missing Shipping Address');
+        if (!address) {
+            showAlertModal('Default shipping address is required.', 'warning', 'Missing Shipping Address');
+            return;
+        }
+
+        if (address.length < 10 || address.length > 255) {
+            showAlertModal('Shipping address must be between 10 and 255 characters.', 'warning', 'Invalid Shipping Address');
+            return;
+        }
+
+        if (!shippingLocation.hasValidBarangay) {
+            showAlertModal('Include a valid Angeles City barangay in the shipping address.', 'warning', 'Incomplete Shipping Address');
             return;
         }
 
@@ -807,12 +844,7 @@ $html_path = $is_in_html ? '' : 'html/';
                     email: email,
                     contact_num: contact,
                     address: address,
-                    barangay: barangay,
-                    city: city,
-                    province: province,
-                    postal_code: postalCode,
-                    home_address: homeAddress,
-                    billing_address: billingAddress
+                    postal_code: postalCode
                 })
             });
             

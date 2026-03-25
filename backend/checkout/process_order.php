@@ -170,31 +170,23 @@ if ($delivery_method === 'shipping') {
         checkoutJsonError('Shipping details are required.');
     }
 
-    $shipping = $data['shipping'];
-    $requiredShipping = ['address', 'city', 'province', 'barangay'];
-    foreach ($requiredShipping as $field) {
-        if (empty($shipping[$field])) {
-            checkoutJsonError("Missing shipping information: {$field}");
-        }
+    $shipping = mincBuildShippingData(
+        $data['shipping']['address'] ?? '',
+        $data['shipping']['barangay'] ?? '',
+        $data['shipping']['city'] ?? 'Angeles City',
+        $data['shipping']['province'] ?? 'Pampanga',
+        $data['shipping']['postal_code'] ?? null
+    );
+
+    if ($shipping['address'] === '') {
+        checkoutJsonError('Missing shipping information: address');
     }
-
-    $allowedBarangays = [
-        'Agapito del Rosario', 'Amsic', 'Balibago', 'Capaya', 'Claro M. Recto', 'Cuayan',
-        'Lourdes North-West', 'Lourdes Sur (South)', 'Lourdes Sur-East', 'Malabanas',
-        'Margot', 'Mining', 'Ninoy Aquino', 'Pampang', 'Pandan', 'Pulungbulu',
-        'Pulung Cacutud', 'Pulung Maragul', 'Pulungbato', 'Salapungan', 'San Jose',
-        'San Nicolas', 'Santa Teresita', 'Santa Trinidad', 'Santo Cristo', 'Santo Domingo',
-        'Sapangbato'
-    ];
-
-    $shipping['address'] = mincNormalizeWhitespace($shipping['address']);
-    $shipping['city'] = mincNormalizeWhitespace($shipping['city']);
-    $shipping['province'] = mincNormalizeWhitespace($shipping['province']);
-    $shipping['barangay'] = mincNormalizeWhitespace($shipping['barangay']);
-    $shipping['postal_code'] = trim((string)($shipping['postal_code'] ?? ''));
 
     if (mb_strlen($shipping['address']) < 10 || mb_strlen($shipping['address']) > 255) {
         checkoutJsonError('Complete address must be between 10 and 255 characters.');
+    }
+    if (!$shipping['has_valid_barangay']) {
+        checkoutJsonError('Include a valid Angeles City barangay in the shipping address.');
     }
     if (mb_strlen($shipping['barangay']) < 2 || mb_strlen($shipping['barangay']) > 120) {
         checkoutJsonError('Barangay must be between 2 and 120 characters.');
@@ -206,7 +198,7 @@ if ($delivery_method === 'shipping') {
         checkoutJsonError('Province must be between 2 and 100 characters.');
     }
 
-    if ($shipping['postal_code'] !== '') {
+    if ($shipping['postal_code'] !== null && $shipping['postal_code'] !== '') {
         $postalCodeInt = (int)$shipping['postal_code'];
         $postalCodeValid = preg_match('/^\d{4}$/', $shipping['postal_code']) === 1
             && $postalCodeInt >= 2000
@@ -218,7 +210,7 @@ if ($delivery_method === 'shipping') {
         $shipping['postal_code'] = null;
     }
 
-    if ($shipping['province'] !== 'Pampanga' || $shipping['city'] !== 'Angeles City' || !in_array($shipping['barangay'], $allowedBarangays, true)) {
+    if ($shipping['province'] !== 'Pampanga' || $shipping['city'] !== 'Angeles City' || !in_array($shipping['barangay'], mincAllowedShippingBarangays(), true)) {
         checkoutJsonError('Shipping is only available in Angeles City, Pampanga barangays.');
     }
 } else {
@@ -360,9 +352,6 @@ try {
     $total_amount = $subtotal + $shipping_fee;
 
     $shippingAddressForStorage = $shipping['address'];
-    if ($delivery_method === 'shipping' && !empty($shipping['barangay'])) {
-        $shippingAddressForStorage .= ', ' . $shipping['barangay'];
-    }
 
     $userColumns = mincGetTableColumns($pdo, 'users');
     $userUpdateParts = ['fname = :fname', 'lname = :lname', 'contact_num = :contact_num'];
