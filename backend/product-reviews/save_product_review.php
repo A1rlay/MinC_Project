@@ -58,8 +58,8 @@ try {
         throw new Exception('Please write at least 20 characters for your review.');
     }
 
-    if (strlen($reviewText) > 5000) {
-        throw new Exception('Review text must be 5000 characters or fewer.');
+    if (strlen($reviewText) > 500) {
+        throw new Exception('Review text must be 500 characters or fewer.');
     }
 
     ensureProductReviewsTable($pdo);

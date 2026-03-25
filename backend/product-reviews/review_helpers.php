@@ -184,14 +184,15 @@ function hasVerifiedPurchaseForProduct(PDO $pdo, int $userId, int $productId, st
           AND o.order_status != 'cancelled'
           AND (
               c.user_id = :user_id
-              OR (:email != '' AND c.email = :email)
+              OR (:email_present != '' AND c.email = :email_match)
           )
         LIMIT 1
     ");
     $stmt->execute([
         ':product_id' => $productId,
         ':user_id' => $userId,
-        ':email' => $email,
+        ':email_present' => $email,
+        ':email_match' => $email,
     ]);
 
     return (bool)$stmt->fetchColumn();

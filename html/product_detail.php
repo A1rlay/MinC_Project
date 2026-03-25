@@ -780,6 +780,17 @@ session_start();
         updateReviewStarSelection(value);
     }
 
+    function updateReviewTextCounter(value = '') {
+        const counter = document.getElementById('review_text_counter');
+        if (!counter) {
+            return;
+        }
+
+        const length = String(value || '').length;
+        counter.textContent = `${length}/500 characters`;
+        counter.className = `text-xs mt-2 ${length > 500 ? 'text-red-500 font-semibold' : 'text-gray-500'}`;
+    }
+
     async function submitProductReview(event) {
         event.preventDefault();
 
@@ -802,6 +813,11 @@ session_start();
 
         if (reviewText.length < 20) {
             showAlertModal('Please write at least 20 characters for your review.', 'warning', 'Review Too Short');
+            return;
+        }
+
+        if (reviewText.length > 500) {
+            showAlertModal('Review text must be 500 characters or fewer.', 'warning', 'Review Too Long');
             return;
         }
 
@@ -975,10 +991,15 @@ session_start();
                             <textarea
                                 id="review_text"
                                 rows="6"
+                                maxlength="500"
+                                oninput="updateReviewTextCounter(this.value)"
                                 placeholder="Share what you liked, how it fit, quality, durability, and anything another buyer should know."
                                 class="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#08415c] resize-y"
                             >${escapeHtml(currentUserReview && currentUserReview.review_text ? currentUserReview.review_text : '')}</textarea>
-                            <p class="text-xs text-gray-500 mt-2">Minimum 20 characters. One review per product per account.</p>
+                            <div class="flex items-center justify-between gap-3">
+                                <p class="text-xs text-gray-500 mt-2">Minimum 20 characters. Maximum 500. One review per product per account.</p>
+                                <p id="review_text_counter" class="text-xs text-gray-500 mt-2">0/500 characters</p>
+                            </div>
                         </div>
 
                         <div class="flex flex-wrap items-center gap-3">
@@ -1074,6 +1095,7 @@ session_start();
         `;
 
         updateReviewStarSelection(currentUserReview ? Number(currentUserReview.rating || 0) : 0);
+        updateReviewTextCounter(currentUserReview && currentUserReview.review_text ? currentUserReview.review_text : '');
     }
 
     // Update breadcrumb
