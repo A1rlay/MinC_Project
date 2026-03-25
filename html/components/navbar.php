@@ -92,6 +92,7 @@ $html_path = $is_in_html ? '' : 'html/';
                 <h2 class="text-3xl font-bold mb-6 text-[#08415c]">Create Account</h2>
 
                 <form id="registerFormElement" onsubmit="handleRegister(event)">
+                    <p class="text-sm text-gray-600 mb-4">Required fields: first name, last name, email, contact number, and default shipping address.</p>
                     <div class="mb-4">
                         <label class="block text-gray-700 font-medium mb-2">First Name</label>
                         <input type="text" id="registerFname" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
@@ -104,9 +105,39 @@ $html_path = $is_in_html ? '' : 'html/';
                         <label class="block text-gray-700 font-medium mb-2">Email</label>
                         <input type="email" id="registerEmail" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
                     </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 font-medium mb-2">Contact Number</label>
+                        <input type="tel" id="registerContact" required maxlength="13" placeholder="09XXXXXXXXX or +63XXXXXXXXXX" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 font-medium mb-2">Default Shipping Address</label>
+                        <textarea id="registerAddress" required rows="2" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]" placeholder="House/Unit No., Street Name"></textarea>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-2">Barangay</label>
+                            <input type="text" id="registerBarangay" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]" placeholder="Barangay">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-2">City</label>
+                            <input type="text" id="registerCity" required value="Angeles City" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-2">Province</label>
+                            <input type="text" id="registerProvince" required value="Pampanga" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 font-medium mb-2">Postal Code</label>
+                        <input type="text" id="registerPostalCode" inputmode="numeric" maxlength="4" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]" placeholder="2019">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 font-medium mb-2">Home Address <span class="text-gray-400">(Optional)</span></label>
+                        <textarea id="registerHomeAddress" rows="2" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]" placeholder="Leave blank to use shipping address"></textarea>
+                    </div>
                     <div class="mb-6">
-                        <label class="block text-gray-700 font-medium mb-2">Delivery Address</label>
-                        <textarea id="registerAddress" required rows="2" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]" placeholder="Where should we deliver your auto parts?"></textarea>
+                        <label class="block text-gray-700 font-medium mb-2">Billing Address <span class="text-gray-400">(Optional)</span></label>
+                        <textarea id="registerBillingAddress" rows="2" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]" placeholder="Leave blank to use shipping address"></textarea>
                     </div>
                     <button type="submit" class="w-full btn-primary-custom text-white py-3 rounded-lg font-semibold">
                         Continue
@@ -668,7 +699,19 @@ $html_path = $is_in_html ? '' : 'html/';
         const passwordStep = document.getElementById('passwordStep');
         const otpCode = document.getElementById('otpCode');
         const registerPassword = document.getElementById('registerPassword');
-        const registerFields = ['registerFname', 'registerLname', 'registerEmail', 'registerAddress'];
+        const registerFields = [
+            'registerFname',
+            'registerLname',
+            'registerEmail',
+            'registerContact',
+            'registerAddress',
+            'registerBarangay',
+            'registerCity',
+            'registerProvince',
+            'registerPostalCode',
+            'registerHomeAddress',
+            'registerBillingAddress'
+        ];
 
         if (registerForm) registerForm.classList.remove('hidden');
         if (otpStep) otpStep.classList.add('hidden');
@@ -722,11 +765,33 @@ $html_path = $is_in_html ? '' : 'html/';
         const fname = document.getElementById('registerFname').value;
         const lname = document.getElementById('registerLname').value;
         const email = document.getElementById('registerEmail').value;
+        const contact = document.getElementById('registerContact').value.trim();
         const addressInput = document.getElementById('registerAddress');
         const address = addressInput ? addressInput.value.trim() : '';
+        const barangay = (document.getElementById('registerBarangay').value || '').trim();
+        const city = (document.getElementById('registerCity').value || '').trim();
+        const province = (document.getElementById('registerProvince').value || '').trim();
+        const postalCode = (document.getElementById('registerPostalCode').value || '').trim();
+        const homeAddress = (document.getElementById('registerHomeAddress').value || '').trim();
+        const billingAddress = (document.getElementById('registerBillingAddress').value || '').trim();
 
-        if (!address) {
-            showAlertModal('Delivery address is required.', 'warning', 'Missing Address');
+        if (!contact) {
+            showAlertModal('Contact number is required.', 'warning', 'Missing Contact Number');
+            return;
+        }
+
+        if (!address || !barangay || !city || !province) {
+            showAlertModal('Default shipping address, barangay, city, and province are required.', 'warning', 'Missing Shipping Address');
+            return;
+        }
+
+        if (!/^(09\d{9}|(\+?63)\d{10})$/.test(contact.replace(/[\s\-\(\)]/g, ''))) {
+            showAlertModal('Contact number must be 09XXXXXXXXX or +63XXXXXXXXXX.', 'warning', 'Invalid Contact Number');
+            return;
+        }
+
+        if (postalCode && !/^\d{4}$/.test(postalCode)) {
+            showAlertModal('Postal code must be a 4-digit number.', 'warning', 'Invalid Postal Code');
             return;
         }
 
@@ -740,7 +805,14 @@ $html_path = $is_in_html ? '' : 'html/';
                     fname: fname,
                     lname: lname,
                     email: email,
-                    address: address
+                    contact_num: contact,
+                    address: address,
+                    barangay: barangay,
+                    city: city,
+                    province: province,
+                    postal_code: postalCode,
+                    home_address: homeAddress,
+                    billing_address: billingAddress
                 })
             });
             

@@ -50,6 +50,14 @@ ALTER TABLE `users`
 ADD COLUMN IF NOT EXISTS `profile_picture` VARCHAR(255) NULL AFTER `address`;
 
 ALTER TABLE `users`
+ADD COLUMN IF NOT EXISTS `home_address` TEXT NULL AFTER `address`,
+ADD COLUMN IF NOT EXISTS `billing_address` TEXT NULL AFTER `home_address`,
+ADD COLUMN IF NOT EXISTS `barangay` VARCHAR(120) NULL AFTER `billing_address`,
+ADD COLUMN IF NOT EXISTS `city` VARCHAR(100) NULL AFTER `barangay`,
+ADD COLUMN IF NOT EXISTS `province` VARCHAR(100) NULL AFTER `city`,
+ADD COLUMN IF NOT EXISTS `postal_code` VARCHAR(20) NULL AFTER `province`;
+
+ALTER TABLE `users`
 DROP COLUMN IF EXISTS `mname`;
 
 -- 5. Ensure users primary key auto-increments correctly
@@ -130,3 +138,23 @@ CREATE TABLE IF NOT EXISTS `product_review_reports` (
     CONSTRAINT `fk_product_review_reports_review` FOREIGN KEY (`review_id`) REFERENCES `product_reviews` (`review_id`) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT `fk_product_review_reports_user` FOREIGN KEY (`reporter_user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 11. Order workflow enhancements
+ALTER TABLE `orders`
+ADD COLUMN IF NOT EXISTS `delivery_method` ENUM('shipping','pickup') NOT NULL DEFAULT 'shipping' AFTER `payment_method`,
+ADD COLUMN IF NOT EXISTS `payment_reference` VARCHAR(120) NULL AFTER `delivery_method`,
+ADD COLUMN IF NOT EXISTS `payment_proof_path` VARCHAR(255) NULL AFTER `payment_reference`,
+ADD COLUMN IF NOT EXISTS `payment_proof_uploaded_at` TIMESTAMP NULL AFTER `payment_proof_path`,
+ADD COLUMN IF NOT EXISTS `payment_reviewed_at` TIMESTAMP NULL AFTER `payment_proof_uploaded_at`,
+ADD COLUMN IF NOT EXISTS `payment_reviewed_by` BIGINT(20) UNSIGNED NULL AFTER `payment_reviewed_at`,
+ADD COLUMN IF NOT EXISTS `payment_review_notes` TEXT NULL AFTER `payment_reviewed_by`,
+ADD COLUMN IF NOT EXISTS `pickup_date` DATE NULL AFTER `delivery_date`,
+ADD COLUMN IF NOT EXISTS `pickup_time` VARCHAR(50) NULL AFTER `pickup_date`,
+ADD COLUMN IF NOT EXISTS `shipping_partner` VARCHAR(50) NULL AFTER `pickup_time`,
+ADD COLUMN IF NOT EXISTS `receipt_path` VARCHAR(255) NULL AFTER `shipping_partner`,
+ADD COLUMN IF NOT EXISTS `receipt_uploaded_at` TIMESTAMP NULL AFTER `receipt_path`,
+ADD COLUMN IF NOT EXISTS `cancel_reason` TEXT NULL AFTER `notes`,
+ADD COLUMN IF NOT EXISTS `cancelled_at` TIMESTAMP NULL AFTER `cancel_reason`,
+ADD COLUMN IF NOT EXISTS `cancelled_by` BIGINT(20) UNSIGNED NULL AFTER `cancelled_at`,
+ADD COLUMN IF NOT EXISTS `confirmed_at` TIMESTAMP NULL AFTER `cancelled_by`,
+ADD COLUMN IF NOT EXISTS `completed_at` TIMESTAMP NULL AFTER `confirmed_at`;

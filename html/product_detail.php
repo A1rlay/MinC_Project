@@ -291,6 +291,7 @@ session_start();
 
 <script>
     const IS_ROLE1_ADMIN = <?php echo (isset($_SESSION['user_level_id']) && (int)$_SESSION['user_level_id'] === 1) ? 'true' : 'false'; ?>;
+    const IS_LOGGED_IN = <?php echo isset($_SESSION['user_id']) ? 'true' : 'false'; ?>;
 
     // Global variables
     let currentProduct = null;
@@ -1522,7 +1523,19 @@ session_start();
             return;
         }
 
-        window.location.href = `checkout.php?buy_now=1&product_id=${encodeURIComponent(currentProduct.product_id)}&quantity=${encodeURIComponent(selectedQty)}`;
+        const checkoutUrl = `checkout.php?buy_now=1&product_id=${encodeURIComponent(currentProduct.product_id)}&quantity=${encodeURIComponent(selectedQty)}`;
+        if (!IS_LOGGED_IN) {
+            if (typeof window.setPostLoginRedirect === 'function') {
+                window.setPostLoginRedirect(checkoutUrl);
+            }
+            openLoginModal();
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast('Sign in first to continue to checkout.', 'info');
+            }
+            return;
+        }
+
+        window.location.href = checkoutUrl;
     }
 
     // Update cart count

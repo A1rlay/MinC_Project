@@ -9,6 +9,7 @@ session_start();
 
 // Include database connection
 require_once __DIR__ . '/../database/connect_database.php';
+require_once __DIR__ . '/order-management/order_workflow_helper.php';
 
 // Set response header to JSON
 header('Content-Type: application/json');
@@ -62,10 +63,19 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $input = json_decode(file_get_contents('php://input'), true);
 
 // Validate input
-if (!isset($input['fname']) || !isset($input['lname']) || !isset($input['email']) || !isset($input['address'])) {
+if (
+    !isset($input['fname']) ||
+    !isset($input['lname']) ||
+    !isset($input['email']) ||
+    !isset($input['contact_num']) ||
+    !isset($input['address']) ||
+    !isset($input['barangay']) ||
+    !isset($input['city']) ||
+    !isset($input['province'])
+) {
     echo json_encode([
         'success' => false,
-        'message' => 'First name, last name, email, and address are required'
+        'message' => 'First name, last name, email, contact number, and shipping address are required'
     ]);
     exit;
 }
@@ -73,7 +83,14 @@ if (!isset($input['fname']) || !isset($input['lname']) || !isset($input['email']
 $fname = trim($input['fname']);
 $lname = trim($input['lname']);
 $email = filter_var($input['email'], FILTER_SANITIZE_EMAIL);
-$address = trim((string)($input['address'] ?? ''));
+$contact_num = trim((string)($input['contact_num'] ?? ''));
+$address = mincNormalizeWhitespace($input['address'] ?? '');
+$home_address = mincNormalizeWhitespace($input['home_address'] ?? '');
+$billing_address = mincNormalizeWhitespace($input['billing_address'] ?? '');
+$barangay = mincNormalizeWhitespace($input['barangay'] ?? '');
+$city = mincNormalizeWhitespace($input['city'] ?? '');
+$province = mincNormalizeWhitespace($input['province'] ?? '');
+$postal_code = trim((string)($input['postal_code'] ?? ''));
 
 // Validate email format
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -98,12 +115,88 @@ $lname = normalizeName($lname);
 if ($address === '') {
     echo json_encode([
         'success' => false,
-        'message' => 'Delivery address is required'
+        'message' => 'Default shipping address is required'
+    ]);
+    exit;
+}
+
+$normalizedContact = mincNormalizePhilippineMobile($contact_num);
+if ($normalizedContact === null) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Invalid contact number format. Use 09XXXXXXXXX or +63XXXXXXXXXX'
+    ]);
+    exit;
+}
+$contact_num = $normalizedContact;
+
+if (mb_strlen($address) < 10 || mb_strlen($address) > 255) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Shipping address must be between 10 and 255 characters'
+    ]);
+    exit;
+}
+
+if ($barangay === '' || mb_strlen($barangay) < 2 || mb_strlen($barangay) > 120) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Barangay must be between 2 and 120 characters'
+    ]);
+    exit;
+}
+
+if ($city === '' || mb_strlen($city) < 2 || mb_strlen($city) > 100) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'City must be between 2 and 100 characters'
+    ]);
+    exit;
+}
+
+if ($province === '' || mb_strlen($province) < 2 || mb_strlen($province) > 100) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Province must be between 2 and 100 characters'
+    ]);
+    exit;
+}
+
+if ($postal_code !== '') {
+    $postalCodeInt = (int)$postal_code;
+    $postalCodeValid = preg_match('/^\d{4}$/', $postal_code) === 1
+        && $postalCodeInt >= 2000
+        && $postalCodeInt <= 2100;
+    if (!$postalCodeValid) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Postal code must be a 4-digit value between 2000 and 2100'
+        ]);
+        exit;
+    }
+} else {
+    $postal_code = null;
+}
+
+if ($home_address !== '' && (mb_strlen($home_address) < 10 || mb_strlen($home_address) > 255)) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Home address must be between 10 and 255 characters'
+    ]);
+    exit;
+}
+
+if ($billing_address !== '' && (mb_strlen($billing_address) < 10 || mb_strlen($billing_address) > 255)) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Billing address must be between 10 and 255 characters'
     ]);
     exit;
 }
 
 try {
+    $userColumns = mincGetTableColumns($pdo, 'users');
+
     // Email verification table must exist for OTP flow
     $checkTableStmt = $pdo->query("SHOW TABLES LIKE 'email_verification_tokens'");
     $emailVerificationEnabled = $checkTableStmt->rowCount() > 0;
@@ -162,17 +255,53 @@ try {
             $isExistingPending = true;
             $newUserId = (int)$existingUser['user_id'];
 
-            $updatePendingStmt = $pdo->prepare("
-                UPDATE users 
-                SET fname = :fname, lname = :lname, address = :address, user_status = 'inactive', updated_at = NOW()
-                WHERE user_id = :user_id
-            ");
-            $updatePendingStmt->execute([
+            $updateFields = [
+                'fname = :fname',
+                'lname = :lname',
+                'contact_num = :contact_num',
+                'address = :address',
+                "user_status = 'inactive'",
+                'updated_at = NOW()'
+            ];
+            $updateParams = [
                 ':fname' => $fname,
                 ':lname' => $lname,
+                ':contact_num' => $contact_num,
                 ':address' => $address,
                 ':user_id' => $newUserId
-            ]);
+            ];
+
+            foreach (['home_address', 'billing_address', 'barangay', 'city', 'province', 'postal_code'] as $columnName) {
+                if (in_array($columnName, $userColumns, true)) {
+                    $updateFields[] = "{$columnName} = :{$columnName}";
+                }
+            }
+
+            if (in_array('home_address', $userColumns, true)) {
+                $updateParams[':home_address'] = $home_address !== '' ? $home_address : $address;
+            }
+            if (in_array('billing_address', $userColumns, true)) {
+                $updateParams[':billing_address'] = $billing_address !== '' ? $billing_address : $address;
+            }
+            if (in_array('barangay', $userColumns, true)) {
+                $updateParams[':barangay'] = $barangay;
+            }
+            if (in_array('city', $userColumns, true)) {
+                $updateParams[':city'] = $city;
+            }
+            if (in_array('province', $userColumns, true)) {
+                $updateParams[':province'] = $province;
+            }
+            if (in_array('postal_code', $userColumns, true)) {
+                $updateParams[':postal_code'] = $postal_code;
+            }
+
+            $updatePendingStmt = $pdo->prepare("
+                UPDATE users
+                SET " . implode(', ', $updateFields) . "
+                WHERE user_id = :user_id
+            ");
+            $updatePendingStmt->execute($updateParams);
         } else {
             echo json_encode([
                 'success' => false,
@@ -184,18 +313,54 @@ try {
         // Create pending account with temporary random password
         $temporaryPassword = password_hash(TokenGenerator::generateToken(24), PASSWORD_DEFAULT);
 
-        $insertStmt = $pdo->prepare("
-            INSERT INTO users (fname, lname, email, password, address, user_level_id, user_status, is_email_verified, created_at, updated_at) 
-            VALUES (:fname, :lname, :email, :password, :address, 4, 'inactive', 0, NOW(), NOW())
-        ");
-
-        $insertStmt->execute([
+        $insertColumns = ['fname', 'lname', 'email', 'password', 'contact_num', 'address', 'user_level_id', 'user_status', 'is_email_verified', 'created_at', 'updated_at'];
+        $insertValues = [':fname', ':lname', ':email', ':password', ':contact_num', ':address', '4', "'inactive'", '0', 'NOW()', 'NOW()'];
+        $insertParams = [
             ':fname' => $fname,
             ':lname' => $lname,
             ':email' => $email,
             ':password' => $temporaryPassword,
+            ':contact_num' => $contact_num,
             ':address' => $address
-        ]);
+        ];
+
+        if (in_array('home_address', $userColumns, true)) {
+            $insertColumns[] = 'home_address';
+            $insertValues[] = ':home_address';
+            $insertParams[':home_address'] = $home_address !== '' ? $home_address : $address;
+        }
+        if (in_array('billing_address', $userColumns, true)) {
+            $insertColumns[] = 'billing_address';
+            $insertValues[] = ':billing_address';
+            $insertParams[':billing_address'] = $billing_address !== '' ? $billing_address : $address;
+        }
+        if (in_array('barangay', $userColumns, true)) {
+            $insertColumns[] = 'barangay';
+            $insertValues[] = ':barangay';
+            $insertParams[':barangay'] = $barangay;
+        }
+        if (in_array('city', $userColumns, true)) {
+            $insertColumns[] = 'city';
+            $insertValues[] = ':city';
+            $insertParams[':city'] = $city;
+        }
+        if (in_array('province', $userColumns, true)) {
+            $insertColumns[] = 'province';
+            $insertValues[] = ':province';
+            $insertParams[':province'] = $province;
+        }
+        if (in_array('postal_code', $userColumns, true)) {
+            $insertColumns[] = 'postal_code';
+            $insertValues[] = ':postal_code';
+            $insertParams[':postal_code'] = $postal_code;
+        }
+
+        $insertStmt = $pdo->prepare("
+            INSERT INTO users (" . implode(', ', $insertColumns) . ")
+            VALUES (" . implode(', ', $insertValues) . ")
+        ");
+
+        $insertStmt->execute($insertParams);
 
         $newUserId = (int)$pdo->lastInsertId();
         if ($newUserId <= 0) {
@@ -266,6 +431,13 @@ try {
             'lname' => $lname,
             'email' => $email,
             'address' => $address,
+            'contact_num' => $contact_num,
+            'home_address' => $home_address !== '' ? $home_address : $address,
+            'billing_address' => $billing_address !== '' ? $billing_address : $address,
+            'barangay' => $barangay,
+            'city' => $city,
+            'province' => $province,
+            'postal_code' => $postal_code,
             'otp_sent' => $emailSent
         ],
         $isExistingPending ? 'Pending registration continued and OTP resent' : 'Customer registration started with OTP verification'

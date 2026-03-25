@@ -66,7 +66,7 @@ try {
         "created_at"
     ];
 
-    $deliveryColumns = ['barangay', 'city', 'province', 'postal_code'];
+    $deliveryColumns = ['home_address', 'billing_address', 'barangay', 'city', 'province', 'postal_code'];
     foreach ($deliveryColumns as $column) {
         if (in_array($column, $availableColumns, true)) {
             $selectParts[] = $column;

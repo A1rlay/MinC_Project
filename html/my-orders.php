@@ -86,6 +86,52 @@ if (!isset($_SESSION['user_id'])) {
             return map[status] || 'bg-gray-100 text-gray-700';
         }
 
+        function requiresPaymentProof(method) {
+            return ['bank_transfer', 'gcash', 'paymaya'].includes(String(method || '').toLowerCase());
+        }
+
+        function displayOrderStatus(order) {
+            const status = String(order.order_status || '').toLowerCase();
+            const deliveryMethod = String(order.delivery_method || 'shipping').toLowerCase();
+
+            if (status === 'pending') return 'Awaiting Review';
+            if (status === 'confirmed') return 'Received';
+            if (status === 'processing') return 'Preparing Items';
+            if (status === 'shipped') return deliveryMethod === 'pickup' ? 'Ready for Pickup' : 'Out for Delivery';
+            if (status === 'delivered') return 'Completed';
+            if (status === 'cancelled') return 'Cancelled';
+            return status;
+        }
+
+        function displayPaymentStatus(order) {
+            const status = String(order.payment_status || '').toLowerCase();
+            if (status === 'pending' && requiresPaymentProof(order.payment_method)) {
+                return order.payment_proof_path ? 'Proof Under Review' : 'Awaiting Proof';
+            }
+            if (status === 'pending' && String(order.payment_method || '').toLowerCase() === 'cod') {
+                return 'Pending Collection';
+            }
+            if (status === 'failed') return 'Payment Rejected';
+            return status;
+        }
+
+        function resolveAssetUrl(path) {
+            if (!path) return '';
+            if (/^(https?:)?\//i.test(path)) return path;
+            return `../${String(path).replace(/^\/+/, '')}`;
+        }
+
+        function getPaymentMethodLabel(method) {
+            const normalized = String(method || '').toLowerCase();
+            const labels = {
+                cod: 'Cash on Delivery',
+                bank_transfer: 'Bank Transfer',
+                gcash: 'GCash',
+                paymaya: 'PayMaya'
+            };
+            return labels[normalized] || normalized.replace(/_/g, ' ');
+        }
+
         async function loadOrders() {
             const loading = document.getElementById('loadingState');
             const empty = document.getElementById('emptyState');
@@ -110,27 +156,37 @@ if (!isset($_SESSION['user_id'])) {
 
                 list.innerHTML = orders.map((order) => `
                     <article class="bg-white rounded-xl shadow-lg p-5">
-                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
                             <div>
                                 <h2 class="text-lg font-bold text-[#08415c]">#${escapeHtml(order.order_number)}</h2>
                                 <p class="text-xs text-gray-500">Placed: ${formatDate(order.created_at)}</p>
                             </div>
                             <div class="flex flex-wrap gap-2">
-                                <span class="status-badge ${orderStatusClass(order.order_status)}">${escapeHtml(order.order_status)}</span>
-                                <span class="status-badge ${paymentStatusClass(order.payment_status)}">Payment: ${escapeHtml(order.payment_status)}</span>
+                                <span class="status-badge ${orderStatusClass(order.order_status)}">${escapeHtml(displayOrderStatus(order))}</span>
+                                <span class="status-badge ${paymentStatusClass(order.payment_status)}">${escapeHtml(displayPaymentStatus(order))}</span>
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+                        <div class="grid grid-cols-2 md:grid-cols-6 gap-3 text-sm">
                             <div><p class="text-gray-500">Items</p><p class="font-semibold">${order.total_items || 0}</p></div>
                             <div><p class="text-gray-500">Qty</p><p class="font-semibold">${order.total_quantity || 0}</p></div>
-                            <div><p class="text-gray-500">Payment Method</p><p class="font-semibold">${escapeHtml(order.payment_method || 'N/A')}</p></div>
-                            <div><p class="text-gray-500">Shipping Fee</p><p class="font-semibold">₱${formatPeso(order.shipping_fee)}</p></div>
-                            <div><p class="text-gray-500">Total</p><p class="font-bold text-[#08415c]">₱${formatPeso(order.total_amount)}</p></div>
+                            <div><p class="text-gray-500">Delivery</p><p class="font-semibold">${order.delivery_method === 'pickup' ? 'Store Pickup' : 'Shipping'}</p></div>
+                            <div><p class="text-gray-500">Payment Method</p><p class="font-semibold">${escapeHtml(getPaymentMethodLabel(order.payment_method || ''))}</p></div>
+                            <div><p class="text-gray-500">Shipping Fee</p><p class="font-semibold">PHP ${formatPeso(order.shipping_fee)}</p></div>
+                            <div><p class="text-gray-500">Total</p><p class="font-bold text-[#08415c]">PHP ${formatPeso(order.total_amount)}</p></div>
                         </div>
 
-                        ${order.tracking_number ? `<p class="text-sm text-blue-700 mt-3"><i class="fas fa-truck mr-2"></i>Tracking: ${escapeHtml(order.tracking_number)}</p>` : ''}
-                        ${order.notes ? `<p class="text-sm text-gray-600 mt-2"><strong>Notes:</strong> ${escapeHtml(order.notes)}</p>` : ''}
+                        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                            ${order.payment_reference ? `<p class="text-gray-700"><strong>Payment Reference:</strong> ${escapeHtml(order.payment_reference)}</p>` : ''}
+                            ${order.pickup_date ? `<p class="text-gray-700"><strong>Pickup Schedule:</strong> ${escapeHtml(order.pickup_date)}${order.pickup_time ? `, ${escapeHtml(order.pickup_time)}` : ''}</p>` : ''}
+                            ${order.tracking_number ? `<p class="text-blue-700"><i class="fas fa-truck mr-2"></i>Tracking: ${escapeHtml(order.tracking_number)}</p>` : ''}
+                            ${order.payment_proof_path ? `<p><a href="${escapeHtml(resolveAssetUrl(order.payment_proof_path))}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline"><i class="fas fa-file-upload mr-2"></i>View uploaded proof of payment</a></p>` : (requiresPaymentProof(order.payment_method) ? `<p class="text-amber-700"><i class="fas fa-clock mr-2"></i>Proof of payment is still required before admin confirmation.</p>` : '')}
+                            ${order.receipt_path ? `<p><a href="${escapeHtml(resolveAssetUrl(order.receipt_path))}" target="_blank" rel="noopener noreferrer" class="text-green-700 hover:underline"><i class="fas fa-file-invoice mr-2"></i>View attached receipt</a></p>` : ''}
+                            ${order.payment_review_notes ? `<p class="text-gray-700"><strong>Payment Notes:</strong> ${escapeHtml(order.payment_review_notes)}</p>` : ''}
+                            ${order.cancel_reason ? `<p class="text-red-700"><strong>Cancellation Reason:</strong> ${escapeHtml(order.cancel_reason)}</p>` : ''}
+                        </div>
+
+                        ${order.notes ? `<p class="text-sm text-gray-600 mt-3"><strong>Order Notes:</strong> ${escapeHtml(order.notes)}</p>` : ''}
                     </article>
                 `).join('');
 
@@ -145,3 +201,4 @@ if (!isset($_SESSION['user_id'])) {
     </script>
 </body>
 </html>
+

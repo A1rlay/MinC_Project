@@ -7,6 +7,7 @@ header('Content-Type: application/json');
 
 require_once '../database/connect_database.php';
 require_once 'auth.php';
+require_once 'order-management/order_workflow_helper.php';
 
 $validation = validateSession(false);
 if (!$validation['valid']) {
@@ -30,6 +31,14 @@ try {
             o.order_status,
             o.payment_status,
             o.payment_method,
+            " . mincOptionalColumnSelect($pdo, 'orders', 'o', 'delivery_method') . ",
+            " . mincOptionalColumnSelect($pdo, 'orders', 'o', 'payment_reference') . ",
+            " . mincOptionalColumnSelect($pdo, 'orders', 'o', 'payment_proof_path') . ",
+            " . mincOptionalColumnSelect($pdo, 'orders', 'o', 'payment_review_notes') . ",
+            " . mincOptionalColumnSelect($pdo, 'orders', 'o', 'receipt_path') . ",
+            " . mincOptionalColumnSelect($pdo, 'orders', 'o', 'cancel_reason') . ",
+            " . mincOptionalColumnSelect($pdo, 'orders', 'o', 'pickup_date') . ",
+            " . mincOptionalColumnSelect($pdo, 'orders', 'o', 'pickup_time') . ",
             o.total_amount,
             o.shipping_fee,
             o.subtotal,
@@ -64,4 +73,3 @@ try {
         'message' => $e->getMessage()
     ]);
 }
-

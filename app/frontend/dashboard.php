@@ -32,8 +32,9 @@ $custom_title = 'Dashboard - MinC Project';
 $current_page = 'dashboard';
 
 // === DASHBOARD STATISTICS ===
-$dashboardCacheKey = 'dashboard_metrics_v2';
+$dashboardCacheKey = 'dashboard_metrics_v3';
 $dashboardCacheTtl = 45; // seconds
+$dashboardDateLabel = date('F j, Y');
 $forceRefresh = isset($_GET['refresh']) && $_GET['refresh'] === '1';
 $cachedDashboard = $_SESSION[$dashboardCacheKey] ?? null;
 $canUseCache = !$forceRefresh
@@ -47,7 +48,7 @@ if ($canUseCache) {
     $pending_orders = (int)($cachedDashboard['pending_orders'] ?? 0);
     $low_stock = (int)($cachedDashboard['low_stock'] ?? 0);
     $total_revenue = (float)($cachedDashboard['total_revenue'] ?? 0);
-    $monthly_sales = $cachedDashboard['monthly_sales'] ?? [];
+    $daily_sales_trend = $cachedDashboard['daily_sales_trend'] ?? [];
     $recent_orders = $cachedDashboard['recent_orders'] ?? [];
     $status_distribution = $cachedDashboard['status_distribution'] ?? [];
 } else {
@@ -79,28 +80,39 @@ try {
     // Low stock products (< 10 units)
     $low_stock = $pdo->query("SELECT COUNT(*) FROM products WHERE stock_quantity < 10 AND status = 'active'")->fetchColumn();
 
-    // Monthly Sales Trend (Last 6 Months)
-    $monthly_salesRaw = $pdo->query("
-        SELECT 
-            YEAR(created_at) as year_num,
-            MONTH(created_at) as month_num,
-            COALESCE(SUM(total_amount), 0) as revenue
-        FROM orders 
-        WHERE created_at >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 5 MONTH), '%Y-%m-01')
+    // Daily Sales Trend (Last 7 Days, zero-filled)
+    $dailySalesRaw = $pdo->query("
+        SELECT
+            DATE(created_at) AS sale_date,
+            COALESCE(SUM(total_amount), 0) AS revenue,
+            COUNT(*) AS orders_count
+        FROM orders
+        WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
           AND order_status IN ('confirmed','processing','shipped','delivered')
-        GROUP BY YEAR(created_at), MONTH(created_at)
-        ORDER BY YEAR(created_at), MONTH(created_at)
+        GROUP BY DATE(created_at)
+        ORDER BY sale_date ASC
     ")->fetchAll(PDO::FETCH_ASSOC);
-    $monthly_sales = array_map(static function ($row) {
-        $year = (int)$row['year_num'];
-        $month = (int)$row['month_num'];
-        $monthDate = sprintf('%04d-%02d-01', $year, $month);
-        return [
-            'month' => sprintf('%04d-%02d', $year, $month),
-            'month_name' => date('F Y', strtotime($monthDate)),
-            'revenue' => (float)$row['revenue']
+
+    $dailySalesIndex = [];
+    foreach ($dailySalesRaw as $row) {
+        $dailySalesIndex[$row['sale_date']] = [
+            'revenue' => (float)$row['revenue'],
+            'orders_count' => (int)$row['orders_count']
         ];
-    }, $monthly_salesRaw);
+    }
+
+    $daily_sales_trend = [];
+    for ($offset = 6; $offset >= 0; $offset--) {
+        $dateKey = date('Y-m-d', strtotime("-{$offset} days"));
+        $row = $dailySalesIndex[$dateKey] ?? ['revenue' => 0.0, 'orders_count' => 0];
+        $daily_sales_trend[] = [
+            'date' => $dateKey,
+            'day_name' => date('D', strtotime($dateKey)),
+            'display_label' => date('M j', strtotime($dateKey)),
+            'revenue' => (float)$row['revenue'],
+            'orders_count' => (int)$row['orders_count']
+        ];
+    }
 
     // Recent Orders
     $recent_orders = $pdo->query("
@@ -137,7 +149,7 @@ try {
         'pending_orders' => $pending_orders,
         'low_stock' => $low_stock,
         'total_revenue' => $total_revenue,
-        'monthly_sales' => $monthly_sales,
+        'daily_sales_trend' => $daily_sales_trend,
         'recent_orders' => $recent_orders,
         'status_distribution' => $status_distribution
     ];
@@ -146,13 +158,13 @@ try {
     // Fallback values if queries fail
     $today_sales = $today_orders = $pending_orders = $low_stock = 0;
     $total_revenue = 0;
-    $monthly_sales = $recent_orders = $status_distribution = [];
+    $daily_sales_trend = $recent_orders = $status_distribution = [];
     error_log("Dashboard query error: " . $e->getMessage());
 }
 }
 
 // Encode for Chart.js
-$monthly_sales_json = json_encode($monthly_sales);
+$daily_sales_trend_json = json_encode($daily_sales_trend);
 $status_distribution_json = json_encode($status_distribution);
 
 // Custom styles (retained + auto-parts themed - matching home page)
@@ -279,7 +291,7 @@ ob_start();
             <h2 class="text-2xl font-bold text-[#08415c] mb-2">
                 Welcome back, <?= htmlspecialchars(explode(' ', $user_data['name'])[0]) ?>! 
             </h2>
-            <p class="text-gray-600">Here's your MinC Auto Supply store performance today.</p>
+            <p class="text-gray-600">Here is your MinC Auto Supply store performance for <?= htmlspecialchars($dashboardDateLabel) ?>.</p>
         </div>
         <div class="hidden md:block">
             <div class="w-16 h-16 rounded-xl flex items-center justify-center animate-float" style="background: linear-gradient(135deg, #08415c 0%, #0a5273 100%);">
@@ -296,7 +308,7 @@ ob_start();
             <div>
                 <p class="text-sm font-medium text-gray-600 mb-1">Today's Sales</p>
                 <p class="text-3xl font-bold text-[#08415c]">₱<?= number_format($today_sales, 2) ?></p>
-                <p class="text-xs text-[#0a5273] mt-2"><?= $today_orders ?> orders today</p>
+                <p class="text-xs text-[#0a5273] mt-2"><?= htmlspecialchars($dashboardDateLabel) ?> • <?= $today_orders ?> orders</p>
             </div>
             <div class="p-4 icon-box rounded-xl">
                 <i class="fas fa-peso-sign text-white text-2xl"></i>
@@ -335,7 +347,7 @@ ob_start();
             <div>
                 <p class="text-sm font-medium text-gray-600 mb-1">Total Revenue</p>
                 <p class="text-3xl font-bold text-[#08415c]">₱<?= number_format($total_revenue, 2) ?></p>
-                <p class="text-xs text-[#0a5273] mt-2">All time</p>
+                <p class="text-xs text-[#0a5273] mt-2">As of <?= htmlspecialchars($dashboardDateLabel) ?></p>
             </div>
             <div class="p-4 icon-box rounded-xl">
                 <i class="fas fa-chart-line text-white text-2xl"></i>
@@ -347,7 +359,7 @@ ob_start();
 <!-- Charts Section -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
     <div class="chart-card p-6">
-        <h3 class="text-lg font-semibold text-[#08415c] mb-4 section-title">Sales Trend (Last 6 Months)</h3>
+        <h3 class="text-lg font-semibold text-[#08415c] mb-4 section-title">Sales Trend (Last 7 Days)</h3>
         <div class="chart-container">
             <canvas id="salesTrendChart"></canvas>
         </div>
@@ -448,14 +460,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const renderCharts = () => {
         // Sales Trend Line Chart
-        const salesData = <?= $monthly_sales_json ?>;
+        const salesData = <?= $daily_sales_trend_json ?>;
         const salesCanvas = document.getElementById('salesTrendChart');
         if (salesCanvas) {
             const salesCtx = salesCanvas.getContext('2d');
             new Chart(salesCtx, {
                 type: 'line',
                 data: {
-                    labels: salesData.map(d => d.month_name),
+                    labels: salesData.map(d => `${d.day_name} • ${d.display_label}`),
                     datasets: [{
                         label: 'Revenue',
                         data: salesData.map(d => d.revenue),
@@ -474,7 +486,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     maintainAspectRatio: false,
                     parsing: false,
                     normalized: true,
-                    plugins: { legend: { display: false } }
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => {
+                                    const point = salesData[context.dataIndex] || { orders_count: 0, revenue: 0 };
+                                    return `PHP ${Number(point.revenue || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} • ${point.orders_count} order${point.orders_count === 1 ? '' : 's'}`;
+                                }
+                            }
+                        }
+                    }
                 }
             });
         }

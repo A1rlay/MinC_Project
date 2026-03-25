@@ -8,6 +8,7 @@ header('Content-Type: application/json');
 
 include_once '../auth.php';
 include_once '../../database/connect_database.php';
+include_once 'order_workflow_helper.php';
 
 // Validate session
 $validation = validateSession();

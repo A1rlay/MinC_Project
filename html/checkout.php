@@ -1,10 +1,19 @@
 <?php
 session_start();
 require_once '../database/connect_database.php';
+require_once '../config/payment_config.php';
 
 // Buy Now mode (checkout only one selected product)
 $is_buy_now = isset($_GET['buy_now']) && $_GET['buy_now'] === '1';
 $buy_now_item = null;
+$payment_config = getMincPaymentConfig();
+$shipping_config = $payment_config['shipping'] ?? [
+    'standard_fee' => 150.00,
+    'free_threshold' => 1000.00
+];
+$standard_shipping_fee = (float)($shipping_config['standard_fee'] ?? 150);
+$free_shipping_threshold = (float)($shipping_config['free_threshold'] ?? 1000);
+$shipping_coverage_note = (string)($shipping_config['coverage_note'] ?? 'Shipping is currently available only within Angeles City, Pampanga.');
 
 if ($is_buy_now) {
     $buy_now_product_id = isset($_GET['product_id']) ? (int)$_GET['product_id'] : 0;
@@ -54,6 +63,11 @@ if ($is_buy_now) {
 $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 $session_id = session_id();
 
+if (!$user_id) {
+    header('Location: user-cart.php?login_required=checkout');
+    exit;
+}
+
 if (!$buy_now_item) {
     // Get cart
     if ($user_id) {
@@ -102,6 +116,8 @@ if ($user_id) {
 
     $shippingSelectParts = [
         in_array('address', $availableUserColumns, true) ? "address" : "NULL AS address",
+        in_array('home_address', $availableUserColumns, true) ? "home_address" : "NULL AS home_address",
+        in_array('billing_address', $availableUserColumns, true) ? "billing_address" : "NULL AS billing_address",
         in_array('barangay', $availableUserColumns, true) ? "barangay" : "NULL AS barangay",
         in_array('city', $availableUserColumns, true) ? "city" : "NULL AS city",
         in_array('province', $availableUserColumns, true) ? "province" : "NULL AS province",
@@ -133,6 +149,9 @@ if (is_array($saved_shipping_info)) {
         $saved_shipping_info['city'] !== '' &&
         $saved_shipping_info['province'] !== '';
 }
+
+$saved_home_address = trim((string)($user_data['home_address'] ?? ''));
+$saved_billing_address = trim((string)($user_data['billing_address'] ?? ''));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -319,16 +338,10 @@ if (is_array($saved_shipping_info)) {
                     <div id="step1" class="form-section active">
                         <h2 class="text-2xl font-bold text-[#08415c] mb-6">Contact Information</h2>
                         
-                        <?php if (!$user_id): ?>
-                        <div class="mb-6 p-4 bg-blue-50 rounded-lg">
-                            <p class="text-sm text-gray-700">
-                                <i class="fas fa-info-circle text-[#08415c] mr-2"></i>
-                                Already have an account? 
-                                <a href="javascript:void(0)" onclick="openLoginModal()" class="text-[#08415c] font-semibold hover:underline">Sign in</a>
-                                to checkout faster
-                            </p>
+                        <div class="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-lg text-sm text-gray-700">
+                            <p><i class="fas fa-envelope text-[#08415c] mr-2"></i>Your email is used for order, payment, and cancellation notifications.</p>
+                            <p class="mt-2"><i class="fas fa-phone text-[#08415c] mr-2"></i>Contact number is required before the order can be submitted.</p>
                         </div>
-                        <?php endif; ?>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -391,10 +404,10 @@ if (is_array($saved_shipping_info)) {
                                 <p class="text-sm text-gray-600 ml-8 mt-1">Get your order delivered to your address</p>
                             </label>
                             <p class="text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 ml-8">
-                                Free shipping for orders over ₱1,000. Orders below that have a ₱150 shipping fee.
+                                Free shipping for orders over ₱<?php echo number_format($free_shipping_threshold, 2); ?>. Orders below that have a ₱<?php echo number_format($standard_shipping_fee, 2); ?> shipping fee.
                             </p>
                             <p class="text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 ml-8">
-                                Shipping is available only within Angeles City, Pampanga barangays.
+                                <?php echo htmlspecialchars($shipping_coverage_note); ?>
                             </p>
 
                             <label id="pickupOptionLabel" class="block p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-[#08415c] transition" onclick="toggleDeliveryMethod('pickup')">
@@ -588,11 +601,54 @@ if (is_array($saved_shipping_info)) {
                             </label>
                         </div>
 
-                        <div class="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                            <p class="text-sm text-gray-700">
-                                <i class="fas fa-info-circle text-yellow-600 mr-2"></i>
-                                For Bank Transfer, GCash, and PayMaya, payment instructions will be sent to your email after placing the order.
-                            </p>
+                        <div id="electronicPaymentPanel" class="hidden mt-6 p-5 bg-slate-50 border border-slate-200 rounded-xl">
+                            <div class="flex items-start gap-3">
+                                <div class="mt-1 text-[#08415c]">
+                                    <i class="fas fa-receipt text-xl"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <h3 class="text-lg font-bold text-[#08415c]">Complete Payment Before Confirmation</h3>
+                                    <p class="text-sm text-gray-600 mt-1">Bank transfer and wallet payments require a payment reference and proof of payment before the order can be confirmed by the admin account.</p>
+                                </div>
+                            </div>
+
+                            <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="payment-method-card hidden rounded-lg border border-slate-200 bg-white p-4" data-payment-card="bank_transfer">
+                                    <p class="text-xs uppercase tracking-wide text-slate-500 mb-2">MNC Bank Account</p>
+                                    <p class="font-semibold text-gray-900"><?php echo htmlspecialchars($payment_config['bank_transfer']['bank_name'] ?? 'Update Bank Name'); ?></p>
+                                    <p class="text-sm text-gray-700 mt-1">Account Name: <?php echo htmlspecialchars($payment_config['bank_transfer']['account_name'] ?? 'Update Account Name'); ?></p>
+                                    <p class="text-sm text-gray-700">Account Number: <?php echo htmlspecialchars($payment_config['bank_transfer']['account_number'] ?? 'Update Account Number'); ?></p>
+                                    <p class="text-sm text-gray-700">Branch: <?php echo htmlspecialchars($payment_config['bank_transfer']['branch'] ?? 'Update Branch'); ?></p>
+                                </div>
+                                <div class="payment-method-card hidden rounded-lg border border-slate-200 bg-white p-4" data-payment-card="gcash">
+                                    <p class="text-xs uppercase tracking-wide text-slate-500 mb-2">GCash Details</p>
+                                    <p class="font-semibold text-gray-900"><?php echo htmlspecialchars($payment_config['gcash']['account_name'] ?? 'Update GCash Account Name'); ?></p>
+                                    <p class="text-sm text-gray-700 mt-1">Number: <?php echo htmlspecialchars($payment_config['gcash']['account_number'] ?? 'Update GCash Number'); ?></p>
+                                </div>
+                                <div class="payment-method-card hidden rounded-lg border border-slate-200 bg-white p-4" data-payment-card="paymaya">
+                                    <p class="text-xs uppercase tracking-wide text-slate-500 mb-2">Maya Details</p>
+                                    <p class="font-semibold text-gray-900"><?php echo htmlspecialchars($payment_config['paymaya']['account_name'] ?? 'Update Maya Account Name'); ?></p>
+                                    <p class="text-sm text-gray-700 mt-1">Number: <?php echo htmlspecialchars($payment_config['paymaya']['account_number'] ?? 'Update Maya Number'); ?></p>
+                                </div>
+                            </div>
+
+                            <div class="mt-4">
+                                <label class="block text-gray-700 font-medium mb-2" id="paymentReferenceLabel">Payment Reference *</label>
+                                <input type="text" id="paymentReference" maxlength="120" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]" placeholder="Enter the reference number shown by your bank or wallet">
+                            </div>
+
+                            <div class="mt-4">
+                                <label class="block text-gray-700 font-medium mb-2">Proof of Payment *</label>
+                                <input type="file" id="paymentProof" accept=".jpg,.jpeg,.png,.webp,.pdf" class="w-full px-4 py-3 border border-dashed border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                                <p class="text-xs text-gray-500 mt-2">Accepted files: JPG, PNG, WEBP, or PDF up to 5MB. The uploaded proof stays attached to the order even after confirmation.</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg space-y-2 text-sm text-gray-700">
+                            <p><i class="fas fa-info-circle text-yellow-600 mr-2"></i><strong>Confirm Order</strong> means the admin reviewed your payment proof and approved the order for processing.</p>
+                            <p><i class="fas fa-money-check text-yellow-600 mr-2"></i><strong>Complete Payment</strong> is used by staff when recording final payment collection, typically for COD.</p>
+                            <p><i class="fas fa-times-circle text-yellow-600 mr-2"></i><strong>Cancel</strong> in the order confirmation window just closes the prompt so you can keep editing checkout details.</p>
+                            <p><i class="fas fa-arrow-right-arrow-left text-yellow-600 mr-2"></i>Bank transfer flow: Place order with proof attached -> admin confirms payment -> order is prepared -> order is completed with receipt attached.</p>
                         </div>
 
                         <div class="mt-6 flex justify-between">
@@ -602,7 +658,7 @@ if (is_array($saved_shipping_info)) {
                             </button>
                             <button type="submit" id="placeOrderBtn" class="btn-primary-custom text-white px-8 py-3 rounded-lg font-semibold">
                                 <i class="fas fa-check mr-2"></i>
-                                Place Order
+                                Submit Order
                             </button>
                         </div>
                     </div>
@@ -676,13 +732,14 @@ if (is_array($saved_shipping_info)) {
         // Global variables
         let cartItems = [];
         let subtotal = 0;
-        const SHIPPING_FEE = 150;
-        const FREE_SHIPPING_THRESHOLD = 1000;
-        const IS_GUEST_CHECKOUT = <?php echo $user_id ? 'false' : 'true'; ?>;
+        const SHIPPING_FEE = <?php echo json_encode($standard_shipping_fee); ?>;
+        const FREE_SHIPPING_THRESHOLD = <?php echo json_encode($free_shipping_threshold); ?>;
+        const IS_GUEST_CHECKOUT = false;
         const IS_BUY_NOW_CHECKOUT = <?php echo $buy_now_item ? 'true' : 'false'; ?>;
         const BUY_NOW_ITEM = <?php echo $buy_now_item ? json_encode($buy_now_item, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : 'null'; ?>;
         const SAVED_SHIPPING = <?php echo $saved_shipping_info ? json_encode($saved_shipping_info, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : 'null'; ?>;
         const HAS_SAVED_SHIPPING = <?php echo $has_saved_shipping_info ? 'true' : 'false'; ?>;
+        const PAYMENT_CONFIG = <?php echo json_encode($payment_config, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         const ANGELES_CITY_BARANGAYS = [
             'Agapito del Rosario', 'Amsic', 'Balibago', 'Capaya', 'Claro M. Recto', 'Cuayan',
             'Lourdes North-West', 'Lourdes Sur (South)', 'Lourdes Sur-East', 'Malabanas',
@@ -743,6 +800,58 @@ if (is_array($saved_shipping_info)) {
             if (!/^\d{4}$/.test(value)) return false;
             const numeric = Number(value);
             return numeric >= 2000 && numeric <= 2100;
+        }
+
+        function paymentMethodRequiresProof(paymentMethod) {
+            return ['bank_transfer', 'gcash', 'paymaya'].includes(String(paymentMethod || '').toLowerCase());
+        }
+
+        function getCurrentPaymentMethod() {
+            const selected = document.querySelector('input[name="paymentMethod"]:checked');
+            return selected ? selected.value : 'cod';
+        }
+
+        function getPaymentReferenceLabel(paymentMethod) {
+            const method = String(paymentMethod || '').toLowerCase();
+            if (method === 'bank_transfer') {
+                return PAYMENT_CONFIG?.bank_transfer?.reference_label || 'Payment Reference';
+            }
+            if (method === 'gcash') {
+                return PAYMENT_CONFIG?.gcash?.reference_label || 'Payment Reference';
+            }
+            if (method === 'paymaya') {
+                return PAYMENT_CONFIG?.paymaya?.reference_label || 'Payment Reference';
+            }
+            return 'Payment Reference';
+        }
+
+        function updatePaymentGuidance() {
+            const paymentMethod = getCurrentPaymentMethod();
+            const requiresProof = paymentMethodRequiresProof(paymentMethod);
+            const paymentPanel = document.getElementById('electronicPaymentPanel');
+            const referenceLabel = document.getElementById('paymentReferenceLabel');
+            const referenceInput = document.getElementById('paymentReference');
+            const proofInput = document.getElementById('paymentProof');
+
+            if (paymentPanel) {
+                paymentPanel.classList.toggle('hidden', !requiresProof);
+            }
+
+            document.querySelectorAll('[data-payment-card]').forEach((card) => {
+                card.classList.toggle('hidden', card.getAttribute('data-payment-card') !== paymentMethod);
+            });
+
+            if (referenceLabel) {
+                referenceLabel.textContent = `${getPaymentReferenceLabel(paymentMethod)} *`;
+            }
+
+            if (referenceInput) {
+                referenceInput.required = requiresProof;
+            }
+
+            if (proofInput) {
+                proofInput.required = requiresProof;
+            }
         }
 
         function getShippingDataFromForm() {
@@ -941,16 +1050,6 @@ if (is_array($saved_shipping_info)) {
             if (step === 3) {
                 const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked').value;
 
-                if (IS_GUEST_CHECKOUT && deliveryMethod !== 'pickup') {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Pickup Only for Guest Checkout',
-                        text: 'Please use Pickup or sign in for shipping.',
-                        confirmButtonColor: '#08415c'
-                    });
-                    return;
-                }
-                
                 if (deliveryMethod === 'shipping') {
                     const shippingData = getSelectedShippingData();
                     const address = shippingData.address;
@@ -1074,12 +1173,6 @@ if (is_array($saved_shipping_info)) {
 
         // Toggle delivery method display
         function toggleDeliveryMethod(method) {
-            if (IS_GUEST_CHECKOUT && method === 'shipping') {
-                method = 'pickup';
-                const pickupRadio = document.querySelector('input[name="deliveryMethod"][value="pickup"]');
-                if (pickupRadio) pickupRadio.checked = true;
-            }
-
             const shippingFields = document.getElementById('shippingFields');
             const pickupFields = document.getElementById('pickupFields');
 
@@ -1115,36 +1208,72 @@ if (is_array($saved_shipping_info)) {
             const phone = document.getElementById('phone').value.trim();
             const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked').value;
             const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+            const requiresProof = paymentMethodRequiresProof(paymentMethod);
+            const paymentReference = document.getElementById('paymentReference').value.trim();
+            const paymentProofInput = document.getElementById('paymentProof');
+            const paymentProofFile = paymentProofInput && paymentProofInput.files ? paymentProofInput.files[0] : null;
 
-            if (IS_GUEST_CHECKOUT && deliveryMethod !== 'pickup') {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            const cleanedPhone = phone.replace(/[\s\-\(\)]/g, '');
+            const phoneRegex = /^(09\d{9}|(\+?63)\d{10})$/;
+            const paymentLabelMap = {
+                cod: 'Cash on Delivery',
+                bank_transfer: 'Bank Transfer',
+                gcash: 'GCash',
+                paymaya: 'PayMaya'
+            };
+
+            if (!firstName || !lastName || !email || !phone) {
                 Swal.fire({
-                    icon: 'warning',
-                    title: 'Pickup Only for Guest Checkout',
-                    text: 'Please use Pickup or sign in for shipping.',
+                    icon: 'error',
+                    title: 'Missing Information',
+                    text: 'First name, last name, email, and contact number are required.',
                     confirmButtonColor: '#08415c'
                 });
                 return;
             }
 
-            if (IS_GUEST_CHECKOUT && paymentMethod !== 'cod') {
+            if (!isWithinLength(firstName, FIELD_LIMITS.firstName.min, FIELD_LIMITS.firstName.max)) {
                 Swal.fire({
-                    icon: 'warning',
-                    title: 'COD Only for Guest Checkout',
-                    text: 'Please use COD or sign in to use online payments.',
+                    icon: 'error',
+                    title: 'Invalid First Name',
+                    text: 'First name must be between 2 and 50 characters.',
                     confirmButtonColor: '#08415c'
                 });
                 return;
             }
 
-            let orderDetails = `
-                <div class="text-left">
-                    <p class="mb-2"><strong>Name:</strong> ${firstName} ${lastName}</p>
-                    <p class="mb-2"><strong>Email:</strong> ${email}</p>
-                    <p class="mb-2"><strong>Phone:</strong> ${phone}</p>
-                    <p class="mb-2"><strong>Delivery:</strong> ${deliveryMethod === 'pickup' ? 'Pickup at Store' : 'Shipping'}</p>
-            `;
+            if (!isWithinLength(lastName, FIELD_LIMITS.lastName.min, FIELD_LIMITS.lastName.max)) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid Last Name',
+                    text: 'Last name must be between 2 and 50 characters.',
+                    confirmButtonColor: '#08415c'
+                });
+                return;
+            }
 
-            let orderData = {
+            if (!emailRegex.test(email)) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid Email',
+                    text: 'Please enter a valid email address.',
+                    confirmButtonColor: '#08415c'
+                });
+                return;
+            }
+
+            if (!phoneRegex.test(cleanedPhone)) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid Phone Number',
+                    text: 'Please enter a valid mobile number (09XXXXXXXXX or +63XXXXXXXXXX).',
+                    confirmButtonColor: '#08415c'
+                });
+                return;
+            }
+
+            const orderData = {
                 customer: {
                     first_name: firstName,
                     last_name: lastName,
@@ -1154,6 +1283,14 @@ if (is_array($saved_shipping_info)) {
                 delivery_method: deliveryMethod,
                 payment_method: paymentMethod
             };
+
+            let orderDetails = `
+                <div class="text-left space-y-2">
+                    <p><strong>Name:</strong> ${escapeHtml(firstName)} ${escapeHtml(lastName)}</p>
+                    <p><strong>Email:</strong> ${escapeHtml(email)}</p>
+                    <p><strong>Phone:</strong> ${escapeHtml(phone)}</p>
+                    <p><strong>Delivery:</strong> ${deliveryMethod === 'pickup' ? 'Store Pickup' : 'Shipping'}</p>
+            `;
 
             if (IS_BUY_NOW_CHECKOUT && BUY_NOW_ITEM) {
                 orderData.buy_now = {
@@ -1174,8 +1311,8 @@ if (is_array($saved_shipping_info)) {
                 if (!address || !barangay || !city || !province) {
                     Swal.fire({
                         icon: 'error',
-                        title: 'Missing Information',
-                        text: 'Please fill in all required shipping fields',
+                        title: 'Missing Shipping Information',
+                        text: 'Complete shipping address, barangay, city, and province are required.',
                         confirmButtonColor: '#08415c'
                     });
                     return;
@@ -1251,9 +1388,6 @@ if (is_array($saved_shipping_info)) {
                     return;
                 }
 
-                orderDetails += `<p class="mb-2"><strong>Address:</strong> ${address}, ${barangay}, ${city}, ${province}</p>`;
-                if (notes) orderDetails += `<p class="mb-2"><strong>Notes:</strong> ${notes}</p>`;
-
                 orderData.shipping = {
                     address: address,
                     barangay: barangay,
@@ -1262,67 +1396,162 @@ if (is_array($saved_shipping_info)) {
                     postal_code: postalCode
                 };
                 orderData.notes = notes;
+
+                orderDetails += `<p><strong>Shipping Address:</strong> ${escapeHtml(address)}, ${escapeHtml(barangay)}, ${escapeHtml(city)}, ${escapeHtml(province)}${postalCode ? ` ${escapeHtml(postalCode)}` : ''}</p>`;
+                orderDetails += `<p><strong>Shipping Fee:</strong> ${document.getElementById('summaryShipping').textContent === 'FREE' ? 'FREE' : `PHP ${document.getElementById('summaryShipping').textContent}`}</p>`;
+                if (notes) {
+                    orderDetails += `<p><strong>Delivery Notes:</strong> ${escapeHtml(notes)}</p>`;
+                }
             } else {
                 const pickupDate = document.getElementById('pickupDate').value;
                 const pickupTime = document.getElementById('pickupTime').value;
 
-                orderDetails += `<p class="mb-2"><strong>Pickup Date:</strong> ${pickupDate}</p>`;
-                orderDetails += `<p class="mb-2"><strong>Pickup Time:</strong> ${pickupTime}</p>`;
+                if (!pickupDate || !pickupTime) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Missing Pickup Schedule',
+                        text: 'Pickup date and pickup time are required for store pickup.',
+                        confirmButtonColor: '#08415c'
+                    });
+                    return;
+                }
 
                 orderData.pickup_date = pickupDate;
                 orderData.pickup_time = pickupTime;
+                orderDetails += `<p><strong>Pickup Date:</strong> ${escapeHtml(pickupDate)}</p>`;
+                orderDetails += `<p><strong>Pickup Time:</strong> ${escapeHtml(pickupTime)}</p>`;
             }
 
-            orderDetails += `
-                    <p class="mb-2"><strong>Payment:</strong> ${paymentMethod.toUpperCase()}</p>
-                    <p class="mt-4 text-lg"><strong>Total: ₱${document.getElementById('summaryTotal').textContent}</strong></p>
-                </div>
-            `;
+            if (requiresProof) {
+                if (!paymentReference) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Missing Payment Reference',
+                        text: 'Online payments require a payment reference before the order can be submitted.',
+                        confirmButtonColor: '#08415c'
+                    });
+                    return;
+                }
 
-            // Confirm order
-            const result = await Swal.fire({
-                title: 'Confirm Order',
+                if (paymentReference.length > 120) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Reference Too Long',
+                        text: 'Payment reference can be up to 120 characters only.',
+                        confirmButtonColor: '#08415c'
+                    });
+                    return;
+                }
+
+                if (!paymentProofFile) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Proof Required',
+                        text: 'Please attach proof of payment before submitting the order.',
+                        confirmButtonColor: '#08415c'
+                    });
+                    return;
+                }
+
+                if (paymentProofFile.size > (5 * 1024 * 1024)) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'File Too Large',
+                        text: 'Proof of payment must be 5MB or less.',
+                        confirmButtonColor: '#08415c'
+                    });
+                    return;
+                }
+
+                if (!/\.(jpe?g|png|webp|pdf)$/i.test(paymentProofFile.name || '')) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Unsupported File Type',
+                        text: 'Proof of payment must be JPG, PNG, WEBP, or PDF.',
+                        confirmButtonColor: '#08415c'
+                    });
+                    return;
+                }
+
+                orderData.payment_reference = paymentReference;
+                orderDetails += `<p><strong>Payment Method:</strong> ${escapeHtml(paymentLabelMap[paymentMethod] || paymentMethod)}</p>`;
+                orderDetails += `<p><strong>Payment Reference:</strong> ${escapeHtml(paymentReference)}</p>`;
+                orderDetails += `<p><strong>Proof of Payment:</strong> Attached for admin review</p>`;
+            } else {
+                orderDetails += `<p><strong>Payment Method:</strong> Cash on Delivery</p>`;
+                orderDetails += `<p class="text-sm text-gray-600">Payment will be collected by staff before the order is marked completed.</p>`;
+            }
+
+            orderDetails += `<p class="pt-3 text-lg"><strong>Total:</strong> PHP ${document.getElementById('summaryTotal').textContent}</p></div>`;
+
+            const confirmResult = await Swal.fire({
+                title: 'Submit Order?',
                 html: orderDetails,
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: '#08415c',
                 cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, place order',
-                cancelButtonText: 'Cancel'
+                confirmButtonText: 'Submit Order',
+                cancelButtonText: 'Keep Editing'
             });
-            if (!result.isConfirmed) return;
 
-            // Show loader
+            if (!confirmResult.isConfirmed) {
+                return;
+            }
+
             document.getElementById('loader').classList.add('active');
             document.getElementById('placeOrderBtn').disabled = true;
 
             try {
+                const formData = new FormData();
+                formData.append('customer', JSON.stringify(orderData.customer));
+                formData.append('delivery_method', orderData.delivery_method);
+                formData.append('payment_method', orderData.payment_method);
+
+                if (orderData.shipping) {
+                    formData.append('shipping', JSON.stringify(orderData.shipping));
+                }
+                if (orderData.buy_now) {
+                    formData.append('buy_now', JSON.stringify(orderData.buy_now));
+                }
+                if (orderData.notes) {
+                    formData.append('notes', orderData.notes);
+                }
+                if (orderData.pickup_date) {
+                    formData.append('pickup_date', orderData.pickup_date);
+                }
+                if (orderData.pickup_time) {
+                    formData.append('pickup_time', orderData.pickup_time);
+                }
+                if (orderData.payment_reference) {
+                    formData.append('payment_reference', orderData.payment_reference);
+                }
+                if (requiresProof && paymentProofFile) {
+                    formData.append('payment_proof', paymentProofFile);
+                }
+
                 const response = await fetch('../backend/checkout/process_order.php', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(orderData)
+                    body: formData
                 });
-
                 const data = await response.json();
 
-                if (data.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Order Placed Successfully!',
-                        html: `
-                            <p class="mb-4">Your order number is: <strong>${data.order_number}</strong></p>
-                            <p>A confirmation email has been sent to ${email}</p>
-                        `,
-                        confirmButtonColor: '#08415c',
-                        allowOutsideClick: false
-                    }).then(() => {
-                        window.location.href = `order-success.php?order=${data.order_number}`;
-                    });
-                } else {
-                    throw new Error(data.message || 'Failed to place order');
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Failed to submit order.');
                 }
+
+                Swal.fire({
+                    icon: 'success',
+                    title: requiresProof ? 'Order Submitted for Review' : 'Order Submitted Successfully',
+                    html: `
+                        <p class="mb-3">Order Number: <strong>${escapeHtml(data.order_number)}</strong></p>
+                        <p>${requiresProof ? 'Your proof of payment is attached and waiting for admin review.' : 'A confirmation email has been sent to your account email.'}</p>
+                    `,
+                    confirmButtonColor: '#08415c',
+                    allowOutsideClick: false
+                }).then(() => {
+                    window.location.href = `order-success.php?order=${encodeURIComponent(data.order_number)}`;
+                });
             } catch (error) {
                 console.error('Checkout error:', error);
                 Swal.fire({
@@ -1335,8 +1564,7 @@ if (is_array($saved_shipping_info)) {
                 document.getElementById('loader').classList.remove('active');
                 document.getElementById('placeOrderBtn').disabled = false;
             }
-    });
-
+        });
     // Login modal functions
     function openLoginModal() {
         document.getElementById('loginModal').classList.remove('hidden');
@@ -1440,18 +1668,25 @@ if (is_array($saved_shipping_info)) {
     }
 
     // Initialize on page load
-    document.addEventListener('DOMContentLoaded', () => {
-        if (hasSavedShippingData()) {
-            document.getElementById('address').value = SAVED_SHIPPING.address || '';
-            document.getElementById('barangay').value = SAVED_SHIPPING.barangay || '';
-            document.getElementById('city').value = SAVED_SHIPPING.city || 'Angeles City';
-            document.getElementById('province').value = SAVED_SHIPPING.province || 'Pampanga';
-            document.getElementById('postalCode').value = SAVED_SHIPPING.postal_code || '';
-        }
-        initializeShippingAddressChooser();
-        loadCart();
-        applyGuestCheckoutRestrictions();
-    });
+        document.addEventListener('DOMContentLoaded', () => {
+            if (hasSavedShippingData()) {
+                document.getElementById('address').value = SAVED_SHIPPING.address || '';
+                document.getElementById('barangay').value = SAVED_SHIPPING.barangay || '';
+                document.getElementById('city').value = SAVED_SHIPPING.city || 'Angeles City';
+                document.getElementById('province').value = SAVED_SHIPPING.province || 'Pampanga';
+                document.getElementById('postalCode').value = SAVED_SHIPPING.postal_code || '';
+            }
+            document.querySelectorAll('input[name="paymentMethod"]').forEach((input) => {
+                input.addEventListener('change', updatePaymentGuidance);
+            });
+            initializeShippingAddressChooser();
+            loadCart();
+            updatePaymentGuidance();
+            applyGuestCheckoutRestrictions();
+        });
 </script>
 </body>
 </html>
+
+
+

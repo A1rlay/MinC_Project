@@ -83,7 +83,7 @@ try {
         'delete_profile_picture' => 'Delete Profile Picture',
         'change_password' => 'Change Password',
         'deactivate_own_account' => 'Deactivate Own Account',
-        'update_order_state' => 'Update Order State'
+        'update_order_state' => 'Order Status Updated'
     ];
 
     $entity_label_map = [
@@ -172,6 +172,14 @@ try {
     ";
     $users_result = $pdo->query($users_query);
     $users_list = $users_result->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($audit_records as &$record) {
+        $normalizedAction = strtolower(trim((string)($record['action'] ?? '')));
+        $normalizedEntity = strtolower(trim((string)($record['entity_type'] ?? '')));
+        $record['display_action'] = $action_label_map[$normalizedAction] ?? ucwords(str_replace('_', ' ', $normalizedAction));
+        $record['display_entity'] = $entity_label_map[$normalizedEntity] ?? ucwords(str_replace('_', ' ', $normalizedEntity));
+    }
+    unset($record);
 
 } catch (Exception $e) {
     $_SESSION['error_message'] = 'Error loading audit trail data: ' . $e->getMessage();
@@ -603,12 +611,12 @@ ob_start();
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="audit-badge action-<?php echo strtolower(str_replace('_', '-', $record['action'])); ?>">
-                                    <?php echo htmlspecialchars(strtoupper($record['action'])); ?>
+                                    <?php echo htmlspecialchars($record['display_action'] ?? strtoupper($record['action'])); ?>
                                 </span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="entity-badge">
-                                    <?php echo htmlspecialchars(ucfirst($record['entity_type'])); ?>
+                                    <?php echo htmlspecialchars($record['display_entity'] ?? ucfirst($record['entity_type'])); ?>
                                 </span>
                                 <div class="text-xs text-gray-500 mt-1">
                                     ID: <?php echo htmlspecialchars($record['entity_id']); ?>
@@ -666,7 +674,7 @@ ob_start();
                             <p class="text-xs text-gray-500"><?php echo htmlspecialchars($record['user_type_name'] ?? 'Unknown'); ?></p>
                         </div>
                         <span class="audit-badge action-<?php echo strtolower(str_replace('_', '-', $record['action'])); ?>">
-                            <?php echo htmlspecialchars(strtoupper($record['action'])); ?>
+                            <?php echo htmlspecialchars($record['display_action'] ?? strtoupper($record['action'])); ?>
                         </span>
                     </div>
                     
@@ -674,7 +682,7 @@ ob_start();
                         <div>
                             <p class="text-xs text-gray-500 mb-1">Entity Type</p>
                             <span class="entity-badge">
-                                <?php echo htmlspecialchars(ucfirst($record['entity_type'])); ?>
+                                <?php echo htmlspecialchars($record['display_entity'] ?? ucfirst($record['entity_type'])); ?>
                             </span>
                         </div>
                         <div>
@@ -1087,8 +1095,10 @@ function viewDetails(record) {
     document.getElementById("detail_audit_id").textContent = record.audit_trail_id || 'N/A';
     document.getElementById("detail_user").textContent = record.user_full_name || record.session_username || 'N/A';
     document.getElementById("detail_user_type").textContent = record.user_type_name || 'N/A';
-    document.getElementById("detail_action").innerHTML = '<span class="audit-badge action-' + record.action.toLowerCase().replace(/_/g, '-') + '">' + record.action.toUpperCase() + '</span>';
-    document.getElementById("detail_entity_type").textContent = record.entity_type ? record.entity_type.charAt(0).toUpperCase() + record.entity_type.slice(1) : 'N/A';
+    const actionLabel = record.display_action || (record.action ? record.action.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'N/A');
+    const entityLabel = record.display_entity || (record.entity_type ? record.entity_type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'N/A');
+    document.getElementById("detail_action").innerHTML = '<span class="audit-badge action-' + record.action.toLowerCase().replace(/_/g, '-') + '">' + actionLabel + '</span>';
+    document.getElementById("detail_entity_type").textContent = entityLabel;
     document.getElementById("detail_entity_id").textContent = record.entity_id || 'N/A';
     document.getElementById("detail_timestamp").textContent = record.timestamp ? new Date(record.timestamp).toLocaleString() : 'N/A';
     document.getElementById("detail_ip").textContent = record.ip_address || 'N/A';

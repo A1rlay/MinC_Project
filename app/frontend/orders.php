@@ -7,6 +7,7 @@
 // Authentication and user data
 include_once '../../backend/auth.php';
 include_once '../../database/connect_database.php';
+include_once '../../backend/order-management/order_workflow_helper.php';
 
 // Validate session
 $validation = validateSession();
@@ -62,6 +63,14 @@ try {
             o.payment_method,
             o.payment_status,
             o.order_status,
+            " . mincOptionalColumnSelect($pdo, 'orders', 'o', 'delivery_method') . ",
+            " . mincOptionalColumnSelect($pdo, 'orders', 'o', 'payment_reference') . ",
+            " . mincOptionalColumnSelect($pdo, 'orders', 'o', 'payment_proof_path') . ",
+            " . mincOptionalColumnSelect($pdo, 'orders', 'o', 'payment_review_notes') . ",
+            " . mincOptionalColumnSelect($pdo, 'orders', 'o', 'receipt_path') . ",
+            " . mincOptionalColumnSelect($pdo, 'orders', 'o', 'cancel_reason') . ",
+            " . mincOptionalColumnSelect($pdo, 'orders', 'o', 'pickup_date') . ",
+            " . mincOptionalColumnSelect($pdo, 'orders', 'o', 'pickup_time') . ",
             o.shipping_address,
             o.shipping_city,
             o.shipping_province,
@@ -783,11 +792,11 @@ function displayOrderDetails(order, items) {
                     </div>
                     <div class="text-right">
                         <span class="order-status-badge status-${order.order_status}">
-                            ${capitalizeFirst(order.order_status)}
+                            ${getDisplayOrderStatus(order)}
                         </span>
                         <div class="mt-2">
                             <span class="payment-status-badge payment-${order.payment_status}">
-                                ${capitalizeFirst(order.payment_status)}
+                                ${getDisplayPaymentStatus(order)}
                             </span>
                         </div>
                     </div>
@@ -850,6 +859,18 @@ function displayOrderDetails(order, items) {
                                 <p class="text-sm font-medium text-gray-900">${formatDate(order.delivery_date)}</p>
                             </div>
                         ` : ''}
+                        ${order.delivery_method === 'pickup' && order.pickup_date ? `
+                            <div>
+                                <p class="text-xs text-gray-500">Pickup Date</p>
+                                <p class="text-sm font-medium text-gray-900">${escapeHtml(order.pickup_date)}</p>
+                            </div>
+                        ` : ''}
+                        ${order.delivery_method === 'pickup' && order.pickup_time ? `
+                            <div>
+                                <p class="text-xs text-gray-500">Pickup Time</p>
+                                <p class="text-sm font-medium text-gray-900">${escapeHtml(order.pickup_time)}</p>
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
             </div>
@@ -860,18 +881,32 @@ function displayOrderDetails(order, items) {
                 </h5>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
+                        <p class="text-xs text-gray-500">Delivery Method</p>
+                        <p class="text-sm font-medium text-gray-900">${order.delivery_method === 'pickup' ? 'Store Pickup' : 'Shipping'}</p>
+                    </div>
+                    <div>
                         <p class="text-xs text-gray-500">Payment Method</p>
                         <span class="payment-method-badge mt-1">${getPaymentMethodLabel(order.payment_method)}</span>
                     </div>
                     <div>
                         <p class="text-xs text-gray-500">Payment Status</p>
-                        <span class="payment-status-badge payment-${order.payment_status} mt-1">${capitalizeFirst(order.payment_status)}</span>
+                        <span class="payment-status-badge payment-${order.payment_status} mt-1">${getDisplayPaymentStatus(order)}</span>
                     </div>
                     <div>
-                        <p class="text-xs text-gray-500">Payment Receipt</p>
-                        ${order.payment_receipt
-                            ? `<a href="${escapeHtml(order.payment_receipt)}" target="_blank" rel="noopener noreferrer" class="text-sm text-blue-600 hover:underline">View receipt</a>`
-                            : `<p class="text-sm text-gray-500">No receipt uploaded</p>`}
+                        <p class="text-xs text-gray-500">Payment Reference</p>
+                        <p class="text-sm font-medium text-gray-900">${order.payment_reference ? escapeHtml(order.payment_reference) : 'Not provided'}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500">Proof of Payment</p>
+                        ${order.payment_proof_path
+                            ? `<a href="${escapeHtml(resolveOrderAssetUrl(order.payment_proof_path))}" target="_blank" rel="noopener noreferrer" class="text-sm text-blue-600 hover:underline">View proof</a>`
+                            : `<p class="text-sm text-gray-500">${requiresPaymentProof(order.payment_method) ? 'Awaiting proof upload' : 'Not required'}</p>`}
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500">Receipt</p>
+                        ${order.receipt_path
+                            ? `<a href="${escapeHtml(resolveOrderAssetUrl(order.receipt_path))}" target="_blank" rel="noopener noreferrer" class="text-sm text-blue-600 hover:underline">View receipt</a>`
+                            : `<p class="text-sm text-gray-500">Receipt will attach on completion</p>`}
                     </div>
                     <div>
                         <p class="text-xs text-gray-500">Subtotal</p>
@@ -882,6 +917,12 @@ function displayOrderDetails(order, items) {
                         <p class="text-sm font-medium text-gray-900">₱${formatNumber(order.shipping_fee)}</p>
                     </div>
                 </div>
+                ${order.payment_review_notes ? `
+                    <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                        <p class="text-xs text-gray-500 mb-1">Payment Review Notes</p>
+                        <p class="text-sm text-gray-700">${escapeHtml(order.payment_review_notes)}</p>
+                    </div>
+                ` : ''}
                 <div class="mt-4 pt-4 border-t border-gray-200">
                     <div class="flex justify-between items-center">
                         <span class="text-lg font-semibold text-gray-900">Total Amount</span>
@@ -895,7 +936,7 @@ function displayOrderDetails(order, items) {
                     <i class="fas fa-cogs mr-2 text-green-600"></i>Order Actions
                 </h5>
                 <div class="flex flex-wrap gap-2">${getOrderActionButtons(order)}</div>
-                <p class="text-xs text-gray-500 mt-3">Cancellation is only allowed before processing. Refund is only for paid and eligible orders.</p>
+                <p class="text-xs text-gray-500 mt-3">Confirm Order reviews the uploaded proof and stock availability. Complete Payment is used only for COD collection. Uploaded proof is checked directly in this admin order view.</p>
             </div>
             
             <div class="bg-white border border-gray-200 rounded-lg p-6">
@@ -913,6 +954,14 @@ function displayOrderDetails(order, items) {
                     <p class="text-sm text-gray-700">${escapeHtml(order.notes)}</p>
                 </div>
             ` : ''}
+            ${order.cancel_reason ? `
+                <div class="bg-red-50 border border-red-200 rounded-lg p-6">
+                    <h5 class="text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                        <i class="fas fa-ban mr-2 text-red-600"></i>Cancellation Reason
+                    </h5>
+                    <p class="text-sm text-gray-700">${escapeHtml(order.cancel_reason)}</p>
+                </div>
+            ` : ''}
         </div>
     `;
 }
@@ -920,23 +969,29 @@ function displayOrderDetails(order, items) {
 function getOrderActionButtons(order) {
     const buttons = [];
     const orderId = Number(order.order_id);
+    const proofRequired = requiresPaymentProof(order.payment_method);
+    const hasProof = !!String(order.payment_proof_path || '').trim();
 
     if (order.order_status === 'pending') {
-        buttons.push(`<button onclick="handleOrderAction(${orderId}, 'confirm_order')" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">Confirm Order</button>`);
+        if (!proofRequired || hasProof) {
+            buttons.push(`<button onclick="handleOrderAction(${orderId}, 'confirm_order')" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">Confirm Order</button>`);
+        } else {
+            buttons.push(`<span class="px-3 py-2 bg-amber-100 text-amber-700 rounded-lg text-sm">Awaiting Proof</span>`);
+        }
     }
     if (order.order_status === 'confirmed') {
         buttons.push(`<button onclick="handleOrderAction(${orderId}, 'process_order')" class="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm">Mark Processing</button>`);
     }
     if (order.order_status === 'processing') {
-        buttons.push(`<button onclick="handleOrderAction(${orderId}, 'ship_order')" class="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm">Mark Shipped</button>`);
+        buttons.push(`<button onclick="handleOrderAction(${orderId}, 'ship_order')" class="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm">${order.delivery_method === 'pickup' ? 'Mark Ready for Pickup' : 'Release for Delivery'}</button>`);
     }
     if (order.order_status === 'shipped') {
-        buttons.push(`<button onclick="handleOrderAction(${orderId}, 'deliver_order')" class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">Mark Delivered</button>`);
+        buttons.push(`<button onclick="handleOrderAction(${orderId}, 'deliver_order')" class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">${order.delivery_method === 'pickup' ? 'Complete Pickup' : 'Complete Delivery'}</button>`);
     }
-    if (order.payment_status === 'pending' && order.order_status !== 'cancelled') {
+    if (order.payment_status === 'pending' && order.order_status !== 'cancelled' && !proofRequired) {
         buttons.push(`<button onclick="handleOrderAction(${orderId}, 'mark_paid')" class="px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm">Complete Payment</button>`);
     }
-    if (order.order_status === 'pending' || order.order_status === 'confirmed') {
+    if (['pending', 'confirmed', 'processing'].includes(order.order_status)) {
         buttons.push(`<button onclick="handleOrderAction(${orderId}, 'cancel_order', true)" class="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm">Cancel Order</button>`);
     }
     if (order.payment_status === 'paid' && (order.order_status === 'cancelled' || order.order_status === 'delivered')) {
@@ -948,22 +1003,42 @@ function getOrderActionButtons(order) {
 
 async function handleOrderAction(orderId, action, askReason = false) {
     let reason = '';
+    let currentOrder = null;
+
+    try {
+        const currentOrderResponse = await fetch(`../../backend/order-management/get_order.php?id=${encodeURIComponent(orderId)}`, {
+            credentials: 'same-origin'
+        });
+        const currentOrderData = await currentOrderResponse.json();
+        if (currentOrderResponse.ok && currentOrderData.success) {
+            currentOrder = currentOrderData.order || null;
+        }
+    } catch (fetchError) {
+        currentOrder = null;
+    }
 
     const actionLabel = {
-        confirm_order: 'confirm this order',
+        confirm_order: currentOrder && requiresPaymentProof(currentOrder.payment_method) ? 'review the proof and confirm this order' : 'confirm this order',
         process_order: 'mark this order as processing',
-        ship_order: 'mark this order as shipped',
-        deliver_order: 'mark this order as delivered',
-        mark_paid: 'mark payment as completed',
+        ship_order: currentOrder && currentOrder.delivery_method === 'pickup' ? 'mark this order ready for pickup' : 'release this order for delivery',
+        deliver_order: currentOrder && currentOrder.delivery_method === 'pickup' ? 'complete this pickup order' : 'complete this delivery order',
+        mark_paid: 'record payment collection for this order',
         cancel_order: 'cancel this order',
         refund_payment: 'process a refund'
     }[action] || 'update this order';
 
     if (!(await showConfirmModal(`Are you sure you want to ${actionLabel}?`, 'Confirm Order Action'))) return;
     if (askReason) {
-        const promptReason = await showPromptModal('Optional note/reason', 'You may leave a reason for this action');
+        const promptLabel = action === 'cancel_order'
+            ? 'Cancellation reason is required'
+            : 'You may leave a note for this action';
+        const promptReason = await showPromptModal('Order note / reason', promptLabel);
         if (promptReason === null) return;
         reason = promptReason || '';
+        if (action === 'cancel_order' && !reason.trim()) {
+            showNotification('Cancellation reason is required.', 'error');
+            return;
+        }
     }
 
     try {
@@ -1106,6 +1181,47 @@ function capitalizeFirst(string) {
     return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
+function requiresPaymentProof(method) {
+    return ['bank_transfer', 'gcash', 'paymaya'].includes(String(method || '').toLowerCase());
+}
+
+function getDisplayOrderStatus(order) {
+    const status = String(order.order_status || '').toLowerCase();
+    const deliveryMethod = String(order.delivery_method || 'shipping').toLowerCase();
+
+    if (status === 'pending') return 'Awaiting Review';
+    if (status === 'confirmed') return 'Received';
+    if (status === 'processing') return 'Preparing Items';
+    if (status === 'shipped') return deliveryMethod === 'pickup' ? 'Ready for Pickup' : 'Out for Delivery';
+    if (status === 'delivered') return 'Completed';
+    if (status === 'cancelled') return 'Cancelled';
+
+    return capitalizeFirst(status.replace(/_/g, ' '));
+}
+
+function getDisplayPaymentStatus(order) {
+    const status = String(order.payment_status || '').toLowerCase();
+    const hasProof = !!String(order.payment_proof_path || '').trim();
+
+    if (status === 'pending' && requiresPaymentProof(order.payment_method)) {
+        return hasProof ? 'Proof Under Review' : 'Awaiting Proof';
+    }
+    if (status === 'paid') return 'Paid';
+    if (status === 'failed') return 'Payment Rejected';
+    if (status === 'refunded') return 'Refunded';
+    if (status === 'pending' && String(order.payment_method || '').toLowerCase() === 'cod') {
+        return 'Pending Collection';
+    }
+
+    return capitalizeFirst(status.replace(/_/g, ' '));
+}
+
+function resolveOrderAssetUrl(path) {
+    if (!path) return '';
+    if (/^(https?:)?\\//i.test(path)) return path;
+    return `../../${String(path).replace(/^\\/+/, '')}`;
+}
+
 function getPaymentMethodLabel(method) {
     const methods = {
         'cod': 'Cash on Delivery',
@@ -1136,5 +1252,7 @@ $order_management_content = ob_get_clean();// Set the content for app.php
 $content = $order_management_content;// Include the app.php layout
 include 'app.php';
 ?>
+
+
 
 

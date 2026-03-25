@@ -33,6 +33,8 @@ try {
     $hasProfilePictureColumn = in_array('profile_picture', $columns, true);
 
     $deliveryColumnDefinitions = [
+        'home_address' => "TEXT NULL AFTER address",
+        'billing_address' => "TEXT NULL AFTER home_address",
         'barangay' => "VARCHAR(120) NULL AFTER address",
         'city' => "VARCHAR(100) NULL AFTER barangay",
         'province' => "VARCHAR(100) NULL AFTER city",
@@ -89,6 +91,8 @@ try {
     $lname = isset($input['lname']) ? trim($input['lname']) : null;
     $hasContactNumKey = array_key_exists('contact_num', $input);
     $hasAddressKey = array_key_exists('address', $input);
+    $hasHomeAddressKey = array_key_exists('home_address', $input);
+    $hasBillingAddressKey = array_key_exists('billing_address', $input);
     $hasBarangayKey = array_key_exists('barangay', $input);
     $hasCityKey = array_key_exists('city', $input);
     $hasProvinceKey = array_key_exists('province', $input);
@@ -96,6 +100,8 @@ try {
 
     $contact_num = $hasContactNumKey ? trim((string)$input['contact_num']) : null;
     $address = $hasAddressKey ? preg_replace('/\s+/', ' ', trim((string)$input['address'])) : null;
+    $home_address = $hasHomeAddressKey ? preg_replace('/\s+/', ' ', trim((string)$input['home_address'])) : null;
+    $billing_address = $hasBillingAddressKey ? preg_replace('/\s+/', ' ', trim((string)$input['billing_address'])) : null;
     $barangay = $hasBarangayKey ? preg_replace('/\s+/', ' ', trim((string)$input['barangay'])) : null;
     $city = $hasCityKey ? preg_replace('/\s+/', ' ', trim((string)$input['city'])) : null;
     $province = $hasProvinceKey ? preg_replace('/\s+/', ' ', trim((string)$input['province'])) : null;
@@ -154,6 +160,14 @@ try {
         exit;
     }
 
+    if ($hasContactNumKey && $contact_num === '') {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Contact number is required'
+        ]);
+        exit;
+    }
+
     // Validate contact number format if provided (accepts 09xxxxxxxxx and +63/63 formats)
     if ($hasContactNumKey && $contact_num !== '') {
         $normalizedContact = $normalizePhilippineMobile($contact_num);
@@ -165,11 +179,9 @@ try {
             exit;
         }
         $contact_num = $normalizedContact;
-    } elseif ($hasContactNumKey && $contact_num === '') {
-        $contact_num = null;
     }
 
-    if ($hasContactNumKey && $contact_num && !preg_match('/^09\d{9}$/', $contact_num)) {
+    if ($hasContactNumKey && !preg_match('/^09\d{9}$/', (string)$contact_num)) {
         echo json_encode([
             'success' => false, 
             'message' => 'Invalid contact number format'
@@ -179,6 +191,12 @@ try {
 
     if ($hasAddressKey && $address === '') {
         $address = null;
+    }
+    if ($hasHomeAddressKey && $home_address === '') {
+        $home_address = null;
+    }
+    if ($hasBillingAddressKey && $billing_address === '') {
+        $billing_address = null;
     }
     if ($hasBarangayKey && $barangay === '') {
         $barangay = null;
@@ -197,6 +215,22 @@ try {
         echo json_encode([
             'success' => false,
             'message' => 'Complete address must be between 10 and 255 characters'
+        ]);
+        exit;
+    }
+
+    if ($home_address !== null && (mb_strlen($home_address) < 10 || mb_strlen($home_address) > 255)) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Home address must be between 10 and 255 characters'
+        ]);
+        exit;
+    }
+
+    if ($billing_address !== null && (mb_strlen($billing_address) < 10 || mb_strlen($billing_address) > 255)) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Billing address must be between 10 and 255 characters'
         ]);
         exit;
     }
@@ -252,8 +286,52 @@ try {
         }
     }
 
+    if ($hasAddressKey && !$address) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Default shipping address is required'
+        ]);
+        exit;
+    }
+
+    if ($hasBarangayKey && !$barangay) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Barangay is required'
+        ]);
+        exit;
+    }
+
+    if ($hasCityKey && !$city) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'City is required'
+        ]);
+        exit;
+    }
+
+    if ($hasProvinceKey && !$province) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Province is required'
+        ]);
+        exit;
+    }
+
     // Get current user data
-    $currentQuery = "SELECT fname, lname, contact_num, address, barangay, city, province, postal_code FROM users WHERE user_id = :user_id";
+    $currentSelectParts = [
+        'fname',
+        'lname',
+        'contact_num',
+        'address',
+        in_array('home_address', $columns, true) ? 'home_address' : 'NULL AS home_address',
+        in_array('billing_address', $columns, true) ? 'billing_address' : 'NULL AS billing_address',
+        in_array('barangay', $columns, true) ? 'barangay' : 'NULL AS barangay',
+        in_array('city', $columns, true) ? 'city' : 'NULL AS city',
+        in_array('province', $columns, true) ? 'province' : 'NULL AS province',
+        in_array('postal_code', $columns, true) ? 'postal_code' : 'NULL AS postal_code'
+    ];
+    $currentQuery = "SELECT " . implode(', ', $currentSelectParts) . " FROM users WHERE user_id = :user_id";
     $currentStmt = $pdo->prepare($currentQuery);
     $currentStmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);
     $currentStmt->execute();
@@ -282,6 +360,14 @@ try {
     if ($hasAddressKey) {
         $updateQuery .= ", address = :address";
         $params[':address'] = $address;
+    }
+    if ($hasHomeAddressKey && in_array('home_address', $columns, true)) {
+        $updateQuery .= ", home_address = :home_address";
+        $params[':home_address'] = $home_address;
+    }
+    if ($hasBillingAddressKey && in_array('billing_address', $columns, true)) {
+        $updateQuery .= ", billing_address = :billing_address";
+        $params[':billing_address'] = $billing_address;
     }
     if ($hasBarangayKey) {
         $updateQuery .= ", barangay = :barangay";
@@ -312,6 +398,8 @@ try {
         'lname' => $currentUser['lname'],
         'contact_num' => $currentUser['contact_num'],
         'address' => $currentUser['address'],
+        'home_address' => $currentUser['home_address'] ?? null,
+        'billing_address' => $currentUser['billing_address'] ?? null,
         'barangay' => $currentUser['barangay'] ?? null,
         'city' => $currentUser['city'] ?? null,
         'province' => $currentUser['province'] ?? null,
@@ -323,6 +411,8 @@ try {
         'lname' => $lname,
         'contact_num' => $contact_num,
         'address' => $address,
+        'home_address' => $home_address,
+        'billing_address' => $billing_address,
         'barangay' => $barangay,
         'city' => $city,
         'province' => $province,
@@ -351,9 +441,22 @@ try {
     }
 
     // Get updated user data
-    $fetchQuery = $hasProfilePictureColumn
-        ? "SELECT user_id, fname, lname, email, contact_num, address, barangay, city, province, postal_code, profile_picture FROM users WHERE user_id = :user_id"
-        : "SELECT user_id, fname, lname, email, contact_num, address, barangay, city, province, postal_code, NULL AS profile_picture FROM users WHERE user_id = :user_id";
+    $fetchParts = [
+        'user_id',
+        'fname',
+        'lname',
+        'email',
+        'contact_num',
+        'address',
+        in_array('home_address', $columns, true) ? 'home_address' : 'NULL AS home_address',
+        in_array('billing_address', $columns, true) ? 'billing_address' : 'NULL AS billing_address',
+        in_array('barangay', $columns, true) ? 'barangay' : 'NULL AS barangay',
+        in_array('city', $columns, true) ? 'city' : 'NULL AS city',
+        in_array('province', $columns, true) ? 'province' : 'NULL AS province',
+        in_array('postal_code', $columns, true) ? 'postal_code' : 'NULL AS postal_code',
+        $hasProfilePictureColumn ? 'profile_picture' : 'NULL AS profile_picture'
+    ];
+    $fetchQuery = "SELECT " . implode(', ', $fetchParts) . " FROM users WHERE user_id = :user_id";
     $fetchStmt = $pdo->prepare($fetchQuery);
     $fetchStmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);
     $fetchStmt->execute();

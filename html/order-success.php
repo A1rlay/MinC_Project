@@ -1,42 +1,77 @@
 <?php
 session_start();
 require_once '../database/connect_database.php';
+require_once '../backend/order-management/order_workflow_helper.php';
 
-// Get order number from URL
-$order_number = isset($_GET['order']) ? trim($_GET['order']) : null;
+$order_number = isset($_GET['order']) ? trim((string)$_GET['order']) : '';
+$current_user_id = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
+$is_management_user = isset($_SESSION['user_level_id']) && (int)$_SESSION['user_level_id'] <= 2;
 
-if (!$order_number) {
+if ($order_number === '' || $current_user_id <= 0) {
     header('Location: ../index.php');
     exit;
 }
 
-// Get order details
 try {
-    $stmt = $pdo->prepare("
-        SELECT o.*, c.first_name, c.last_name, c.email
+    $stmt = $pdo->prepare('
+        SELECT
+            o.*,
+            c.user_id AS customer_user_id,
+            c.first_name,
+            c.last_name,
+            c.email
         FROM orders o
-        JOIN customers c ON o.customer_id = c.customer_id
+        INNER JOIN customers c ON o.customer_id = c.customer_id
         WHERE o.order_number = ?
-    ");
+        LIMIT 1
+    ');
     $stmt->execute([$order_number]);
-    $order = $stmt->fetch();
-    
+    $order = $stmt->fetch(PDO::FETCH_ASSOC);
+
     if (!$order) {
-        header('Location: ../index.php');
+        header('Location: my-orders.php');
         exit;
     }
-    
-    // Get order items
-    $stmt = $pdo->prepare("
-        SELECT * FROM order_items WHERE order_id = ?
-    ");
-    $stmt->execute([$order['order_id']]);
-    $order_items = $stmt->fetchAll();
-    
+
+    if (!$is_management_user && (int)($order['customer_user_id'] ?? 0) !== $current_user_id) {
+        header('Location: my-orders.php');
+        exit;
+    }
+
+    $itemsStmt = $pdo->prepare('SELECT * FROM order_items WHERE order_id = ? ORDER BY order_item_id ASC');
+    $itemsStmt->execute([(int)$order['order_id']]);
+    $order_items = $itemsStmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
-    error_log("Error fetching order: " . $e->getMessage());
-    header('Location: ../index.php');
+    error_log('Order success page error: ' . $e->getMessage());
+    header('Location: my-orders.php');
     exit;
+}
+
+$delivery_method = strtolower(trim((string)($order['delivery_method'] ?? 'shipping')));
+$payment_method = strtolower(trim((string)($order['payment_method'] ?? 'cod')));
+$order_status_label = mincDescribeOrderStatus($order['order_status'] ?? '', $delivery_method);
+$payment_status_label = mincDescribePaymentStatus($order['payment_status'] ?? '', $payment_method, $order['payment_proof_path'] ?? '');
+$payment_method_labels = [
+    'cod' => 'Cash on Delivery',
+    'bank_transfer' => 'Bank Transfer',
+    'gcash' => 'GCash',
+    'paymaya' => 'PayMaya'
+];
+$payment_method_label = $payment_method_labels[$payment_method] ?? strtoupper($payment_method);
+$proof_url = !empty($order['payment_proof_path']) ? mincPublicAssetUrl($order['payment_proof_path']) : '';
+$receipt_url = !empty($order['receipt_path'])
+    ? (preg_match('/^(https?:)?\//i', (string)$order['receipt_path']) ? $order['receipt_path'] : mincPublicAssetUrl($order['receipt_path']))
+    : '';
+
+$next_step_message = 'Your order is now in the queue for processing.';
+if (mincPaymentMethodRequiresProof($payment_method)) {
+    $next_step_message = !empty($order['payment_proof_path'])
+        ? 'Your proof of payment is attached and waiting for admin review. The order will move to Received once staff confirms it.'
+        : 'Upload proof of payment so the admin account can review and confirm the order.';
+} elseif ($payment_method === 'cod') {
+    $next_step_message = $delivery_method === 'pickup'
+        ? 'Payment will be collected at the store before the order is marked Completed.'
+        : 'Payment will be collected by staff upon release or delivery before the order is marked Completed.';
 }
 ?>
 <!DOCTYPE html>
@@ -44,15 +79,12 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Order Confirmation - MinC Computer Parts</title>
+    <title>Order Submitted - MinC</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://kit.fontawesome.com/ca30ddfff9.js" crossorigin="anonymous"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
+        body { font-family: 'Inter', sans-serif; }
         .btn-primary-custom {
             background: linear-gradient(135deg, #08415c 0%, #0a5273 100%);
             transition: all 0.3s ease;
@@ -61,126 +93,156 @@ try {
             transform: translateY(-2px);
             box-shadow: 0 10px 25px rgba(8, 65, 92, 0.4);
         }
+        .hero-gradient {
+            background: linear-gradient(135deg, #08415c 0%, #0a5273 50%, #08415c 100%);
+        }
     </style>
 </head>
 <body class="bg-gray-50">
-    <!-- Navigation Component -->
     <?php include 'components/navbar.php'; ?>
 
-    <!-- Success Content -->
-    <div class="max-w-4xl mx-auto px-4 py-12">
-        <!-- Success Icon -->
-        <div class="text-center mb-8">
-            <div class="inline-flex items-center justify-center w-24 h-24 bg-green-100 rounded-full mb-4">
-                <i class="fas fa-check-circle text-5xl text-green-600"></i>
+    <section class="hero-gradient mt-20 py-12 px-4">
+        <div class="max-w-5xl mx-auto">
+            <div class="inline-flex items-center justify-center w-20 h-20 bg-white/10 rounded-full mb-5">
+                <i class="fas fa-check text-white text-4xl"></i>
             </div>
-            <h1 class="text-4xl font-bold text-gray-900 mb-2">Order Placed Successfully!</h1>
-            <p class="text-xl text-gray-600">Thank you for your purchase</p>
+            <h1 class="text-4xl md:text-5xl font-bold text-white mb-2">Order Submitted</h1>
+            <p class="text-blue-100 text-lg">Reference your order number and track the next steps from My Orders.</p>
         </div>
+    </section>
 
-        <!-- Order Details Card -->
-        <div class="bg-white rounded-xl shadow-lg p-8 mb-6">
-            <div class="border-b pb-6 mb-6">
-                <h2 class="text-2xl font-bold text-[#08415c] mb-4">Order Details</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <main class="max-w-5xl mx-auto px-4 py-10">
+        <div class="grid lg:grid-cols-[1.35fr,0.95fr] gap-6">
+            <section class="bg-white rounded-2xl shadow-lg p-6 md:p-8">
+                <div class="flex flex-wrap items-start justify-between gap-4 border-b border-gray-100 pb-6 mb-6">
                     <div>
-                        <p class="text-sm text-gray-600">Order Number</p>
-                        <p class="text-lg font-semibold text-gray-900"><?php echo htmlspecialchars($order['order_number']); ?></p>
+                        <p class="text-sm uppercase tracking-[0.22em] text-[#0a5273] font-semibold mb-2">Order Details</p>
+                        <h2 class="text-2xl font-bold text-[#08415c]"><?php echo htmlspecialchars($order['order_number']); ?></h2>
+                        <p class="text-sm text-gray-500 mt-1">Submitted on <?php echo date('F j, Y g:i A', strtotime((string)$order['created_at'])); ?></p>
                     </div>
-                    <div>
-                        <p class="text-sm text-gray-600">Order Date</p>
-                        <p class="text-lg font-semibold text-gray-900"><?php echo date('F j, Y', strtotime($order['created_at'])); ?></p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-600">Payment Method</p>
-                        <p class="text-lg font-semibold text-gray-900"><?php echo strtoupper($order['payment_method']); ?></p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-600">Total Amount</p>
-                        <p class="text-lg font-semibold text-[#08415c]">₱<?php echo number_format($order['total_amount'], 2); ?></p>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="px-3 py-1 rounded-full text-sm font-semibold bg-blue-50 text-blue-700 border border-blue-100"><?php echo htmlspecialchars($order_status_label); ?></span>
+                        <span class="px-3 py-1 rounded-full text-sm font-semibold bg-green-50 text-green-700 border border-green-100"><?php echo htmlspecialchars($payment_status_label); ?></span>
                     </div>
                 </div>
-            </div>
 
-            <!-- Customer Information -->
-            <div class="border-b pb-6 mb-6">
-                <h3 class="text-lg font-bold text-gray-900 mb-3">Customer Information</h3>
-                <p class="text-gray-700"><strong>Name:</strong> <?php echo htmlspecialchars($order['first_name'] . ' ' . $order['last_name']); ?></p>
-                <p class="text-gray-700"><strong>Email:</strong> <?php echo htmlspecialchars($order['email']); ?></p>
-                <p class="text-gray-700"><strong>Phone:</strong> <?php echo htmlspecialchars($order['customer_phone']); ?></p>
-            </div>
+                <div class="grid md:grid-cols-2 gap-4 text-sm mb-6">
+                    <div class="rounded-xl border border-gray-200 p-4">
+                        <p class="text-xs uppercase tracking-wide text-gray-500 mb-2">Customer</p>
+                        <p class="font-semibold text-gray-900"><?php echo htmlspecialchars(trim(($order['first_name'] ?? '') . ' ' . ($order['last_name'] ?? ''))); ?></p>
+                        <p class="text-gray-700 mt-1"><?php echo htmlspecialchars($order['email'] ?? ''); ?></p>
+                        <p class="text-gray-700"><?php echo htmlspecialchars($order['customer_phone'] ?? ''); ?></p>
+                    </div>
+                    <div class="rounded-xl border border-gray-200 p-4">
+                        <p class="text-xs uppercase tracking-wide text-gray-500 mb-2">Payment</p>
+                        <p class="font-semibold text-gray-900"><?php echo htmlspecialchars($payment_method_label); ?></p>
+                        <?php if (!empty($order['payment_reference'])): ?>
+                            <p class="text-gray-700 mt-1">Reference: <?php echo htmlspecialchars($order['payment_reference']); ?></p>
+                        <?php endif; ?>
+                        <p class="text-gray-700 mt-1">Status: <?php echo htmlspecialchars($payment_status_label); ?></p>
+                    </div>
+                </div>
 
-            <!-- Shipping Address -->
-            <div class="border-b pb-6 mb-6">
-                <h3 class="text-lg font-bold text-gray-900 mb-3">Shipping Address</h3>
-                <p class="text-gray-700"><?php echo htmlspecialchars($order['shipping_address']); ?></p>
-                <p class="text-gray-700"><?php echo htmlspecialchars($order['shipping_city'] . ', ' . $order['shipping_province']); ?></p>
-                <?php if ($order['shipping_postal_code']): ?>
-                <p class="text-gray-700"><?php echo htmlspecialchars($order['shipping_postal_code']); ?></p>
+                <div class="rounded-2xl border border-gray-200 p-5 mb-6 bg-slate-50">
+                    <h3 class="text-lg font-bold text-[#08415c] mb-3"><?php echo $delivery_method === 'pickup' ? 'Pickup Details' : 'Shipping Details'; ?></h3>
+                    <?php if ($delivery_method === 'pickup'): ?>
+                        <p class="text-gray-700"><strong>Pickup Location:</strong> MinC Auto Supply, 1144 Jake Gonzales Blvd, Angeles, Pampanga</p>
+                        <?php if (!empty($order['pickup_date'])): ?>
+                            <p class="text-gray-700 mt-1"><strong>Pickup Date:</strong> <?php echo htmlspecialchars($order['pickup_date']); ?></p>
+                        <?php endif; ?>
+                        <?php if (!empty($order['pickup_time'])): ?>
+                            <p class="text-gray-700 mt-1"><strong>Pickup Time:</strong> <?php echo htmlspecialchars($order['pickup_time']); ?></p>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <p class="text-gray-700"><?php echo htmlspecialchars($order['shipping_address'] ?? ''); ?></p>
+                        <p class="text-gray-700 mt-1"><?php echo htmlspecialchars(($order['shipping_city'] ?? '') . ', ' . ($order['shipping_province'] ?? '')); ?></p>
+                        <?php if (!empty($order['shipping_postal_code'])): ?>
+                            <p class="text-gray-700 mt-1"><?php echo htmlspecialchars($order['shipping_postal_code']); ?></p>
+                        <?php endif; ?>
+                        <p class="text-gray-700 mt-1"><strong>Shipping Fee:</strong> <?php echo ((float)($order['shipping_fee'] ?? 0) > 0) ? 'PHP ' . number_format((float)$order['shipping_fee'], 2) : 'FREE'; ?></p>
+                    <?php endif; ?>
+                </div>
+
+                <div>
+                    <h3 class="text-lg font-bold text-[#08415c] mb-4">Order Items</h3>
+                    <div class="space-y-3">
+                        <?php foreach ($order_items as $item): ?>
+                            <div class="flex justify-between items-center gap-4 py-3 border-b border-gray-100 last:border-b-0">
+                                <div>
+                                    <p class="font-semibold text-gray-900"><?php echo htmlspecialchars($item['product_name']); ?></p>
+                                    <p class="text-sm text-gray-500">Qty: <?php echo (int)$item['quantity']; ?> x PHP <?php echo number_format((float)$item['price'], 2); ?></p>
+                                </div>
+                                <p class="font-semibold text-[#08415c]">PHP <?php echo number_format((float)$item['subtotal'], 2); ?></p>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <div class="mt-6 space-y-2 text-sm">
+                        <div class="flex justify-between text-gray-700"><span>Subtotal</span><span>PHP <?php echo number_format((float)$order['subtotal'], 2); ?></span></div>
+                        <div class="flex justify-between text-gray-700"><span>Shipping</span><span><?php echo ((float)($order['shipping_fee'] ?? 0) > 0) ? 'PHP ' . number_format((float)$order['shipping_fee'], 2) : 'FREE'; ?></span></div>
+                        <div class="flex justify-between text-lg font-bold text-[#08415c] pt-3 border-t border-gray-200"><span>Total</span><span>PHP <?php echo number_format((float)$order['total_amount'], 2); ?></span></div>
+                    </div>
+                </div>
+            </section>
+
+            <aside class="space-y-6">
+                <section class="bg-white rounded-2xl shadow-lg p-6">
+                    <h3 class="text-lg font-bold text-[#08415c] mb-3">Next Step</h3>
+                    <p class="text-gray-700"><?php echo htmlspecialchars($next_step_message); ?></p>
+                    <p class="text-sm text-gray-500 mt-3">Email notifications will be sent to <?php echo htmlspecialchars($order['email'] ?? ''); ?> for confirmation, cancellation, and completion updates.</p>
+                </section>
+
+                <section class="bg-white rounded-2xl shadow-lg p-6">
+                    <h3 class="text-lg font-bold text-[#08415c] mb-4">Attached Documents</h3>
+                    <div class="space-y-3 text-sm">
+                        <?php if ($proof_url !== ''): ?>
+                            <a href="<?php echo htmlspecialchars($proof_url); ?>" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-blue-700 hover:bg-blue-100 transition">
+                                <span><i class="fas fa-file-upload mr-2"></i>Proof of Payment</span>
+                                <i class="fas fa-arrow-up-right-from-square"></i>
+                            </a>
+                        <?php elseif (mincPaymentMethodRequiresProof($payment_method)): ?>
+                            <div class="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-amber-700">
+                                <i class="fas fa-clock mr-2"></i>Awaiting proof upload or review.
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if ($receipt_url !== ''): ?>
+                            <a href="<?php echo htmlspecialchars($receipt_url); ?>" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-green-700 hover:bg-green-100 transition">
+                                <span><i class="fas fa-file-invoice mr-2"></i>Receipt</span>
+                                <i class="fas fa-arrow-up-right-from-square"></i>
+                            </a>
+                        <?php else: ?>
+                            <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-600">
+                                <i class="fas fa-receipt mr-2"></i>Receipt will attach after the order is completed.
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </section>
+
+                <?php if (!empty($order['cancel_reason'])): ?>
+                    <section class="bg-red-50 border border-red-200 rounded-2xl p-6">
+                        <h3 class="text-lg font-bold text-red-700 mb-2">Cancellation Reason</h3>
+                        <p class="text-red-800"><?php echo htmlspecialchars($order['cancel_reason']); ?></p>
+                    </section>
                 <?php endif; ?>
-            </div>
 
-            <!-- Order Items -->
-            <div>
-                <h3 class="text-lg font-bold text-gray-900 mb-4">Order Items</h3>
-                <div class="space-y-3">
-                    <?php foreach ($order_items as $item): ?>
-                    <div class="flex justify-between items-center py-3 border-b last:border-b-0">
-                        <div class="flex-1">
-                            <p class="font-semibold text-gray-900"><?php echo htmlspecialchars($item['product_name']); ?></p>
-                            <p class="text-sm text-gray-600">Qty: <?php echo $item['quantity']; ?> × ₱<?php echo number_format($item['price'], 2); ?></p>
-                        </div>
-                        <div class="text-right">
-                            <p class="font-semibold text-[#08415c]">₱<?php echo number_format($item['subtotal'], 2); ?></p>
-                        </div>
+                <section class="bg-white rounded-2xl shadow-lg p-6">
+                    <div class="grid gap-3">
+                        <a href="my-orders.php" class="btn-primary-custom text-white px-6 py-3 rounded-xl font-semibold text-center">
+                            <i class="fas fa-box mr-2"></i>View My Orders
+                        </a>
+                        <button onclick="window.print()" class="px-6 py-3 rounded-xl font-semibold border border-gray-200 text-gray-700 hover:bg-gray-50 transition">
+                            <i class="fas fa-print mr-2"></i>Print / Save as PDF
+                        </button>
+                        <a href="../index.php" class="px-6 py-3 rounded-xl font-semibold border border-gray-200 text-gray-700 hover:bg-gray-50 transition text-center">
+                            <i class="fas fa-home mr-2"></i>Back to Home
+                        </a>
                     </div>
-                    <?php endforeach; ?>
-                </div>
-                
-                <!-- Totals -->
-                <div class="mt-6 space-y-2">
-                    <div class="flex justify-between text-gray-700">
-                        <span>Subtotal:</span>
-                        <span class="font-semibold">₱<?php echo number_format($order['subtotal'], 2); ?></span>
-                    </div>
-                    <div class="flex justify-between text-gray-700">
-                        <span>Shipping:</span>
-                        <span class="font-semibold"><?php echo $order['shipping_fee'] > 0 ? '₱' . number_format($order['shipping_fee'], 2) : 'FREE'; ?></span>
-                    </div>
-                    <div class="flex justify-between text-xl font-bold text-[#08415c] pt-2 border-t">
-                        <span>Total:</span>
-                        <span>₱<?php echo number_format($order['total_amount'], 2); ?></span>
-                    </div>
-                </div>
-            </div>
+                </section>
+            </aside>
         </div>
+    </main>
 
-        <!-- Payment Instructions -->
-        <?php if ($order['payment_method'] !== 'cod'): ?>
-        <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-6">
-            <h3 class="text-lg font-bold text-gray-900 mb-3">
-                <i class="fas fa-info-circle text-yellow-600 mr-2"></i>
-                Payment Instructions
-            </h3>
-            <p class="text-gray-700 mb-2">Payment instructions have been sent to your email: <strong><?php echo htmlspecialchars($order['email']); ?></strong></p>
-            <p class="text-gray-600 text-sm">Please complete your payment within 24 hours to confirm your order.</p>
-        </div>
-        <?php endif; ?>
-
-        <!-- Action Buttons -->
-        <div class="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="../index.php" class="btn-primary-custom text-white px-8 py-3 rounded-lg font-semibold text-center">
-                <i class="fas fa-home mr-2"></i>
-                Back to Home
-            </a>
-            <button onclick="window.print()" class="bg-gray-100 text-gray-700 px-8 py-3 rounded-lg font-semibold hover:bg-gray-200 transition">
-                <i class="fas fa-print mr-2"></i>
-                Print Order
-            </button>
-        </div>
-    </div>
-
-    <!-- Footer Component -->
     <?php include 'components/footer.php'; ?>
 </body>
 </html>

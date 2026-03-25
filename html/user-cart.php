@@ -224,6 +224,7 @@ session_start();
 
 <script>
     // Global variables
+    const IS_LOGGED_IN = <?php echo isset($_SESSION['user_id']) ? 'true' : 'false'; ?>;
     let cartItems = [];
     let subtotal = 0;
     const SHIPPING_FEE = 150;
@@ -542,6 +543,17 @@ session_start();
                 return;
             }
 
+            if (!IS_LOGGED_IN) {
+                if (typeof window.setPostLoginRedirect === 'function') {
+                    window.setPostLoginRedirect('checkout.php');
+                }
+                openLoginModal();
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('Please sign in or register before ordering.', 'info');
+                }
+                return;
+            }
+
             window.location.href = 'checkout.php';
         } catch (error) {
             console.error('Checkout validation failed:', error);
@@ -580,6 +592,9 @@ session_start();
 
     // Modal functions
     function openLoginModal() {
+        if (typeof window.setPostLoginRedirect === 'function') {
+            window.setPostLoginRedirect('checkout.php');
+        }
         document.getElementById('loginModal').classList.remove('hidden');
     }
 
