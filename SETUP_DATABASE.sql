@@ -112,3 +112,21 @@ CREATE TABLE IF NOT EXISTS `product_reviews` (
     CONSTRAINT `fk_product_reviews_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`product_id`) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT `fk_product_reviews_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `product_review_reports` (
+    `report_id` BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `review_id` BIGINT(20) UNSIGNED NOT NULL,
+    `reporter_user_id` BIGINT(20) UNSIGNED NOT NULL,
+    `report_reason` VARCHAR(100) NOT NULL,
+    `report_details` VARCHAR(500) DEFAULT NULL,
+    `report_status` ENUM('open','reviewed','dismissed') NOT NULL DEFAULT 'open',
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`report_id`),
+    UNIQUE KEY `uk_product_review_reports_review_user` (`review_id`, `reporter_user_id`),
+    KEY `idx_product_review_reports_review` (`review_id`),
+    KEY `idx_product_review_reports_status` (`report_status`),
+    KEY `idx_product_review_reports_user` (`reporter_user_id`),
+    CONSTRAINT `fk_product_review_reports_review` FOREIGN KEY (`review_id`) REFERENCES `product_reviews` (`review_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `fk_product_review_reports_user` FOREIGN KEY (`reporter_user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

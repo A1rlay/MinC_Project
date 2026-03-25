@@ -28,7 +28,8 @@ try {
     }
 
     $currentUserId = (int)($_SESSION['user_id'] ?? 0);
-    $payload = getProductReviewsPayload($pdo, $productId, $currentUserId);
+    $canManageAllReviews = in_array((int)($_SESSION['user_level_id'] ?? 0), [1, 2], true);
+    $payload = getProductReviewsPayload($pdo, $productId, $currentUserId, $canManageAllReviews);
 
     echo json_encode([
         'success' => true,
@@ -37,6 +38,7 @@ try {
         'reviews' => $payload['reviews'],
         'current_user_review' => $payload['current_user_review'],
         'is_logged_in' => $payload['is_logged_in'],
+        'can_manage_all_reviews' => $payload['can_manage_all_reviews'],
     ]);
 } catch (Exception $e) {
     http_response_code(400);

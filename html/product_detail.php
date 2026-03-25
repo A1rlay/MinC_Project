@@ -296,6 +296,7 @@ session_start();
     let currentProduct = null;
     let quantity = 1;
     let productReviewsState = null;
+    let activeReviewEditId = null;
 
     // Cart initialization
     function initializeCart() {
@@ -791,6 +792,64 @@ session_start();
         counter.className = `text-xs mt-2 ${length > 500 ? 'text-red-500 font-semibold' : 'text-gray-500'}`;
     }
 
+    function getReviewStateById(reviewId) {
+        if (!productReviewsState || !Array.isArray(productReviewsState.reviews)) {
+            return null;
+        }
+
+        const normalizedReviewId = Number(reviewId || 0);
+        return productReviewsState.reviews.find((review) => Number(review.review_id || 0) === normalizedReviewId) || null;
+    }
+
+    function scrollToReviewComposer() {
+        const form = document.getElementById('product-review-form');
+        if (!form) {
+            return;
+        }
+
+        form.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+        });
+    }
+
+    function startReviewEdit(reviewId) {
+        const review = getReviewStateById(reviewId);
+        if (!review || !review.can_edit) {
+            return;
+        }
+
+        activeReviewEditId = review.is_current_user_review ? null : review.review_id;
+        renderReviewSection(productReviewsState);
+        scrollToReviewComposer();
+    }
+
+    function cancelReviewEdit() {
+        activeReviewEditId = null;
+        renderReviewSection(productReviewsState);
+    }
+
+    async function confirmReviewAction(message, title) {
+        if (typeof showConfirmModal === 'function') {
+            return await showConfirmModal(message, title);
+        }
+
+        if (typeof Swal !== 'undefined') {
+            const result = await Swal.fire({
+                title: title || 'Please Confirm',
+                text: message,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#08415c',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes'
+            });
+            return !!result.isConfirmed;
+        }
+
+        return window.confirm(message);
+    }
+
     async function submitProductReview(event) {
         event.preventDefault();
 
@@ -799,8 +858,10 @@ session_start();
         }
 
         const ratingInput = document.getElementById('review_rating');
+        const reviewIdInput = document.getElementById('review_id');
         const reviewTitleInput = document.getElementById('review_title');
         const reviewTextInput = document.getElementById('review_text');
+        const reviewId = Number(reviewIdInput ? reviewIdInput.value : 0);
         const rating = Number(ratingInput ? ratingInput.value : 0);
         const reviewTitle = reviewTitleInput ? reviewTitleInput.value.trim() : '';
         const reviewText = reviewTextInput ? reviewTextInput.value.trim() : '';
@@ -833,6 +894,7 @@ session_start();
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
+                    review_id: reviewId,
                     product_id: currentProduct.product_id,
                     rating,
                     review_title: reviewTitle,
@@ -857,8 +919,10 @@ session_start();
                 summary: data.summary,
                 reviews: data.reviews,
                 current_user_review: data.current_user_review,
-                is_logged_in: true
+                is_logged_in: data.is_logged_in,
+                can_manage_all_reviews: data.can_manage_all_reviews
             };
+            activeReviewEditId = null;
 
             renderReviewSection(productReviewsState);
 
@@ -878,6 +942,163 @@ session_start();
                 submitButton.disabled = false;
                 submitButton.classList.remove('opacity-70', 'cursor-not-allowed');
             }
+        }
+    }
+
+    async function deleteProductReview(reviewId) {
+        const review = getReviewStateById(reviewId);
+        if (!review || !review.can_delete) {
+            return;
+        }
+
+        const isConfirmed = await confirmReviewAction(
+            'Are you sure you want to delete this review? This action cannot be undone.',
+            'Delete Review'
+        );
+
+        if (!isConfirmed) {
+            return;
+        }
+
+        try {
+            const response = await fetch('../backend/product-reviews/delete_product_review.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    review_id: review.review_id
+                })
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Failed to delete review.');
+            }
+
+            if (Number(activeReviewEditId || 0) === Number(review.review_id || 0)) {
+                activeReviewEditId = null;
+            }
+
+            productReviewsState = {
+                summary: data.summary,
+                reviews: data.reviews,
+                current_user_review: data.current_user_review,
+                is_logged_in: data.is_logged_in,
+                can_manage_all_reviews: data.can_manage_all_reviews
+            };
+
+            renderReviewSection(productReviewsState);
+
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast(data.message || 'Review deleted successfully.', 'success');
+            } else {
+                showAlertModal(data.message || 'Review deleted successfully.', 'success', 'Review Deleted');
+            }
+        } catch (error) {
+            showAlertModal(error.message || 'Failed to delete review.', 'error', 'Delete Review Error');
+        }
+    }
+
+    async function reportProductReview(reviewId) {
+        const review = getReviewStateById(reviewId);
+        if (!review || !review.can_report || review.is_reported_by_current_user) {
+            return;
+        }
+
+        let reportPayload = null;
+
+        if (typeof Swal !== 'undefined') {
+            const result = await Swal.fire({
+                title: 'Report Review',
+                html: `
+                    <div class="text-left space-y-4">
+                        <div>
+                            <label for="reviewReportReason" class="block text-sm font-semibold text-gray-700 mb-2">Reason</label>
+                            <select id="reviewReportReason" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#08415c]">
+                                <option value="">Select a reason</option>
+                                <option value="spam">Spam</option>
+                                <option value="abuse">Abuse or harassment</option>
+                                <option value="false_information">False information</option>
+                                <option value="off_topic">Off-topic</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="reviewReportDetails" class="block text-sm font-semibold text-gray-700 mb-2">Details (optional)</label>
+                            <textarea id="reviewReportDetails" maxlength="500" rows="4" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#08415c] resize-y" placeholder="Briefly explain why you are reporting this review."></textarea>
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Submit Report',
+                confirmButtonColor: '#08415c',
+                focusConfirm: false,
+                preConfirm: () => {
+                    const reason = document.getElementById('reviewReportReason').value;
+                    const details = document.getElementById('reviewReportDetails').value.trim();
+
+                    if (!reason) {
+                        Swal.showValidationMessage('Please select a report reason.');
+                        return false;
+                    }
+
+                    if (details.length > 500) {
+                        Swal.showValidationMessage('Report details must be 500 characters or fewer.');
+                        return false;
+                    }
+
+                    return { reason, details };
+                }
+            });
+
+            if (!result.isConfirmed || !result.value) {
+                return;
+            }
+
+            reportPayload = {
+                report_reason: result.value.reason,
+                report_details: result.value.details
+            };
+        } else {
+            const reason = window.prompt('Enter a report reason: spam, abuse, false_information, off_topic, or other', 'spam');
+            if (!reason) {
+                return;
+            }
+
+            reportPayload = {
+                report_reason: reason.trim(),
+                report_details: ''
+            };
+        }
+
+        try {
+            const response = await fetch('../backend/product-reviews/report_product_review.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    review_id: review.review_id,
+                    report_reason: reportPayload.report_reason,
+                    report_details: reportPayload.report_details
+                })
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Failed to report review.');
+            }
+
+            await loadProductReviews(currentProduct.product_id);
+
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast(data.message || 'Review reported successfully.', 'success');
+            } else {
+                showAlertModal(data.message || 'Review reported successfully.', 'success', 'Report Submitted');
+            }
+        } catch (error) {
+            showAlertModal(error.message || 'Failed to report review.', 'error', 'Report Review Error');
         }
     }
 
@@ -924,8 +1145,31 @@ session_start();
         const reviews = payload && Array.isArray(payload.reviews) ? payload.reviews : [];
         const currentUserReview = payload && payload.current_user_review ? payload.current_user_review : null;
         const isLoggedIn = !!(payload && payload.is_logged_in);
+        const canManageAllReviews = !!(payload && payload.can_manage_all_reviews);
         const reviewCount = Number(summary.review_count || 0);
         const averageRating = Number(summary.average_rating || 0);
+
+        let editableReview = currentUserReview;
+        if (activeReviewEditId) {
+            const selectedReview = reviews.find((review) => Number(review.review_id || 0) === Number(activeReviewEditId));
+            if (selectedReview && selectedReview.can_edit) {
+                editableReview = selectedReview;
+            } else {
+                activeReviewEditId = null;
+            }
+        }
+
+        const isEditingSelectedReview = !!(activeReviewEditId && editableReview);
+        const reviewFormTitle = editableReview
+            ? (editableReview.is_current_user_review
+                ? 'Update your review'
+                : `Edit review by ${escapeHtml(editableReview.reviewer_name)}`)
+            : 'Write a review';
+        const reviewFormDescription = editableReview
+            ? (editableReview.is_current_user_review
+                ? 'Update your feedback for this product.'
+                : 'You are editing this review as an admin.')
+            : 'Tell other drivers how this product performed for you.';
 
         updateProductRatingSummary(summary);
 
@@ -949,13 +1193,16 @@ session_start();
                 <div class="review-card rounded-[24px] p-6 shadow-sm">
                     <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
                         <div>
-                            <h3 class="text-2xl font-bold text-[#08415c]">${currentUserReview ? 'Update your review' : 'Write a review'}</h3>
-                            <p class="text-sm text-gray-500">Tell other drivers how this product performed for you.</p>
+                            <h3 class="text-2xl font-bold text-[#08415c]">${reviewFormTitle}</h3>
+                            <p class="text-sm text-gray-500">${reviewFormDescription}</p>
                         </div>
-                        ${currentUserReview ? '<span class="review-pill px-3 py-2 rounded-full text-xs font-semibold">Editing existing review</span>' : ''}
+                        ${editableReview
+                            ? `<span class="review-pill px-3 py-2 rounded-full text-xs font-semibold">${editableReview.is_current_user_review ? 'Editing your review' : 'Admin edit mode'}</span>`
+                            : ''}
                     </div>
 
                     <form id="product-review-form" onsubmit="submitProductReview(event)" class="space-y-5">
+                        <input type="hidden" id="review_id" value="${editableReview ? Number(editableReview.review_id || 0) : 0}">
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-3">Overall rating</label>
                             <div class="flex flex-wrap gap-2">
@@ -971,7 +1218,7 @@ session_start();
                                     </button>
                                 `).join('')}
                             </div>
-                            <input type="hidden" id="review_rating" value="${currentUserReview ? Number(currentUserReview.rating || 0) : 0}">
+                            <input type="hidden" id="review_rating" value="${editableReview ? Number(editableReview.rating || 0) : 0}">
                         </div>
 
                         <div>
@@ -980,7 +1227,7 @@ session_start();
                                 type="text"
                                 id="review_title"
                                 maxlength="255"
-                                value="${escapeHtml(currentUserReview && currentUserReview.review_title ? currentUserReview.review_title : '')}"
+                                value="${escapeHtml(editableReview && editableReview.review_title ? editableReview.review_title : '')}"
                                 placeholder="Example: Great fit and solid finish"
                                 class="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#08415c]"
                             >
@@ -995,7 +1242,7 @@ session_start();
                                 oninput="updateReviewTextCounter(this.value)"
                                 placeholder="Share what you liked, how it fit, quality, durability, and anything another buyer should know."
                                 class="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#08415c] resize-y"
-                            >${escapeHtml(currentUserReview && currentUserReview.review_text ? currentUserReview.review_text : '')}</textarea>
+                            >${escapeHtml(editableReview && editableReview.review_text ? editableReview.review_text : '')}</textarea>
                             <div class="flex items-center justify-between gap-3">
                                 <p class="text-xs text-gray-500 mt-2">Minimum 20 characters. Maximum 500. One review per product per account.</p>
                                 <p id="review_text_counter" class="text-xs text-gray-500 mt-2">0/500 characters</p>
@@ -1008,9 +1255,18 @@ session_start();
                                 id="review_submit_button"
                                 class="btn-primary-custom text-white px-6 py-3 rounded-2xl font-semibold"
                             >
-                                ${currentUserReview ? 'Update Review' : 'Submit Review'}
+                                ${editableReview ? 'Save Changes' : 'Submit Review'}
                             </button>
-                            <span class="text-sm text-gray-500">Your rating contributes to the product score shown across the catalog.</span>
+                            ${isEditingSelectedReview ? `
+                                <button
+                                    type="button"
+                                    onclick="cancelReviewEdit()"
+                                    class="bg-gray-100 text-[#08415c] px-6 py-3 rounded-2xl font-semibold hover:bg-gray-200 transition"
+                                >
+                                    Cancel
+                                </button>
+                            ` : ''}
+                            <span class="text-sm text-gray-500">${editableReview && !editableReview.is_current_user_review ? 'Admin changes apply directly to this review.' : 'Your rating contributes to the product score shown across the catalog.'}</span>
                         </div>
                     </form>
                 </div>
@@ -1037,6 +1293,7 @@ session_start();
                                 <h4 class="text-lg font-bold text-gray-900">${escapeHtml(review.reviewer_name)}</h4>
                                 ${review.is_current_user_review ? '<span class="review-pill px-3 py-1 rounded-full text-xs font-semibold">Your review</span>' : ''}
                                 ${review.is_verified_purchase ? '<span class="bg-green-50 text-green-700 border border-green-200 px-3 py-1 rounded-full text-xs font-semibold">Verified Purchase</span>' : ''}
+                                ${canManageAllReviews && Number(review.report_count || 0) > 0 ? `<span class="bg-red-50 text-red-700 border border-red-200 px-3 py-1 rounded-full text-xs font-semibold">${Number(review.report_count || 0)} report${Number(review.report_count || 0) === 1 ? '' : 's'}</span>` : ''}
                             </div>
                             <div class="flex flex-wrap items-center gap-3 mb-3">
                                 <div class="flex items-center gap-0.5 text-amber-400">
@@ -1046,6 +1303,38 @@ session_start();
                             </div>
                             ${review.review_title ? `<h5 class="text-lg font-semibold text-[#08415c] mb-2">${escapeHtml(review.review_title)}</h5>` : ''}
                             <p class="text-gray-700 leading-7 whitespace-pre-line">${escapeHtml(review.review_text)}</p>
+                            ${(review.can_edit || review.can_delete || review.can_report) ? `
+                                <div class="flex flex-wrap items-center gap-3 mt-5 pt-4 border-t border-gray-100">
+                                    ${review.can_edit ? `
+                                        <button
+                                            type="button"
+                                            onclick="startReviewEdit(${Number(review.review_id || 0)})"
+                                            class="text-sm font-semibold text-[#08415c] hover:text-[#0a5273] transition"
+                                        >
+                                            <i class="fas fa-pen mr-2"></i>Edit
+                                        </button>
+                                    ` : ''}
+                                    ${review.can_delete ? `
+                                        <button
+                                            type="button"
+                                            onclick="deleteProductReview(${Number(review.review_id || 0)})"
+                                            class="text-sm font-semibold text-red-600 hover:text-red-700 transition"
+                                        >
+                                            <i class="fas fa-trash-alt mr-2"></i>Delete
+                                        </button>
+                                    ` : ''}
+                                    ${review.can_report ? `
+                                        <button
+                                            type="button"
+                                            onclick="reportProductReview(${Number(review.review_id || 0)})"
+                                            class="text-sm font-semibold ${review.is_reported_by_current_user ? 'text-gray-400 cursor-not-allowed' : 'text-amber-600 hover:text-amber-700'} transition"
+                                            ${review.is_reported_by_current_user ? 'disabled' : ''}
+                                        >
+                                            <i class="fas fa-flag mr-2"></i>${review.is_reported_by_current_user ? 'Reported' : 'Report'}
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            ` : ''}
                         </div>
                     </div>
                 </article>
@@ -1094,8 +1383,8 @@ session_start();
             </div>
         `;
 
-        updateReviewStarSelection(currentUserReview ? Number(currentUserReview.rating || 0) : 0);
-        updateReviewTextCounter(currentUserReview && currentUserReview.review_text ? currentUserReview.review_text : '');
+        updateReviewStarSelection(editableReview ? Number(editableReview.rating || 0) : 0);
+        updateReviewTextCounter(editableReview && editableReview.review_text ? editableReview.review_text : '');
     }
 
     // Update breadcrumb

@@ -66,6 +66,77 @@ function ensureProductReviewsTable(PDO $pdo, bool $throwOnFailure = true): bool
     }
 }
 
+function productReviewReportsTableExists(PDO $pdo, ?bool $setValue = null): bool
+{
+    static $tableExists = null;
+
+    if ($setValue !== null) {
+        $tableExists = $setValue;
+        return $tableExists;
+    }
+
+    if ($tableExists !== null) {
+        return $tableExists;
+    }
+
+    try {
+        $stmt = $pdo->query("SHOW TABLES LIKE 'product_review_reports'");
+        $tableExists = (bool)$stmt->fetchColumn();
+    } catch (Throwable $e) {
+        $tableExists = false;
+    }
+
+    return $tableExists;
+}
+
+function ensureProductReviewReportsTable(PDO $pdo, bool $throwOnFailure = true): bool
+{
+    if (productReviewReportsTableExists($pdo)) {
+        return true;
+    }
+
+    if (!ensureProductReviewsTable($pdo, $throwOnFailure)) {
+        return false;
+    }
+
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS product_review_reports (
+                report_id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+                review_id BIGINT(20) UNSIGNED NOT NULL,
+                reporter_user_id BIGINT(20) UNSIGNED NOT NULL,
+                report_reason VARCHAR(100) NOT NULL,
+                report_details VARCHAR(500) DEFAULT NULL,
+                report_status ENUM('open', 'reviewed', 'dismissed') NOT NULL DEFAULT 'open',
+                created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (report_id),
+                UNIQUE KEY uk_product_review_reports_review_user (review_id, reporter_user_id),
+                KEY idx_product_review_reports_review (review_id),
+                KEY idx_product_review_reports_status (report_status),
+                KEY idx_product_review_reports_user (reporter_user_id),
+                CONSTRAINT fk_product_review_reports_review
+                    FOREIGN KEY (review_id) REFERENCES product_reviews(review_id)
+                    ON DELETE CASCADE ON UPDATE CASCADE,
+                CONSTRAINT fk_product_review_reports_user
+                    FOREIGN KEY (reporter_user_id) REFERENCES users(user_id)
+                    ON DELETE CASCADE ON UPDATE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        ");
+
+        productReviewReportsTableExists($pdo, true);
+        return true;
+    } catch (Throwable $e) {
+        productReviewReportsTableExists($pdo, false);
+
+        if ($throwOnFailure) {
+            throw $e;
+        }
+
+        return false;
+    }
+}
+
 function getDefaultProductReviewSummary(int $productId = 0): array
 {
     return [
@@ -198,7 +269,68 @@ function hasVerifiedPurchaseForProduct(PDO $pdo, int $userId, int $productId, st
     return (bool)$stmt->fetchColumn();
 }
 
-function getProductReviewsPayload(PDO $pdo, int $productId, int $currentUserId = 0): array
+function getProductReviewReportCounts(PDO $pdo, array $reviewIds): array
+{
+    $reviewIds = array_values(array_unique(array_map('intval', $reviewIds)));
+    $reviewIds = array_values(array_filter($reviewIds, static function ($value) {
+        return $value > 0;
+    }));
+
+    $reportCountMap = [];
+    foreach ($reviewIds as $reviewId) {
+        $reportCountMap[$reviewId] = 0;
+    }
+
+    if (empty($reviewIds) || !ensureProductReviewReportsTable($pdo, false)) {
+        return $reportCountMap;
+    }
+
+    $placeholders = implode(',', array_fill(0, count($reviewIds), '?'));
+    $stmt = $pdo->prepare("
+        SELECT review_id, COUNT(*) AS report_count
+        FROM product_review_reports
+        WHERE review_id IN ($placeholders)
+          AND report_status = 'open'
+        GROUP BY review_id
+    ");
+    $stmt->execute($reviewIds);
+
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $reportCountMap[(int)$row['review_id']] = (int)($row['report_count'] ?? 0);
+    }
+
+    return $reportCountMap;
+}
+
+function getReportedReviewIdsByUser(PDO $pdo, array $reviewIds, int $currentUserId): array
+{
+    if ($currentUserId <= 0) {
+        return [];
+    }
+
+    $reviewIds = array_values(array_unique(array_map('intval', $reviewIds)));
+    $reviewIds = array_values(array_filter($reviewIds, static function ($value) {
+        return $value > 0;
+    }));
+
+    if (empty($reviewIds) || !ensureProductReviewReportsTable($pdo, false)) {
+        return [];
+    }
+
+    $placeholders = implode(',', array_fill(0, count($reviewIds), '?'));
+    $params = array_merge([$currentUserId], $reviewIds);
+    $stmt = $pdo->prepare("
+        SELECT review_id
+        FROM product_review_reports
+        WHERE reporter_user_id = ?
+          AND review_id IN ($placeholders)
+    ");
+    $stmt->execute($params);
+
+    return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+}
+
+function getProductReviewsPayload(PDO $pdo, int $productId, int $currentUserId = 0, bool $canManageAllReviews = false): array
 {
     if (!ensureProductReviewsTable($pdo, false)) {
         return [
@@ -206,6 +338,7 @@ function getProductReviewsPayload(PDO $pdo, int $productId, int $currentUserId =
             'reviews' => [],
             'current_user_review' => null,
             'is_logged_in' => $currentUserId > 0,
+            'can_manage_all_reviews' => $canManageAllReviews,
         ];
     }
 
@@ -255,6 +388,13 @@ function getProductReviewsPayload(PDO $pdo, int $productId, int $currentUserId =
     ]);
     $reviews = $reviewsStmt->fetchAll(PDO::FETCH_ASSOC);
 
+    $reviewIds = array_map(static function ($review) {
+        return (int)($review['review_id'] ?? 0);
+    }, $reviews);
+    $reportCountMap = getProductReviewReportCounts($pdo, $reviewIds);
+    $reportedReviewIds = getReportedReviewIdsByUser($pdo, $reviewIds, $currentUserId);
+    $reportedReviewLookup = array_fill_keys($reportedReviewIds, true);
+
     $currentUserReview = null;
     foreach ($reviews as &$review) {
         $review['review_id'] = (int)$review['review_id'];
@@ -263,6 +403,13 @@ function getProductReviewsPayload(PDO $pdo, int $productId, int $currentUserId =
         $review['rating'] = (int)$review['rating'];
         $review['is_verified_purchase'] = (bool)$review['is_verified_purchase'];
         $review['is_current_user_review'] = (bool)$review['is_current_user_review'];
+        $review['report_count'] = (int)($reportCountMap[$review['review_id']] ?? 0);
+        $review['is_reported_by_current_user'] = isset($reportedReviewLookup[$review['review_id']]);
+        $review['can_edit'] = $review['is_current_user_review'] || $canManageAllReviews;
+        $review['can_delete'] = $review['is_current_user_review'] || $canManageAllReviews;
+        $review['can_report'] = $currentUserId > 0
+            && !$review['is_current_user_review']
+            && !$canManageAllReviews;
 
         if ($review['is_current_user_review']) {
             $currentUserReview = $review;
@@ -275,5 +422,6 @@ function getProductReviewsPayload(PDO $pdo, int $productId, int $currentUserId =
         'reviews' => $reviews,
         'current_user_review' => $currentUserReview,
         'is_logged_in' => $currentUserId > 0,
+        'can_manage_all_reviews' => $canManageAllReviews,
     ];
 }
