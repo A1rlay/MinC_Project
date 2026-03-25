@@ -290,6 +290,17 @@ INSERT INTO `product_line_presets` (`preset_id`, `category_id`, `preset_name`, `
 (11, 3, 'Switches & Relays', 3, 'active', '2025-11-29 04:12:11', '2025-11-29 04:12:11'),
 (12, 4, 'Back & Head Lights', 1, 'active', '2025-11-29 04:12:11', '2025-11-29 04:12:11');
 
+CREATE TABLE `product_reviews` (
+  `review_id` bigint(20) UNSIGNED NOT NULL,
+  `product_id` int(11) NOT NULL,
+  `user_id` bigint(20) UNSIGNED NOT NULL,
+  `rating` tinyint(1) UNSIGNED NOT NULL,
+  `review_title` varchar(255) DEFAULT NULL,
+  `review_text` text NOT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE `users` (
   `user_id` bigint(20) UNSIGNED NOT NULL,
   `fname` varchar(255) NOT NULL,
@@ -440,6 +451,12 @@ ALTER TABLE `product_line_presets`
   ADD UNIQUE KEY `uk_product_line_presets_category_name` (`category_id`,`preset_name`),
   ADD KEY `idx_product_line_presets_category_status` (`category_id`,`status`);
 
+ALTER TABLE `product_reviews`
+  ADD PRIMARY KEY (`review_id`),
+  ADD UNIQUE KEY `uk_product_reviews_product_user` (`product_id`,`user_id`),
+  ADD KEY `idx_product_reviews_product_created` (`product_id`,`created_at`),
+  ADD KEY `idx_product_reviews_user` (`user_id`);
+
 ALTER TABLE `users`
   ADD PRIMARY KEY (`user_id`),
   ADD UNIQUE KEY `users_email_unique` (`email`),
@@ -480,6 +497,9 @@ ALTER TABLE `product_lines`
 ALTER TABLE `product_line_presets`
   MODIFY `preset_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
+ALTER TABLE `product_reviews`
+  MODIFY `review_id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
 ALTER TABLE `users`
   MODIFY `user_id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
@@ -515,6 +535,10 @@ ALTER TABLE `product_lines`
 
 ALTER TABLE `product_line_presets`
   ADD CONSTRAINT `product_line_presets_category_id_foreign` FOREIGN KEY (`category_id`) REFERENCES `categories` (`category_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE `product_reviews`
+  ADD CONSTRAINT `fk_product_reviews_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`product_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_product_reviews_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 ALTER TABLE `users`
   ADD CONSTRAINT `users_user_level_id_foreign` FOREIGN KEY (`user_level_id`) REFERENCES `user_levels` (`user_level_id`) ON DELETE CASCADE ON UPDATE CASCADE;

@@ -1,5 +1,6 @@
 <?php
 require_once '../database/connect_database.php';
+require_once __DIR__ . '/product-reviews/review_helpers.php';
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
@@ -94,6 +95,21 @@ try {
     $stmt = $pdo->prepare($productsQuery);
     $stmt->execute($params);
     $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $ratingSummaryMap = getProductReviewSummaryMap(
+        $pdo,
+        array_map(static function ($product) {
+            return (int)($product['product_id'] ?? 0);
+        }, $products)
+    );
+
+    foreach ($products as &$product) {
+        $productId = (int)($product['product_id'] ?? 0);
+        $summary = $ratingSummaryMap[$productId] ?? getDefaultProductReviewSummary($productId);
+        $product['average_rating'] = (float)$summary['average_rating'];
+        $product['review_count'] = (int)$summary['review_count'];
+    }
+    unset($product);
 
     echo json_encode([
         'success' => true,

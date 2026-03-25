@@ -94,3 +94,21 @@ CREATE TABLE IF NOT EXISTS `suppliers` (
     KEY `idx_supplier_status` (`status`),
     KEY `idx_supplier_city` (`city`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 10. Product reviews and ratings
+CREATE TABLE IF NOT EXISTS `product_reviews` (
+    `review_id` BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `product_id` INT(11) NOT NULL,
+    `user_id` BIGINT(20) UNSIGNED NOT NULL,
+    `rating` TINYINT(1) UNSIGNED NOT NULL,
+    `review_title` VARCHAR(255) DEFAULT NULL,
+    `review_text` TEXT NOT NULL,
+    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`review_id`),
+    UNIQUE KEY `uk_product_reviews_product_user` (`product_id`, `user_id`),
+    KEY `idx_product_reviews_product_created` (`product_id`, `created_at`),
+    KEY `idx_product_reviews_user` (`user_id`),
+    CONSTRAINT `fk_product_reviews_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`product_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `fk_product_reviews_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

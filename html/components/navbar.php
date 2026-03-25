@@ -547,7 +547,46 @@ $html_path = $is_in_html ? '' : 'html/';
         }
     }
 
+    function sanitizePostLoginRedirect(url) {
+        try {
+            const targetUrl = new URL(url || window.location.href, window.location.href);
+            return targetUrl.origin === window.location.origin ? targetUrl.href : '';
+        } catch (error) {
+            return '';
+        }
+    }
+
+    function setPostLoginRedirect(url) {
+        const safeUrl = sanitizePostLoginRedirect(url);
+        if (!safeUrl) {
+            return;
+        }
+
+        try {
+            window.sessionStorage.setItem('post_login_redirect', safeUrl);
+        } catch (error) {
+            // Ignore storage failures and fall back to backend redirect.
+        }
+    }
+
+    function getPostLoginRedirect() {
+        try {
+            return sanitizePostLoginRedirect(window.sessionStorage.getItem('post_login_redirect'));
+        } catch (error) {
+            return '';
+        }
+    }
+
+    function clearPostLoginRedirect() {
+        try {
+            window.sessionStorage.removeItem('post_login_redirect');
+        } catch (error) {
+            // Ignore storage failures.
+        }
+    }
+
     function openLoginModal() {
+        setPostLoginRedirect(window.location.href);
         const modal = document.getElementById('loginModal');
         if (modal) modal.classList.remove('hidden');
         showLogin();
@@ -665,7 +704,9 @@ $html_path = $is_in_html ? '' : 'html/';
             
             if (data.success) {
                 closeLoginModal();
-                window.location.href = data.redirect || (BASE_PATH + 'index.php');
+                const redirectTarget = getPostLoginRedirect() || data.redirect || (BASE_PATH + 'index.php');
+                clearPostLoginRedirect();
+                window.location.href = redirectTarget;
             } else {
                 showAlertModal('Login failed: ' + data.message, 'error', 'Login Failed');
             }
@@ -931,6 +972,7 @@ $html_path = $is_in_html ? '' : 'html/';
     window.globalHandleLogout = handleLogout;
     window.globalHandleRegister = handleRegister;
     window.globalHandleLogin = handleLogin;
+    window.setPostLoginRedirect = setPostLoginRedirect;
 
     // Check session when navbar loads
     document.addEventListener('DOMContentLoaded', checkNavbarSession);

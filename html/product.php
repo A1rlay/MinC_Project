@@ -325,6 +325,46 @@ function initializeCart() {
             });
         }
 
+        function renderStarIcons(rating, sizeClass = 'text-sm') {
+            const safeRating = Math.max(0, Math.min(5, Number(rating) || 0));
+            let markup = '';
+
+            for (let star = 1; star <= 5; star++) {
+                if (safeRating >= star) {
+                    markup += `<i class="fas fa-star ${sizeClass}"></i>`;
+                } else if (safeRating >= (star - 0.5)) {
+                    markup += `<i class="fas fa-star-half-alt ${sizeClass}"></i>`;
+                } else {
+                    markup += `<i class="far fa-star ${sizeClass} text-amber-300"></i>`;
+                }
+            }
+
+            return markup;
+        }
+
+        function renderProductRating(product) {
+            const reviewCount = Number(product.review_count || 0);
+            const averageRating = Number(product.average_rating || 0);
+
+            if (reviewCount <= 0) {
+                return `
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-sm font-medium text-gray-400">No reviews yet</span>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="text-sm font-semibold text-[#08415c]">${averageRating.toFixed(1)}</span>
+                    <div class="flex items-center gap-0.5 text-amber-400">
+                        ${renderStarIcons(averageRating)}
+                    </div>
+                    <span class="text-sm text-gray-500">(${reviewCount.toLocaleString()})</span>
+                </div>
+            `;
+        }
+
         // Escape HTML to prevent XSS
         function escapeHtml(text) {
             if (!text) return '';
@@ -571,11 +611,12 @@ function initializeCart() {
                                     ${escapeHtml(product.product_line_name)}
                                 </div>
                             </div>
-                            <div class="p-6">
-                                <h3 class="text-xl font-bold text-[#08415c] mb-2">${escapeHtml(product.product_name)}</h3>
-                                <p class="text-gray-600 text-sm mb-4 line-clamp-2">${escapeHtml(product.product_description || 'High-quality auto part for optimal performance')}</p>
-                                <div class="flex justify-between items-center">
-                                    <span class="text-2xl font-bold text-[#08415c]">${formatPeso(product.price)}</span>
+                             <div class="p-6">
+                                 <h3 class="text-xl font-bold text-[#08415c] mb-2">${escapeHtml(product.product_name)}</h3>
+                                 ${renderProductRating(product)}
+                                 <p class="text-gray-600 text-sm mb-4 line-clamp-2">${escapeHtml(product.product_description || 'High-quality auto part for optimal performance')}</p>
+                                 <div class="flex justify-between items-center">
+                                     <span class="text-2xl font-bold text-[#08415c]">${formatPeso(product.price)}</span>
                                     <button onclick="event.stopPropagation(); addToCart(${product.product_id}, '${escapeHtml(product.product_name).replace(/'/g, "\\'")}', ${product.price})" 
                                             class="btn-primary-custom text-white px-4 py-2 rounded-lg font-semibold">
                                         <i class="fas fa-shopping-cart mr-2"></i>Add
@@ -726,6 +767,9 @@ function updateCartCount(count) {
 
     // Modal functions
     function openLoginModal() {
+        if (typeof window.setPostLoginRedirect === 'function') {
+            window.setPostLoginRedirect(window.location.href);
+        }
         document.getElementById('loginModal').classList.remove('hidden');
     }
 
