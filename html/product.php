@@ -649,7 +649,7 @@ async function addToCart(productId, productName, price) {
 
         if (data.success) {
             updateCartCount(data.cart_count);
-            showNotification(`${productName} added to cart!`);
+            showNotification(`${productName} added to cart!`, 'user-cart.php');
         } else {
             Swal.fire({
                 icon: 'error',
@@ -675,9 +675,12 @@ function updateCartCount(count) {
 }
 
         // Show notification
-        function showNotification(message) {
+        function showNotification(message, href = '') {
             if (typeof window.showAppToast === 'function') {
-                window.showAppToast(message, 'success');
+                window.showAppToast(message, 'success', {
+                    href,
+                    timer: 4200
+                });
                 return;
             }
 
@@ -686,8 +689,9 @@ function updateCartCount(count) {
                 title: message,
                 toast: true,
                 position: 'top',
+                href,
                 showConfirmButton: false,
-                timer: 3200,
+                timer: 4200,
                 timerProgressBar: true
             });
         }

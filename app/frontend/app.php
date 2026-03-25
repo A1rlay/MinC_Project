@@ -692,6 +692,44 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
             toastEl.style.pointerEvents = 'auto';
         }
 
+        function attachToastNavigation(toastEl, options = {}) {
+            if (!toastEl) return;
+
+            const href = typeof options.href === 'string' ? options.href.trim() : '';
+            const onClick = typeof options.onClick === 'function' ? options.onClick : null;
+
+            if (!href && !onClick) {
+                toastEl.style.cursor = '';
+                toastEl.removeAttribute('role');
+                toastEl.removeAttribute('tabindex');
+                return;
+            }
+
+            const activateToast = (event) => {
+                if (event && event.target && typeof event.target.closest === 'function' && event.target.closest('.swal2-close')) {
+                    return;
+                }
+
+                if (onClick) {
+                    onClick(event);
+                    return;
+                }
+
+                window.location.assign(href);
+            };
+
+            toastEl.style.cursor = 'pointer';
+            toastEl.setAttribute('role', 'button');
+            toastEl.setAttribute('tabindex', '0');
+            toastEl.addEventListener('click', activateToast);
+            toastEl.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    activateToast(event);
+                }
+            });
+        }
+
         function showAppToast(message, icon = 'info', options = {}) {
             if (typeof Swal === 'undefined') {
                 alert(String(message ?? ''));
@@ -722,6 +760,7 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
                     enforceCenteredToastLayout(toast);
                     toast.addEventListener('mouseenter', Swal.stopTimer);
                     toast.addEventListener('mouseleave', Swal.resumeTimer);
+                    attachToastNavigation(toast, options);
                     if (typeof originalDidOpen === 'function') {
                         originalDidOpen(toast);
                     }
@@ -761,6 +800,7 @@ if ($user['is_logged_in'] && isset($user['user_id'])) {
                             enforceCenteredToastLayout(toast);
                             toast.addEventListener('mouseenter', Swal.stopTimer);
                             toast.addEventListener('mouseleave', Swal.resumeTimer);
+                            attachToastNavigation(toast, input);
                             if (typeof originalDidOpen === 'function') {
                                 originalDidOpen(toast);
                             }

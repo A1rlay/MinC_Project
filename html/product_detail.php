@@ -590,15 +590,19 @@ session_start();
                 if (!suppressSuccessToast) {
                     const toastMessage = `${quantity} x ${currentProduct.product_name} added to cart!`;
                     if (typeof window.showAppToast === 'function') {
-                        window.showAppToast(toastMessage, 'success');
+                        window.showAppToast(toastMessage, 'success', {
+                            href: 'user-cart.php',
+                            timer: 4200
+                        });
                     } else {
                         Swal.fire({
                             icon: 'success',
                             title: toastMessage,
                             toast: true,
                             position: 'top',
+                            href: 'user-cart.php',
                             showConfirmButton: false,
-                            timer: 3200,
+                            timer: 4200,
                             timerProgressBar: true
                         });
                     }
