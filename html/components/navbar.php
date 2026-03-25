@@ -120,7 +120,24 @@ $html_path = $is_in_html ? '' : 'html/';
                     <div class="mb-6">
                         <label class="block text-gray-700 font-medium mb-2">Default Shipping Address</label>
                         <textarea id="registerAddress" required rows="3" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]" placeholder="House/Unit No., Street, Barangay, Angeles City, Pampanga"></textarea>
-                        <p class="mt-2 text-xs text-gray-500">Write the full delivery address in one field. We will detect the barangay, city, and province from this address automatically.</p>
+                        <p class="mt-2 text-xs text-gray-500">Type your address or use the location fields below. Selecting a location updates the address automatically.</p>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-2">Barangay</label>
+                            <input type="text" id="registerBarangay" list="registerBarangayOptions" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]" placeholder="Select or type barangay">
+                            <datalist id="registerBarangayOptions"></datalist>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-2">City</label>
+                            <input type="text" id="registerCity" list="registerCityOptions" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]" placeholder="Angeles City">
+                            <datalist id="registerCityOptions"></datalist>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-2">Province</label>
+                            <input type="text" id="registerProvince" list="registerProvinceOptions" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]" placeholder="Pampanga">
+                            <datalist id="registerProvinceOptions"></datalist>
+                        </div>
                     </div>
                     <button type="submit" class="w-full btn-primary-custom text-white py-3 rounded-lg font-semibold">
                         Continue
@@ -342,7 +359,125 @@ $html_path = $is_in_html ? '' : 'html/';
         };
     }
 
+    function stripShippingLocation(address, options = {}) {
+        const removableTokens = new Set(
+            [
+                MINC_DEFAULT_CITY,
+                MINC_DEFAULT_PROVINCE,
+                options.city || '',
+                options.province || '',
+                options.lastCity || '',
+                options.lastProvince || ''
+            ]
+                .map((value) => normalizeShippingToken(value))
+                .filter(Boolean)
+        );
+
+        return String(address || '')
+            .split(',')
+            .map((segment) => segment.trim())
+            .filter((segment) => {
+                if (!segment) return false;
+
+                const normalizedSegment = normalizeShippingToken(segment);
+                if (!normalizedSegment) return false;
+                if (removableTokens.has(normalizedSegment)) return false;
+
+                return !MINC_ALLOWED_BARANGAYS.some((candidate) => normalizedSegment === normalizeShippingToken(candidate));
+            })
+            .join(', ');
+    }
+
+    function composeShippingAddress(address, options = {}) {
+        const streetAddress = stripShippingLocation(address, options);
+        const parts = [
+            streetAddress,
+            String(options.barangay || '').trim(),
+            String(options.city || MINC_DEFAULT_CITY).trim(),
+            String(options.province || MINC_DEFAULT_PROVINCE).trim()
+        ].filter(Boolean);
+
+        return parts.join(', ');
+    }
+
+    function populateDatalistOptions(datalistElement, values) {
+        if (!datalistElement) return;
+        datalistElement.innerHTML = values.map((value) => `<option value="${String(value).replace(/"/g, '&quot;')}"></option>`).join('');
+    }
+
+    function initializeShippingControls(config = {}) {
+        const addressInput = document.getElementById(config.addressId || '');
+        const barangayInput = document.getElementById(config.barangayId || '');
+        const cityInput = document.getElementById(config.cityId || '');
+        const provinceInput = document.getElementById(config.provinceId || '');
+
+        if (!addressInput || !barangayInput || !cityInput || !provinceInput) {
+            return null;
+        }
+
+        populateDatalistOptions(document.getElementById(config.barangayListId || ''), MINC_ALLOWED_BARANGAYS);
+        populateDatalistOptions(document.getElementById(config.cityListId || ''), [MINC_DEFAULT_CITY]);
+        populateDatalistOptions(document.getElementById(config.provinceListId || ''), [MINC_DEFAULT_PROVINCE]);
+
+        const syncFromAddress = () => {
+            const parsedAddress = parseShippingAddress(
+                addressInput.value,
+                cityInput.value.trim() || MINC_DEFAULT_CITY,
+                provinceInput.value.trim() || MINC_DEFAULT_PROVINCE
+            );
+            const syncedCity = addressInput.value.trim() ? (parsedAddress.city || cityInput.value.trim() || MINC_DEFAULT_CITY) : '';
+            const syncedProvince = addressInput.value.trim() ? (parsedAddress.province || provinceInput.value.trim() || MINC_DEFAULT_PROVINCE) : '';
+
+            barangayInput.value = parsedAddress.barangay || '';
+            cityInput.value = syncedCity;
+            provinceInput.value = syncedProvince;
+            addressInput.dataset.mincCity = syncedCity;
+            addressInput.dataset.mincProvince = syncedProvince;
+
+            if (typeof config.onSync === 'function') {
+                config.onSync(parsedAddress);
+            }
+
+            return parsedAddress;
+        };
+
+        const applySelectionsToAddress = () => {
+            addressInput.value = composeShippingAddress(addressInput.value, {
+                barangay: barangayInput.value,
+                city: cityInput.value || MINC_DEFAULT_CITY,
+                province: provinceInput.value || MINC_DEFAULT_PROVINCE,
+                lastCity: addressInput.dataset.mincCity || '',
+                lastProvince: addressInput.dataset.mincProvince || ''
+            });
+
+            return syncFromAddress();
+        };
+
+        if (!cityInput.value.trim()) {
+            cityInput.value = MINC_DEFAULT_CITY;
+        }
+        if (!provinceInput.value.trim()) {
+            provinceInput.value = MINC_DEFAULT_PROVINCE;
+        }
+
+        addressInput.addEventListener('input', syncFromAddress);
+        ['change', 'blur'].forEach((eventName) => {
+            barangayInput.addEventListener(eventName, applySelectionsToAddress);
+            cityInput.addEventListener(eventName, applySelectionsToAddress);
+            provinceInput.addEventListener(eventName, applySelectionsToAddress);
+        });
+
+        syncFromAddress();
+
+        return {
+            syncFromAddress,
+            applySelectionsToAddress
+        };
+    }
+
     window.mincParseShippingAddress = parseShippingAddress;
+    window.mincComposeShippingAddress = composeShippingAddress;
+    window.mincInitializeShippingControls = initializeShippingControls;
     window.MINC_ALLOWED_BARANGAYS = MINC_ALLOWED_BARANGAYS.slice();
 
     function resolveToastVariant(icon) {
@@ -660,6 +795,7 @@ $html_path = $is_in_html ? '' : 'html/';
     }
 
     let pendingRegistrationEmail = '';
+    let registerShippingControls = null;
 
     function closeLoginModal() {
         const modal = document.getElementById('loginModal');
@@ -741,6 +877,9 @@ $html_path = $is_in_html ? '' : 'html/';
             'registerEmail',
             'registerContact',
             'registerAddress',
+            'registerBarangay',
+            'registerCity',
+            'registerProvince',
             'registerPostalCode'
         ];
 
@@ -754,6 +893,10 @@ $html_path = $is_in_html ? '' : 'html/';
             const field = document.getElementById(id);
             if (field) field.disabled = false;
         });
+
+        if (registerShippingControls && typeof registerShippingControls.syncFromAddress === 'function') {
+            registerShippingControls.syncFromAddress();
+        }
     }
 
     async function handleLogin(e) {
@@ -870,6 +1013,18 @@ $html_path = $is_in_html ? '' : 'html/';
             showAlertModal('An error occurred during registration', 'error', 'Registration Error');
         }
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        registerShippingControls = window.mincInitializeShippingControls({
+            addressId: 'registerAddress',
+            barangayId: 'registerBarangay',
+            cityId: 'registerCity',
+            provinceId: 'registerProvince',
+            barangayListId: 'registerBarangayOptions',
+            cityListId: 'registerCityOptions',
+            provinceListId: 'registerProvinceOptions'
+        });
+    });
 
     async function handleForgotPassword(e) {
         e.preventDefault();

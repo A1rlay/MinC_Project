@@ -453,21 +453,30 @@ if (is_array($saved_shipping_info)) {
                                               minlength="10" maxlength="255"
                                               placeholder="House/Unit No., Street, Barangay, Angeles City, Pampanga"
                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]"></textarea>
-                                    <p class="mt-2 text-xs text-gray-500">Write the full delivery address in one field. Include your Angeles City barangay so shipping coverage can be validated automatically.</p>
+                                    <p class="mt-2 text-xs text-gray-500">Write the full delivery address in one field, or use the location fields below. Any location changes update the address automatically.</p>
                                 </div>
 
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Detected Barangay</p>
-                                        <p id="shippingPreviewBarangay" class="mt-1 text-sm font-semibold text-gray-800">Add your barangay to the address</p>
+                                    <div>
+                                        <label class="block text-gray-700 font-medium mb-2">Barangay</label>
+                                        <input type="text" id="shippingBarangay" list="shippingBarangayOptions"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]"
+                                               placeholder="Select or type barangay">
+                                        <datalist id="shippingBarangayOptions"></datalist>
                                     </div>
-                                    <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">City</p>
-                                        <p id="shippingPreviewCity" class="mt-1 text-sm font-semibold text-gray-800">Angeles City</p>
+                                    <div>
+                                        <label class="block text-gray-700 font-medium mb-2">City</label>
+                                        <input type="text" id="shippingCity" list="shippingCityOptions"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]"
+                                               placeholder="Angeles City">
+                                        <datalist id="shippingCityOptions"></datalist>
                                     </div>
-                                    <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Province</p>
-                                        <p id="shippingPreviewProvince" class="mt-1 text-sm font-semibold text-gray-800">Pampanga</p>
+                                    <div>
+                                        <label class="block text-gray-700 font-medium mb-2">Province</label>
+                                        <input type="text" id="shippingProvince" list="shippingProvinceOptions"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]"
+                                               placeholder="Pampanga">
+                                        <datalist id="shippingProvinceOptions"></datalist>
                                     </div>
                                 </div>
 
@@ -714,6 +723,7 @@ if (is_array($saved_shipping_info)) {
             notesMax: 500
         };
         let currentStep = 1;
+        let checkoutShippingControls = null;
 
         // Format currency
         function formatPeso(amount) {
@@ -819,16 +829,19 @@ if (is_array($saved_shipping_info)) {
         function getShippingDataFromForm() {
             const parseAddress = getShippingParser();
             const rawAddress = document.getElementById('address').value.trim();
+            const selectedBarangay = document.getElementById('shippingBarangay').value.trim();
+            const selectedCity = document.getElementById('shippingCity').value.trim() || 'Angeles City';
+            const selectedProvince = document.getElementById('shippingProvince').value.trim() || 'Pampanga';
             const parsedAddress = parseAddress
-                ? parseAddress(rawAddress)
-                : { address: rawAddress, barangay: '', city: 'Angeles City', province: 'Pampanga', hasValidBarangay: false };
+                ? parseAddress(rawAddress, selectedCity, selectedProvince)
+                : { address: rawAddress, barangay: selectedBarangay, city: selectedCity, province: selectedProvince, hasValidBarangay: Boolean(selectedBarangay) };
 
             return {
                 address: parsedAddress.address || rawAddress,
-                barangay: parsedAddress.barangay || '',
-                city: parsedAddress.city || 'Angeles City',
-                province: parsedAddress.province || 'Pampanga',
-                hasValidBarangay: Boolean(parsedAddress.hasValidBarangay),
+                barangay: parsedAddress.barangay || selectedBarangay,
+                city: parsedAddress.city || selectedCity,
+                province: parsedAddress.province || selectedProvince,
+                hasValidBarangay: Boolean(parsedAddress.hasValidBarangay || selectedBarangay),
                 postal_code: document.getElementById('postalCode').value.trim()
             };
         }
@@ -847,23 +860,6 @@ if (is_array($saved_shipping_info)) {
             return getShippingDataFromForm();
         }
 
-        function updateShippingAddressPreview() {
-            const shippingData = getShippingDataFromForm();
-            const previewBarangay = document.getElementById('shippingPreviewBarangay');
-            const previewCity = document.getElementById('shippingPreviewCity');
-            const previewProvince = document.getElementById('shippingPreviewProvince');
-
-            if (previewBarangay) {
-                previewBarangay.textContent = shippingData.barangay || 'Add your barangay to the address';
-            }
-            if (previewCity) {
-                previewCity.textContent = shippingData.city || 'Angeles City';
-            }
-            if (previewProvince) {
-                previewProvince.textContent = shippingData.province || 'Pampanga';
-            }
-        }
-
         function applyShippingInfoMode() {
             const manualFields = document.getElementById('manualShippingFields');
             const savedCard = document.getElementById('savedAddressCard');
@@ -876,8 +872,8 @@ if (is_array($saved_shipping_info)) {
                 savedCard.classList.toggle('hidden', !useSaved);
             }
 
-            if (!useSaved) {
-                updateShippingAddressPreview();
+            if (!useSaved && checkoutShippingControls && typeof checkoutShippingControls.syncFromAddress === 'function') {
+                checkoutShippingControls.syncFromAddress();
             }
         }
 
@@ -1184,7 +1180,9 @@ if (is_array($saved_shipping_info)) {
                 shippingFields.classList.remove('hidden');
                 pickupFields.classList.add('hidden');
                 applyShippingInfoMode();
-                updateShippingAddressPreview();
+                if (checkoutShippingControls && typeof checkoutShippingControls.syncFromAddress === 'function') {
+                    checkoutShippingControls.syncFromAddress();
+                }
                 // Clear pickup validation
                 document.getElementById('pickupDate').value = '';
                 document.getElementById('pickupTime').value = '';
@@ -1679,18 +1677,30 @@ if (is_array($saved_shipping_info)) {
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
+            checkoutShippingControls = typeof window.mincInitializeShippingControls === 'function'
+                ? window.mincInitializeShippingControls({
+                    addressId: 'address',
+                    barangayId: 'shippingBarangay',
+                    cityId: 'shippingCity',
+                    provinceId: 'shippingProvince',
+                    barangayListId: 'shippingBarangayOptions',
+                    cityListId: 'shippingCityOptions',
+                    provinceListId: 'shippingProvinceOptions'
+                })
+                : null;
             if (hasSavedShippingData()) {
                 document.getElementById('address').value = SAVED_SHIPPING.address || '';
                 document.getElementById('postalCode').value = SAVED_SHIPPING.postal_code || '';
+                if (checkoutShippingControls && typeof checkoutShippingControls.syncFromAddress === 'function') {
+                    checkoutShippingControls.syncFromAddress();
+                }
             }
-            document.getElementById('address').addEventListener('input', updateShippingAddressPreview);
             document.querySelectorAll('input[name="paymentMethod"]').forEach((input) => {
                 input.addEventListener('change', updatePaymentGuidance);
             });
             initializeShippingAddressChooser();
             loadCart();
             updatePaymentGuidance();
-            updateShippingAddressPreview();
             applyGuestCheckoutRestrictions();
         });
 </script>

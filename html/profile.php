@@ -201,7 +201,7 @@ if (!isset($_SESSION['user_id'])) {
                     <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
                         <i class="fas fa-truck-fast text-[#08415c] mr-2"></i>Default Shipping Address
                     </h3>
-                    <p class="text-sm text-gray-600 mb-4">This saved delivery info is required and reused in checkout. Enter the complete address in one field and we will detect the delivery area automatically.</p>
+                    <p class="text-sm text-gray-600 mb-4">This saved delivery info is required and reused in checkout. Type the full address or update the location fields below, and the address will stay in sync automatically.</p>
                     <div class="mb-4">
                         <label for="address" class="block text-sm font-semibold text-gray-700 mb-2">Complete Address *</label>
                         <textarea id="address" name="address" rows="3" required
@@ -210,18 +210,27 @@ if (!isset($_SESSION['user_id'])) {
                                    placeholder="House/Unit No., Street, Barangay, Angeles City, Pampanga"></textarea>
                         <p class="text-xs text-gray-500 mt-2">Example: Blk 10 Lot 4, Balibago, Angeles City, Pampanga</p>
                     </div>
-                    <div id="shippingAddressPreview" class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Detected Barangay</p>
-                            <p id="shippingPreviewBarangay" class="mt-1 text-sm font-semibold text-gray-800">Add your barangay to the address</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label for="shipping_barangay" class="block text-sm font-semibold text-gray-700 mb-2">Barangay</label>
+                            <input type="text" id="shipping_barangay" list="shipping_barangay_options"
+                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition"
+                                   placeholder="Select or type barangay">
+                            <datalist id="shipping_barangay_options"></datalist>
                         </div>
-                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">City</p>
-                            <p id="shippingPreviewCity" class="mt-1 text-sm font-semibold text-gray-800">Angeles City</p>
+                        <div>
+                            <label for="shipping_city" class="block text-sm font-semibold text-gray-700 mb-2">City</label>
+                            <input type="text" id="shipping_city" list="shipping_city_options"
+                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition"
+                                   placeholder="Angeles City">
+                            <datalist id="shipping_city_options"></datalist>
                         </div>
-                        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Province</p>
-                            <p id="shippingPreviewProvince" class="mt-1 text-sm font-semibold text-gray-800">Pampanga</p>
+                        <div>
+                            <label for="shipping_province" class="block text-sm font-semibold text-gray-700 mb-2">Province</label>
+                            <input type="text" id="shipping_province" list="shipping_province_options"
+                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition"
+                                   placeholder="Pampanga">
+                            <datalist id="shipping_province_options"></datalist>
                         </div>
                     </div>
                     <div class="mt-4">
@@ -339,9 +348,21 @@ if (!isset($_SESSION['user_id'])) {
             address: { min: 10, max: 255 },
             postalCode: { max: 4 }
         };
+        let profileShippingControls = null;
         
         // Load profile data on page load
         document.addEventListener('DOMContentLoaded', function() {
+            profileShippingControls = typeof window.mincInitializeShippingControls === 'function'
+                ? window.mincInitializeShippingControls({
+                    addressId: 'address',
+                    barangayId: 'shipping_barangay',
+                    cityId: 'shipping_city',
+                    provinceId: 'shipping_province',
+                    barangayListId: 'shipping_barangay_options',
+                    cityListId: 'shipping_city_options',
+                    provinceListId: 'shipping_province_options'
+                })
+                : null;
             loadProfile();
             document.getElementById('profileForm').addEventListener('submit', handleProfileUpdate);
             document.getElementById('profilePictureInput').addEventListener('change', handleProfilePictureUpload);
@@ -350,7 +371,6 @@ if (!isset($_SESSION['user_id'])) {
             document.getElementById('deactivateAccountBtn').addEventListener('click', handleDeactivateAccount);
             document.getElementById('fname').addEventListener('blur', function() { capitalizeNameInput(this); });
             document.getElementById('lname').addEventListener('blur', function() { capitalizeNameInput(this); });
-            document.getElementById('address').addEventListener('input', updateShippingAddressPreview);
         });
 
         function toTitleCaseName(value) {
@@ -377,24 +397,6 @@ if (!isset($_SESSION['user_id'])) {
             if (!/^\d{4}$/.test(value)) return false;
             const numeric = Number(value);
             return numeric >= 2000 && numeric <= 2100;
-        }
-
-        function updateShippingAddressPreview() {
-            const previewBarangay = document.getElementById('shippingPreviewBarangay');
-            const previewCity = document.getElementById('shippingPreviewCity');
-            const previewProvince = document.getElementById('shippingPreviewProvince');
-            const parseAddress = typeof window.mincParseShippingAddress === 'function'
-                ? window.mincParseShippingAddress
-                : null;
-
-            if (!previewBarangay || !previewCity || !previewProvince || !parseAddress) {
-                return;
-            }
-
-            const shippingLocation = parseAddress(document.getElementById('address').value);
-            previewBarangay.textContent = shippingLocation.barangay || 'Add your barangay to the address';
-            previewCity.textContent = shippingLocation.city || 'Angeles City';
-            previewProvince.textContent = shippingLocation.province || 'Pampanga';
         }
 
         function toggleFieldVisibility(inputId, buttonEl) {
@@ -456,7 +458,9 @@ if (!isset($_SESSION['user_id'])) {
                         document.getElementById('contact_num').value = user.contact_num || '';
                         document.getElementById('address').value = user.address || '';
                         document.getElementById('postal_code').value = user.postal_code || '';
-                        updateShippingAddressPreview();
+                        if (profileShippingControls && typeof profileShippingControls.syncFromAddress === 'function') {
+                            profileShippingControls.syncFromAddress();
+                        }
 
                         if (user.profile_picture_url) {
                             document.getElementById('profilePictureDisplay').src = user.profile_picture_url;
