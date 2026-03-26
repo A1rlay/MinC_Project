@@ -32,7 +32,52 @@ $custom_title = 'Dashboard - MinC Project';
 $current_page = 'dashboard';
 
 // === DASHBOARD STATISTICS ===
-$dashboardCacheKey = 'dashboard_metrics_v3';
+$currentSalesMonth = new DateTimeImmutable('first day of this month');
+$requestedSalesMonth = trim((string)($_GET['sales_month'] ?? $currentSalesMonth->format('Y-m')));
+$selectedSalesMonth = DateTimeImmutable::createFromFormat('!Y-m', $requestedSalesMonth);
+
+if (!$selectedSalesMonth || $selectedSalesMonth->format('Y-m') !== $requestedSalesMonth || $selectedSalesMonth > $currentSalesMonth) {
+    $selectedSalesMonth = $currentSalesMonth;
+}
+
+$selectedSalesMonthKey = $selectedSalesMonth->format('Y-m');
+$selectedSalesMonthLabel = $selectedSalesMonth->format('F Y');
+$selectedSalesMonthStart = $selectedSalesMonth->format('Y-m-01');
+$selectedSalesMonthEndExclusive = $selectedSalesMonth->modify('+1 month')->format('Y-m-01');
+$selectedSalesMonthVisibleEnd = $selectedSalesMonthKey === $currentSalesMonth->format('Y-m')
+    ? date('Y-m-d')
+    : $selectedSalesMonth->format('Y-m-t');
+$selectedSalesMonthVisibleEndDate = new DateTimeImmutable($selectedSalesMonthVisibleEnd);
+$selectedSalesMonthSubtext = $selectedSalesMonthKey === $currentSalesMonth->format('Y-m')
+    ? 'Showing daily sales from ' . $selectedSalesMonth->format('F j') . ' to ' . $selectedSalesMonthVisibleEndDate->format('F j, Y')
+    : 'Showing daily sales for the full month of ' . $selectedSalesMonthLabel;
+
+$buildDashboardUrl = static function (array $overrides = []): string {
+    $query = $_GET;
+    unset($query['refresh']);
+
+    foreach ($overrides as $key => $value) {
+        if ($value === null || $value === '') {
+            unset($query[$key]);
+            continue;
+        }
+
+        $query[$key] = $value;
+    }
+
+    $queryString = http_build_query($query);
+    return $queryString === '' ? 'dashboard.php' : 'dashboard.php?' . $queryString;
+};
+
+$previousSalesMonthUrl = $buildDashboardUrl([
+    'sales_month' => $selectedSalesMonth->modify('-1 month')->format('Y-m')
+]);
+$nextSalesMonth = $selectedSalesMonth->modify('+1 month');
+$canViewNextSalesMonth = $nextSalesMonth <= $currentSalesMonth;
+$nextSalesMonthUrl = $canViewNextSalesMonth
+    ? $buildDashboardUrl(['sales_month' => $nextSalesMonth->format('Y-m')])
+    : null;
+$dashboardCacheKey = 'dashboard_metrics_v4_' . $selectedSalesMonthKey;
 $dashboardCacheTtl = 45; // seconds
 $dashboardDateLabel = date('F j, Y');
 $forceRefresh = isset($_GET['refresh']) && $_GET['refresh'] === '1';
@@ -48,7 +93,7 @@ if ($canUseCache) {
     $pending_orders = (int)($cachedDashboard['pending_orders'] ?? 0);
     $low_stock = (int)($cachedDashboard['low_stock'] ?? 0);
     $total_revenue = (float)($cachedDashboard['total_revenue'] ?? 0);
-    $daily_sales_trend = $cachedDashboard['daily_sales_trend'] ?? [];
+    $sales_trend_series = $cachedDashboard['sales_trend_series'] ?? [];
     $recent_orders = $cachedDashboard['recent_orders'] ?? [];
     $status_distribution = $cachedDashboard['status_distribution'] ?? [];
 } else {
@@ -80,18 +125,24 @@ try {
     // Low stock products (< 10 units)
     $low_stock = $pdo->query("SELECT COUNT(*) FROM products WHERE stock_quantity < 10 AND status = 'active'")->fetchColumn();
 
-    // Daily Sales Trend (Last 7 Days, zero-filled)
-    $dailySalesRaw = $pdo->query("
+    // Monthly Sales Trend (Selected Month, zero-filled by day)
+    $salesTrendStatement = $pdo->prepare("
         SELECT
             DATE(created_at) AS sale_date,
             COALESCE(SUM(total_amount), 0) AS revenue,
             COUNT(*) AS orders_count
         FROM orders
-        WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+        WHERE created_at >= :sales_month_start
+          AND created_at < :sales_month_end_exclusive
           AND order_status IN ('confirmed','processing','shipped','delivered')
         GROUP BY DATE(created_at)
         ORDER BY sale_date ASC
-    ")->fetchAll(PDO::FETCH_ASSOC);
+    ");
+    $salesTrendStatement->execute([
+        ':sales_month_start' => $selectedSalesMonthStart,
+        ':sales_month_end_exclusive' => $selectedSalesMonthEndExclusive
+    ]);
+    $dailySalesRaw = $salesTrendStatement->fetchAll(PDO::FETCH_ASSOC);
 
     $dailySalesIndex = [];
     foreach ($dailySalesRaw as $row) {
@@ -101,14 +152,15 @@ try {
         ];
     }
 
-    $daily_sales_trend = [];
-    for ($offset = 6; $offset >= 0; $offset--) {
-        $dateKey = date('Y-m-d', strtotime("-{$offset} days"));
+    $sales_trend_series = [];
+    for ($cursor = $selectedSalesMonth; $cursor <= $selectedSalesMonthVisibleEndDate; $cursor = $cursor->modify('+1 day')) {
+        $dateKey = $cursor->format('Y-m-d');
         $row = $dailySalesIndex[$dateKey] ?? ['revenue' => 0.0, 'orders_count' => 0];
-        $daily_sales_trend[] = [
+        $sales_trend_series[] = [
             'date' => $dateKey,
-            'day_name' => date('D', strtotime($dateKey)),
-            'display_label' => date('M j', strtotime($dateKey)),
+            'day_name' => $cursor->format('D'),
+            'display_label' => $cursor->format('M j'),
+            'day_number' => (int)$cursor->format('j'),
             'revenue' => (float)$row['revenue'],
             'orders_count' => (int)$row['orders_count']
         ];
@@ -149,7 +201,7 @@ try {
         'pending_orders' => $pending_orders,
         'low_stock' => $low_stock,
         'total_revenue' => $total_revenue,
-        'daily_sales_trend' => $daily_sales_trend,
+        'sales_trend_series' => $sales_trend_series,
         'recent_orders' => $recent_orders,
         'status_distribution' => $status_distribution
     ];
@@ -158,13 +210,13 @@ try {
     // Fallback values if queries fail
     $today_sales = $today_orders = $pending_orders = $low_stock = 0;
     $total_revenue = 0;
-    $daily_sales_trend = $recent_orders = $status_distribution = [];
+    $sales_trend_series = $recent_orders = $status_distribution = [];
     error_log("Dashboard query error: " . $e->getMessage());
 }
 }
 
 // Encode for Chart.js
-$daily_sales_trend_json = json_encode($daily_sales_trend);
+$sales_trend_series_json = json_encode($sales_trend_series);
 $status_distribution_json = json_encode($status_distribution);
 
 // Custom styles (retained + auto-parts themed - matching home page)
@@ -237,6 +289,24 @@ $additional_styles = '
         border: 1px solid rgba(8, 65, 92, 0.1);
         border-radius: 12px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    }
+
+    .month-nav-btn {
+        border: 1px solid rgba(8, 65, 92, 0.14);
+        background: #ffffff;
+        color: var(--primary-color);
+        transition: all 0.2s ease;
+    }
+
+    .month-nav-btn:hover {
+        background: rgba(8, 65, 92, 0.06);
+        border-color: rgba(8, 65, 92, 0.24);
+    }
+
+    .month-nav-btn[aria-disabled="true"] {
+        opacity: 0.45;
+        cursor: not-allowed;
+        pointer-events: none;
     }
     
     .professional-card {
@@ -359,7 +429,47 @@ ob_start();
 <!-- Charts Section -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
     <div class="chart-card p-6">
-        <h3 class="text-lg font-semibold text-[#08415c] mb-4 section-title">Sales Trend (Last 7 Days)</h3>
+        <div class="flex flex-col gap-4 mb-4 xl:flex-row xl:items-start xl:justify-between">
+            <div>
+                <h3 class="text-lg font-semibold text-[#08415c] section-title">Sales Trend By Month</h3>
+                <p class="text-sm text-gray-600 mt-1"><?= htmlspecialchars($selectedSalesMonthSubtext) ?></p>
+            </div>
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                <a href="<?= htmlspecialchars($previousSalesMonthUrl) ?>" class="month-nav-btn inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium">
+                    <i class="fas fa-chevron-left text-xs"></i>
+                    Previous
+                </a>
+                <form method="GET" action="dashboard.php" class="flex items-center gap-2">
+                    <?php foreach ($_GET as $queryKey => $queryValue): ?>
+                        <?php if ($queryKey === 'sales_month' || $queryKey === 'refresh'): ?>
+                            <?php continue; ?>
+                        <?php endif; ?>
+                        <input type="hidden" name="<?= htmlspecialchars((string)$queryKey) ?>" value="<?= htmlspecialchars((string)$queryValue) ?>">
+                    <?php endforeach; ?>
+                    <input
+                        type="month"
+                        name="sales_month"
+                        value="<?= htmlspecialchars($selectedSalesMonthKey) ?>"
+                        max="<?= htmlspecialchars($currentSalesMonth->format('Y-m')) ?>"
+                        class="rounded-lg border border-gray-300 px-3 py-2 text-sm text-[#08415c] focus:border-[#08415c] focus:outline-none focus:ring-2 focus:ring-[#08415c]/20"
+                    >
+                    <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-[#08415c] px-4 py-2 text-sm font-medium text-white hover:bg-[#0a5273] transition">
+                        View
+                    </button>
+                </form>
+                <?php if ($nextSalesMonthUrl): ?>
+                    <a href="<?= htmlspecialchars($nextSalesMonthUrl) ?>" class="month-nav-btn inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium">
+                        Next
+                        <i class="fas fa-chevron-right text-xs"></i>
+                    </a>
+                <?php else: ?>
+                    <span class="month-nav-btn inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium" aria-disabled="true">
+                        Next
+                        <i class="fas fa-chevron-right text-xs"></i>
+                    </span>
+                <?php endif; ?>
+            </div>
+        </div>
         <div class="chart-container">
             <canvas id="salesTrendChart"></canvas>
         </div>
@@ -460,14 +570,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const renderCharts = () => {
         // Sales Trend Line Chart
-        const salesData = <?= $daily_sales_trend_json ?>;
+        const salesData = <?= $sales_trend_series_json ?>;
         const salesCanvas = document.getElementById('salesTrendChart');
         if (salesCanvas) {
             const salesCtx = salesCanvas.getContext('2d');
             new Chart(salesCtx, {
                 type: 'line',
                 data: {
-                    labels: salesData.map(d => `${d.day_name} • ${d.display_label}`),
+                    labels: salesData.map(d => d.display_label),
                     datasets: [{
                         label: 'Revenue',
                         data: salesData.map(d => d.revenue),
@@ -475,7 +585,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         backgroundColor: 'rgba(8, 65, 92, 0.1)',
                         tension: 0.4,
                         fill: true,
-                        pointRadius: 4,
+                        pointRadius: salesData.length > 20 ? 2 : 4,
+                        pointHoverRadius: salesData.length > 20 ? 4 : 6,
                         pointBackgroundColor: '#08415c',
                         pointBorderColor: '#0a5273'
                     }]
@@ -490,9 +601,35 @@ document.addEventListener('DOMContentLoaded', function() {
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
+                                title: (tooltipItems) => {
+                                    const point = salesData[tooltipItems[0]?.dataIndex] || null;
+                                    return point ? `${point.day_name}, ${point.display_label}` : '';
+                                },
                                 label: (context) => {
                                     const point = salesData[context.dataIndex] || { orders_count: 0, revenue: 0 };
-                                    return `PHP ${Number(point.revenue || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} • ${point.orders_count} order${point.orders_count === 1 ? '' : 's'}`;
+                                    return `PHP ${Number(point.revenue || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} � ${point.orders_count} order${point.orders_count === 1 ? '' : 's'}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                autoSkip: true,
+                                maxTicksLimit: 10
+                            },
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: (value) => {
+                                    return 'PHP ' + Number(value || 0).toLocaleString('en-PH', {
+                                        minimumFractionDigits: 0,
+                                        maximumFractionDigits: 0
+                                    });
                                 }
                             }
                         }
@@ -543,3 +680,4 @@ $dashboard_content = ob_get_clean();
 $content = $dashboard_content;
 include 'app.php'; // This loads your main layout
 ?>
+
