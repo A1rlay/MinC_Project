@@ -1299,8 +1299,8 @@ function getDisplayPaymentStatus(order) {
 
 function resolveOrderAssetUrl(path) {
     if (!path) return '';
-    if (/^(https?:)?\\//i.test(path)) return path;
-    return `../../${String(path).replace(/^\\/+/, '')}`;
+    if (/^(https?:)?\//i.test(path)) return path;
+    return `../../${String(path).replace(/^\/+/, '')}`;
 }
 
 function getPaymentMethodLabel(method) {
