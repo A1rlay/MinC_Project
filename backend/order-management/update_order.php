@@ -141,6 +141,7 @@ try {
     $statusEmailHeadline = 'Order Updated';
     $statusEmailMessage = 'Your order status has been updated.';
     $emailExtraNote = '';
+    $successMessage = 'Order updated successfully.';
 
     switch ($action) {
         case 'confirm_order':
@@ -166,9 +167,11 @@ try {
                 }
                 $statusEmailHeadline = 'Order Confirmed';
                 $statusEmailMessage = 'Your payment proof has been reviewed and your order is now confirmed.';
+                $successMessage = 'Payment proof approved and order confirmed.';
             } else {
                 $statusEmailHeadline = 'COD Order Confirmed';
                 $statusEmailMessage = 'Your COD order has been confirmed and will move to processing.';
+                $successMessage = 'COD order confirmed.';
             }
             if (in_array('confirmed_at', $orderColumns, true)) {
                 $updateParts[] = 'confirmed_at = NOW()';
@@ -182,6 +185,7 @@ try {
             $newOrderStatus = 'processing';
             $statusEmailHeadline = 'Order Processing';
             $statusEmailMessage = 'Your order is now being prepared.';
+            $successMessage = 'Order moved to processing.';
             break;
 
         case 'ship_order':
@@ -197,6 +201,9 @@ try {
             $statusEmailMessage = ($order['delivery_method'] ?? 'shipping') === 'pickup'
                 ? 'Your order is ready for pickup at the store.'
                 : 'Your order has been released for delivery.';
+            $successMessage = ($order['delivery_method'] ?? 'shipping') === 'pickup'
+                ? 'Order marked ready for pickup.'
+                : 'Order released for delivery.';
             if ($tracking_number !== '') {
                 $emailExtraNote = 'Tracking Number: ' . $tracking_number;
             }
@@ -222,6 +229,7 @@ try {
             }
             $statusEmailHeadline = 'Order Completed';
             $statusEmailMessage = 'Your order has been completed. A receipt is now attached to your order record.';
+            $successMessage = 'Order completed and receipt attached.';
             break;
 
         case 'mark_paid':
@@ -241,6 +249,7 @@ try {
             }
             $statusEmailHeadline = 'Payment Recorded';
             $statusEmailMessage = 'Your payment has been recorded successfully.';
+            $successMessage = 'Payment recorded successfully.';
             break;
 
         case 'cancel_order':
@@ -265,6 +274,7 @@ try {
             $statusEmailHeadline = 'Order Cancelled';
             $statusEmailMessage = 'Your order was cancelled by the admin team.';
             $emailExtraNote = 'Reason: ' . $reason;
+            $successMessage = 'Order cancelled successfully.';
             break;
 
         case 'refund_payment':
@@ -284,6 +294,7 @@ try {
             if ($reason !== '') {
                 $emailExtraNote = 'Refund note: ' . $reason;
             }
+            $successMessage = 'Refund processed successfully.';
             break;
     }
 
@@ -351,7 +362,7 @@ try {
 
     echo json_encode([
         'success' => true,
-        'message' => 'Order updated successfully',
+        'message' => $successMessage,
         'order' => [
             'order_id' => $order_id,
             'order_status' => $newOrderStatus,

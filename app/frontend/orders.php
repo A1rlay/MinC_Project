@@ -326,7 +326,7 @@ ob_start();
             </p>
         </div>
         <div class="flex items-center space-x-3">
-            <button onclick="exportOrders()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium flex items-center transition-colors duration-200">
+            <button type="button" data-export-orders class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium flex items-center transition-colors duration-200">
                 <i class="fas fa-download mr-2"></i>
                 Export Data
             </button>
@@ -532,11 +532,22 @@ ob_start();
                                 <?php endif; ?>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <button onclick="viewOrderDetails(<?php echo $order['order_id']; ?>)" 
-                                        class="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-50 transition-colors duration-200" 
-                                        title="View Details">
-                                    <i class="fas fa-eye"></i>
-                                </button>
+                                <div class="flex items-center gap-2">
+                                    <button type="button"
+                                            data-order-view="<?php echo (int)$order['order_id']; ?>"
+                                            class="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-50 transition-colors duration-200"
+                                            title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <?php if (mincPaymentMethodRequiresProof($order['payment_method']) && !empty($order['payment_proof_path']) && $order['order_status'] === 'pending'): ?>
+                                        <button type="button"
+                                                data-order-view="<?php echo (int)$order['order_id']; ?>"
+                                                class="px-3 py-2 bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200 transition-colors duration-200 text-xs font-semibold"
+                                                title="Review uploaded payment proof">
+                                            Review
+                                        </button>
+                                    <?php endif; ?>
+                                </div>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -606,8 +617,9 @@ ob_start();
                     </div>
                     
                     <div class="flex justify-end">
-                        <button onclick="viewOrderDetails(<?php echo $order['order_id']; ?>)" 
-                                class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200" 
+                        <button type="button"
+                                data-order-view="<?php echo (int)$order['order_id']; ?>"
+                                class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
                                 title="View Details">
                             <i class="fas fa-eye mr-2"></i>View Details
                         </button>
@@ -624,7 +636,7 @@ ob_start();
         <div class="p-6">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-xl font-semibold text-gray-800">Order Details</h3>
-                <button type="button" onclick="closeOrderDetails()" class="text-gray-400 hover:text-gray-600">
+                <button type="button" data-close-order-details class="text-gray-400 hover:text-gray-600">
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
@@ -716,7 +728,9 @@ function viewOrderDetails(orderId) {
     `;
     
     // Fetch order details
-    fetch(`../../backend/order-management/get_order.php?id=${orderId}`)
+    fetch(`../../backend/order-management/get_order.php?id=${encodeURIComponent(orderId)}`, {
+        credentials: 'same-origin'
+    })
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -743,12 +757,51 @@ function viewOrderDetails(orderId) {
                 <div class="text-center py-12">
                     <i class="fas fa-exclamation-triangle text-4xl text-red-400 mb-4"></i>
                     <p class="text-gray-600">Error loading order details: ${escapeHtml(error.message)}</p>
-                    <button onclick="viewOrderDetails(${orderId})" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    <button type="button" data-order-view="${orderId}" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                         Retry
                     </button>
                 </div>
             `;
         });
+}
+
+function bindOrderManagementActions() {
+    document.addEventListener('click', async function(event) {
+        const viewTrigger = event.target.closest('[data-order-view]');
+        if (viewTrigger) {
+            event.preventDefault();
+            const orderId = Number(viewTrigger.getAttribute('data-order-view'));
+            if (orderId > 0) {
+                viewOrderDetails(orderId);
+            }
+            return;
+        }
+
+        const actionTrigger = event.target.closest('[data-order-action]');
+        if (actionTrigger) {
+            event.preventDefault();
+            const orderId = Number(actionTrigger.getAttribute('data-order-id'));
+            const action = String(actionTrigger.getAttribute('data-order-action') || '').trim();
+            const askReason = actionTrigger.getAttribute('data-ask-reason') === '1';
+            if (orderId > 0 && action !== '') {
+                handleOrderAction(orderId, action, askReason);
+            }
+            return;
+        }
+
+        const closeTrigger = event.target.closest('[data-close-order-details]');
+        if (closeTrigger) {
+            event.preventDefault();
+            closeOrderDetails();
+            return;
+        }
+
+        const exportTrigger = event.target.closest('[data-export-orders]');
+        if (exportTrigger) {
+            event.preventDefault();
+            exportOrders(exportTrigger);
+        }
+    });
 }
 
 // Display order details
@@ -919,6 +972,26 @@ function displayOrderDetails(order, items) {
                         <p class="text-sm font-medium text-gray-900">₱${formatNumber(order.shipping_fee)}</p>
                     </div>
                 </div>
+                ${requiresPaymentProof(order.payment_method) ? `
+                    <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-wide text-amber-700">Admin Payment Review</p>
+                                <p class="text-sm text-amber-900 mt-1">
+                                    ${order.payment_proof_path
+                                        ? 'Open the uploaded proof, verify the reference and amount, then use Confirm Order below.'
+                                        : 'Waiting for the customer to upload proof before the order can be confirmed.'}
+                                </p>
+                            </div>
+                            ${order.payment_proof_path
+                                ? `<a href="${escapeHtml(resolveOrderAssetUrl(order.payment_proof_path))}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#08415c] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0a5273]">
+                                        <i class="fas fa-file-arrow-up"></i>
+                                        Open Proof
+                                   </a>`
+                                : ''}
+                        </div>
+                    </div>
+                ` : ''}
                 ${order.payment_review_notes ? `
                     <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
                         <p class="text-xs text-gray-500 mb-1">Payment Review Notes</p>
@@ -976,28 +1049,28 @@ function getOrderActionButtons(order) {
 
     if (order.order_status === 'pending') {
         if (!proofRequired || hasProof) {
-            buttons.push(`<button onclick="handleOrderAction(${orderId}, 'confirm_order')" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">Confirm Order</button>`);
+            buttons.push(`<button type="button" data-order-action="confirm_order" data-order-id="${orderId}" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">Confirm Order</button>`);
         } else {
             buttons.push(`<span class="px-3 py-2 bg-amber-100 text-amber-700 rounded-lg text-sm">Awaiting Proof</span>`);
         }
     }
     if (order.order_status === 'confirmed') {
-        buttons.push(`<button onclick="handleOrderAction(${orderId}, 'process_order')" class="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm">Mark Processing</button>`);
+        buttons.push(`<button type="button" data-order-action="process_order" data-order-id="${orderId}" class="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm">Mark Processing</button>`);
     }
     if (order.order_status === 'processing') {
-        buttons.push(`<button onclick="handleOrderAction(${orderId}, 'ship_order')" class="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm">${order.delivery_method === 'pickup' ? 'Mark Ready for Pickup' : 'Release for Delivery'}</button>`);
+        buttons.push(`<button type="button" data-order-action="ship_order" data-order-id="${orderId}" class="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm">${order.delivery_method === 'pickup' ? 'Mark Ready for Pickup' : 'Release for Delivery'}</button>`);
     }
     if (order.order_status === 'shipped') {
-        buttons.push(`<button onclick="handleOrderAction(${orderId}, 'deliver_order')" class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">${order.delivery_method === 'pickup' ? 'Complete Pickup' : 'Complete Delivery'}</button>`);
+        buttons.push(`<button type="button" data-order-action="deliver_order" data-order-id="${orderId}" class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">${order.delivery_method === 'pickup' ? 'Complete Pickup' : 'Complete Delivery'}</button>`);
     }
     if (order.payment_status === 'pending' && order.order_status !== 'cancelled' && !proofRequired) {
-        buttons.push(`<button onclick="handleOrderAction(${orderId}, 'mark_paid')" class="px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm">Complete Payment</button>`);
+        buttons.push(`<button type="button" data-order-action="mark_paid" data-order-id="${orderId}" class="px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm">Complete Payment</button>`);
     }
     if (['pending', 'confirmed', 'processing'].includes(order.order_status)) {
-        buttons.push(`<button onclick="handleOrderAction(${orderId}, 'cancel_order', true)" class="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm">Cancel Order</button>`);
+        buttons.push(`<button type="button" data-order-action="cancel_order" data-order-id="${orderId}" data-ask-reason="1" class="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm">Cancel Order</button>`);
     }
     if (order.payment_status === 'paid' && (order.order_status === 'cancelled' || order.order_status === 'delivered')) {
-        buttons.push(`<button onclick="handleOrderAction(${orderId}, 'refund_payment', true)" class="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 text-sm">Process Refund</button>`);
+        buttons.push(`<button type="button" data-order-action="refund_payment" data-order-id="${orderId}" data-ask-reason="1" class="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 text-sm">Process Refund</button>`);
     }
 
     return buttons.length ? buttons.join('') : '<span class="text-sm text-gray-500">No available actions for current state.</span>';
@@ -1046,6 +1119,7 @@ async function handleOrderAction(orderId, action, askReason = false) {
     try {
         const response = await fetch('../../backend/order-management/update_order.php', {
             method: 'POST',
+            credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ order_id: orderId, action, reason })
         });
@@ -1073,10 +1147,15 @@ function closeOrderDetails() {
 }
 
 // Export orders data
-function exportOrders() {
+function exportOrders(buttonElement = null) {
     console.log("Exporting orders...");
-    
-    const exportBtn = event.target.closest('button');
+
+    const exportBtn = buttonElement || document.querySelector('[data-export-orders]');
+    if (!exportBtn) {
+        showNotification('Export button not found.', 'error');
+        return;
+    }
+
     const originalContent = exportBtn.innerHTML;
     exportBtn.disabled = true;
     exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Exporting...';
@@ -1235,6 +1314,11 @@ function getPaymentMethodLabel(method) {
     return methods[method] || capitalizeFirst(method);
 }
 
+window.viewOrderDetails = viewOrderDetails;
+window.handleOrderAction = handleOrderAction;
+window.closeOrderDetails = closeOrderDetails;
+window.exportOrders = exportOrders;
+
 // Close modal when clicking outside
 document.addEventListener("click", function(event) {
     const modal = document.getElementById("orderDetailsModal");
@@ -1249,6 +1333,8 @@ document.addEventListener("keydown", function(event) {
         closeOrderDetails();
     }
 });
+
+bindOrderManagementActions();
 </script>
 <?php
 $order_management_content = ob_get_clean();// Set the content for app.php
