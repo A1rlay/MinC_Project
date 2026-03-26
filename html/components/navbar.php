@@ -120,23 +120,26 @@ $html_path = $is_in_html ? '' : 'html/';
                     <div class="mb-6">
                         <label class="block text-gray-700 font-medium mb-2">Default Shipping Address</label>
                         <textarea id="registerAddress" required rows="3" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]" placeholder="House/Unit No., Street, Barangay, Angeles City, Pampanga"></textarea>
-                        <p class="mt-2 text-xs text-gray-500">Type your address or use the location fields below. Selecting a location updates the address automatically.</p>
+                        <p class="mt-2 text-xs text-gray-500">Type your address or choose from the location options below. Your address will update automatically.</p>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                         <div>
                             <label class="block text-gray-700 font-medium mb-2">Barangay</label>
-                            <input type="text" id="registerBarangay" list="registerBarangayOptions" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]" placeholder="Select or type barangay">
-                            <datalist id="registerBarangayOptions"></datalist>
+                            <select id="registerBarangay" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c] bg-white">
+                                <option value="">Select barangay</option>
+                            </select>
                         </div>
                         <div>
                             <label class="block text-gray-700 font-medium mb-2">City</label>
-                            <input type="text" id="registerCity" list="registerCityOptions" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]" placeholder="Angeles City">
-                            <datalist id="registerCityOptions"></datalist>
+                            <select id="registerCity" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c] bg-white">
+                                <option value="">Select city</option>
+                            </select>
                         </div>
                         <div>
                             <label class="block text-gray-700 font-medium mb-2">Province</label>
-                            <input type="text" id="registerProvince" list="registerProvinceOptions" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]" placeholder="Pampanga">
-                            <datalist id="registerProvinceOptions"></datalist>
+                            <select id="registerProvince" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c] bg-white">
+                                <option value="">Select province</option>
+                            </select>
                         </div>
                     </div>
                     <button type="submit" class="w-full btn-primary-custom text-white py-3 rounded-lg font-semibold">
@@ -400,9 +403,40 @@ $html_path = $is_in_html ? '' : 'html/';
         return parts.join(', ');
     }
 
-    function populateDatalistOptions(datalistElement, values) {
-        if (!datalistElement) return;
-        datalistElement.innerHTML = values.map((value) => `<option value="${String(value).replace(/"/g, '&quot;')}"></option>`).join('');
+    function escapeShippingOption(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function populateSelectableOptions(targetElement, values, placeholderLabel = '') {
+        if (!targetElement) return;
+
+        const uniqueValues = Array.from(new Set((Array.isArray(values) ? values : []).map((value) => String(value || '').trim()).filter(Boolean)));
+
+        if (targetElement.tagName === 'SELECT') {
+            const currentValue = String(targetElement.value || '').trim();
+            const placeholderOption = placeholderLabel !== ''
+                ? `<option value="">${escapeShippingOption(placeholderLabel)}</option>`
+                : '';
+
+            targetElement.innerHTML = placeholderOption + uniqueValues
+                .map((value) => `<option value="${escapeShippingOption(value)}">${escapeShippingOption(value)}</option>`)
+                .join('');
+
+            if (uniqueValues.includes(currentValue)) {
+                targetElement.value = currentValue;
+            }
+            return;
+        }
+
+        if (targetElement.tagName === 'DATALIST') {
+            targetElement.innerHTML = uniqueValues
+                .map((value) => `<option value="${escapeShippingOption(value)}"></option>`)
+                .join('');
+        }
     }
 
     function initializeShippingControls(config = {}) {
@@ -415,9 +449,19 @@ $html_path = $is_in_html ? '' : 'html/';
             return null;
         }
 
-        populateDatalistOptions(document.getElementById(config.barangayListId || ''), MINC_ALLOWED_BARANGAYS);
-        populateDatalistOptions(document.getElementById(config.cityListId || ''), [MINC_DEFAULT_CITY]);
-        populateDatalistOptions(document.getElementById(config.provinceListId || ''), [MINC_DEFAULT_PROVINCE]);
+        const barangayOptionsTarget = barangayInput.tagName === 'SELECT'
+            ? barangayInput
+            : document.getElementById(config.barangayListId || '');
+        const cityOptionsTarget = cityInput.tagName === 'SELECT'
+            ? cityInput
+            : document.getElementById(config.cityListId || '');
+        const provinceOptionsTarget = provinceInput.tagName === 'SELECT'
+            ? provinceInput
+            : document.getElementById(config.provinceListId || '');
+
+        populateSelectableOptions(barangayOptionsTarget, MINC_ALLOWED_BARANGAYS, config.barangayPlaceholder || 'Select barangay');
+        populateSelectableOptions(cityOptionsTarget, [MINC_DEFAULT_CITY], config.cityPlaceholder || 'Select city');
+        populateSelectableOptions(provinceOptionsTarget, [MINC_DEFAULT_PROVINCE], config.provincePlaceholder || 'Select province');
 
         const syncFromAddress = () => {
             const parsedAddress = parseShippingAddress(
@@ -1019,10 +1063,7 @@ $html_path = $is_in_html ? '' : 'html/';
             addressId: 'registerAddress',
             barangayId: 'registerBarangay',
             cityId: 'registerCity',
-            provinceId: 'registerProvince',
-            barangayListId: 'registerBarangayOptions',
-            cityListId: 'registerCityOptions',
-            provinceListId: 'registerProvinceOptions'
+            provinceId: 'registerProvince'
         });
     });
 

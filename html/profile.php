@@ -201,7 +201,7 @@ if (!isset($_SESSION['user_id'])) {
                     <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
                         <i class="fas fa-truck-fast text-[#08415c] mr-2"></i>Default Shipping Address
                     </h3>
-                    <p class="text-sm text-gray-600 mb-4">This saved delivery info is required and reused in checkout. Type the full address or update the location fields below, and the address will stay in sync automatically.</p>
+                    <p class="text-sm text-gray-600 mb-4">This saved delivery info is required and reused in checkout. Type the full address or choose from the location options below, and the address will stay in sync automatically.</p>
                     <div class="mb-4">
                         <label for="address" class="block text-sm font-semibold text-gray-700 mb-2">Complete Address *</label>
                         <textarea id="address" name="address" rows="3" required
@@ -213,24 +213,24 @@ if (!isset($_SESSION['user_id'])) {
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                         <div>
                             <label for="shipping_barangay" class="block text-sm font-semibold text-gray-700 mb-2">Barangay</label>
-                            <input type="text" id="shipping_barangay" list="shipping_barangay_options"
-                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition"
-                                   placeholder="Select or type barangay">
-                            <datalist id="shipping_barangay_options"></datalist>
+                            <select id="shipping_barangay"
+                                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition bg-white">
+                                <option value="">Select barangay</option>
+                            </select>
                         </div>
                         <div>
                             <label for="shipping_city" class="block text-sm font-semibold text-gray-700 mb-2">City</label>
-                            <input type="text" id="shipping_city" list="shipping_city_options"
-                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition"
-                                   placeholder="Angeles City">
-                            <datalist id="shipping_city_options"></datalist>
+                            <select id="shipping_city"
+                                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition bg-white">
+                                <option value="">Select city</option>
+                            </select>
                         </div>
                         <div>
                             <label for="shipping_province" class="block text-sm font-semibold text-gray-700 mb-2">Province</label>
-                            <input type="text" id="shipping_province" list="shipping_province_options"
-                                   class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition"
-                                   placeholder="Pampanga">
-                            <datalist id="shipping_province_options"></datalist>
+                            <select id="shipping_province"
+                                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#08415c] transition bg-white">
+                                <option value="">Select province</option>
+                            </select>
                         </div>
                     </div>
                     <div class="mt-4">
@@ -357,10 +357,7 @@ if (!isset($_SESSION['user_id'])) {
                     addressId: 'address',
                     barangayId: 'shipping_barangay',
                     cityId: 'shipping_city',
-                    provinceId: 'shipping_province',
-                    barangayListId: 'shipping_barangay_options',
-                    cityListId: 'shipping_city_options',
-                    provinceListId: 'shipping_province_options'
+                    provinceId: 'shipping_province'
                 })
                 : null;
             loadProfile();

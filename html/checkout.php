@@ -476,30 +476,30 @@ if (is_array($saved_shipping_info)) {
                                               minlength="10" maxlength="255"
                                               placeholder="House/Unit No., Street, Barangay, Angeles City, Pampanga"
                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]"></textarea>
-                                    <p class="mt-2 text-xs text-gray-500">Write the full delivery address in one field, or use the location fields below. Any location changes update the address automatically.</p>
+                                    <p class="mt-2 text-xs text-gray-500">Write the full delivery address in one field, or choose from the location options below. Any location changes update the address automatically.</p>
                                 </div>
 
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div>
                                         <label class="block text-gray-700 font-medium mb-2">Barangay</label>
-                                        <input type="text" id="shippingBarangay" list="shippingBarangayOptions"
-                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]"
-                                               placeholder="Select or type barangay">
-                                        <datalist id="shippingBarangayOptions"></datalist>
+                                        <select id="shippingBarangay"
+                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c] bg-white">
+                                            <option value="">Select barangay</option>
+                                        </select>
                                     </div>
                                     <div>
                                         <label class="block text-gray-700 font-medium mb-2">City</label>
-                                        <input type="text" id="shippingCity" list="shippingCityOptions"
-                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]"
-                                               placeholder="Angeles City">
-                                        <datalist id="shippingCityOptions"></datalist>
+                                        <select id="shippingCity"
+                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c] bg-white">
+                                            <option value="">Select city</option>
+                                        </select>
                                     </div>
                                     <div>
                                         <label class="block text-gray-700 font-medium mb-2">Province</label>
-                                        <input type="text" id="shippingProvince" list="shippingProvinceOptions"
-                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c]"
-                                               placeholder="Pampanga">
-                                        <datalist id="shippingProvinceOptions"></datalist>
+                                        <select id="shippingProvince"
+                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#08415c] bg-white">
+                                            <option value="">Select province</option>
+                                        </select>
                                     </div>
                                 </div>
 
@@ -1917,10 +1917,7 @@ if (is_array($saved_shipping_info)) {
                     addressId: 'address',
                     barangayId: 'shippingBarangay',
                     cityId: 'shippingCity',
-                    provinceId: 'shippingProvince',
-                    barangayListId: 'shippingBarangayOptions',
-                    cityListId: 'shippingCityOptions',
-                    provinceListId: 'shippingProvinceOptions'
+                    provinceId: 'shippingProvince'
                 })
                 : null;
             if (hasSavedShippingData()) {
